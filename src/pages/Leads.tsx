@@ -1,0 +1,201 @@
+import { useEffect, useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { Lead, LeadStatus, STATUS_LABELS, STATUS_ORDER } from '@/types/crm';
+import { LeadCard } from '@/components/leads/LeadCard';
+import { LeadForm } from '@/components/leads/LeadForm';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { useToast } from '@/hooks/use-toast';
+import { Plus, Search, Filter, Loader2 } from 'lucide-react';
+
+export default function Leads() {
+  const [leads, setLeads] = useState<Lead[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [formOpen, setFormOpen] = useState(false);
+  const [editingLead, setEditingLead] = useState<Lead | null>(null);
+  const [deletingLead, setDeletingLead] = useState<Lead | null>(null);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    fetchLeads();
+  }, []);
+
+  const fetchLeads = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('leads')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      setLeads((data as Lead[]) || []);
+    } catch (error) {
+      console.error('Error fetching leads:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deletingLead) return;
+
+    try {
+      const { error } = await supabase
+        .from('leads')
+        .delete()
+        .eq('id', deletingLead.id);
+      
+      if (error) throw error;
+      
+      toast({
+        title: 'Lead removido',
+        description: 'O lead foi removido com sucesso.',
+      });
+      
+      fetchLeads();
+    } catch (error: any) {
+      toast({
+        title: 'Erro',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setDeletingLead(null);
+    }
+  };
+
+  const filteredLeads = leads.filter(lead => {
+    const matchesSearch = 
+      lead.company_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (lead.contact_name?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false);
+    
+    const matchesStatus = statusFilter === 'all' || lead.status === statusFilter;
+    
+    return matchesSearch && matchesStatus;
+  });
+
+  const handleEdit = (lead: Lead) => {
+    setEditingLead(lead);
+    setFormOpen(true);
+  };
+
+  const handleNewLead = () => {
+    setEditingLead(null);
+    setFormOpen(true);
+  };
+
+  return (
+    <div className="p-6 space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold">Leads</h1>
+          <p className="text-muted-foreground">Gerencie seus leads de prospecção</p>
+        </div>
+        <Button onClick={handleNewLead} className="gap-2">
+          <Plus className="w-4 h-4" />
+          Novo Lead
+        </Button>
+      </div>
+
+      {/* Filters */}
+      <div className="flex flex-col sm:flex-row gap-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder="Buscar por empresa ou contato..."
+            className="pl-10"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-full sm:w-[200px]">
+            <Filter className="w-4 h-4 mr-2" />
+            <SelectValue placeholder="Filtrar por status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos os Status</SelectItem>
+            {STATUS_ORDER.map((status) => (
+              <SelectItem key={status} value={status}>
+                {STATUS_LABELS[status]}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Stats */}
+      <div className="flex items-center gap-4 text-sm text-muted-foreground">
+        <span>{filteredLeads.length} lead{filteredLeads.length !== 1 ? 's' : ''} encontrado{filteredLeads.length !== 1 ? 's' : ''}</span>
+      </div>
+
+      {/* Leads Grid */}
+      {loading ? (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      ) : filteredLeads.length === 0 ? (
+        <div className="text-center py-12">
+          <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+            <Search className="w-8 h-8 text-muted-foreground" />
+          </div>
+          <h3 className="font-semibold mb-1">Nenhum lead encontrado</h3>
+          <p className="text-muted-foreground mb-4">
+            {searchQuery || statusFilter !== 'all' 
+              ? 'Tente ajustar os filtros de busca'
+              : 'Comece adicionando seu primeiro lead'}
+          </p>
+          {!searchQuery && statusFilter === 'all' && (
+            <Button onClick={handleNewLead} variant="outline" className="gap-2">
+              <Plus className="w-4 h-4" />
+              Adicionar Lead
+            </Button>
+          )}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {filteredLeads.map((lead) => (
+            <LeadCard
+              key={lead.id}
+              lead={lead}
+              onEdit={handleEdit}
+              onDelete={setDeletingLead}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Lead Form Modal */}
+      <LeadForm
+        open={formOpen}
+        onOpenChange={setFormOpen}
+        lead={editingLead}
+        onSuccess={fetchLeads}
+      />
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={!!deletingLead} onOpenChange={() => setDeletingLead(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remover Lead</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja remover o lead "{deletingLead?.company_name}"? 
+              Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Remover
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}

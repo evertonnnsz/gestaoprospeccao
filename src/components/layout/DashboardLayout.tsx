@@ -3,9 +3,10 @@ import { Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { AppSidebar } from './AppSidebar';
 import { Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 export function DashboardLayout() {
-  const { user, loading, isApproved, isAdmin } = useAuth();
+  const { user, loading, isApproved, isAdmin, signOut } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -39,12 +40,15 @@ export function DashboardLayout() {
             Seu cadastro foi recebido e está aguardando aprovação do administrador. 
             Você receberá acesso assim que for aprovado.
           </p>
-          <button
-            onClick={() => navigate('/auth')}
-            className="text-primary hover:underline text-sm"
+          <Button
+            variant="outline"
+            onClick={async () => {
+              await signOut();
+              navigate('/auth');
+            }}
           >
             Voltar para o login
-          </button>
+          </Button>
         </div>
       </div>
     );

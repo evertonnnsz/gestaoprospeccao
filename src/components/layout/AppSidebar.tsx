@@ -48,16 +48,34 @@ export function AppSidebar() {
       <div className="h-16 flex items-center justify-between px-4 border-b border-sidebar-border">
         {!collapsed && (
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-sidebar-primary rounded-lg flex items-center justify-center">
-              <Target className="w-5 h-5 text-sidebar-primary-foreground" />
-            </div>
-            <span className="font-semibold text-lg">CRM Prospect</span>
+            {profile?.company_logo_url ? (
+              <img 
+                src={profile.company_logo_url} 
+                alt="Logo" 
+                className="w-9 h-9 rounded-lg object-contain"
+              />
+            ) : (
+              <div className="w-9 h-9 bg-sidebar-primary rounded-lg flex items-center justify-center">
+                <Target className="w-5 h-5 text-sidebar-primary-foreground" />
+              </div>
+            )}
+            <span className="font-semibold text-lg">{profile?.company_name || 'CRM Prospect'}</span>
           </div>
         )}
         {collapsed && (
-          <div className="w-9 h-9 bg-sidebar-primary rounded-lg flex items-center justify-center mx-auto">
-            <Target className="w-5 h-5 text-sidebar-primary-foreground" />
-          </div>
+          <>
+            {profile?.company_logo_url ? (
+              <img 
+                src={profile.company_logo_url} 
+                alt="Logo" 
+                className="w-9 h-9 rounded-lg object-contain mx-auto"
+              />
+            ) : (
+              <div className="w-9 h-9 bg-sidebar-primary rounded-lg flex items-center justify-center mx-auto">
+                <Target className="w-5 h-5 text-sidebar-primary-foreground" />
+              </div>
+            )}
+          </>
         )}
       </div>
 

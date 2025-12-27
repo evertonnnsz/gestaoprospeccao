@@ -249,9 +249,7 @@ export default function Dashboard() {
               <Calendar className="w-5 h-5 text-chart-4" />
             </div>
             <div>
-              <p className="text-2xl font-bold">
-                {filteredLeads.filter(l => l.status === 'reuniao_realizada').length}
-              </p>
+              <p className="text-2xl font-bold">{meetingsHeld}</p>
               <p className="text-xs text-muted-foreground">Reuniões Realizadas</p>
             </div>
           </div>

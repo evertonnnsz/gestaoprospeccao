@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -24,21 +24,60 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
   const [loading, setLoading] = useState(false);
   
   const [formData, setFormData] = useState({
-    company_name: lead?.company_name || '',
-    contact_name: lead?.contact_name || '',
-    whatsapp: lead?.whatsapp || '',
-    instagram: lead?.instagram || '',
-    status: lead?.status || 'lead_coletado' as LeadStatus,
-    observations: lead?.observations || '',
-    lead_source: lead?.lead_source || '',
-    segment: lead?.segment || '',
-    follow_up_1: lead?.follow_up_1 || '',
-    follow_up_2: lead?.follow_up_2 || '',
-    follow_up_3: lead?.follow_up_3 || '',
-    last_contact: lead?.last_contact || '',
-    next_action: lead?.next_action || '',
-    approach_date: lead?.approach_date || new Date().toISOString().split('T')[0],
+    company_name: '',
+    contact_name: '',
+    whatsapp: '',
+    instagram: '',
+    status: 'lead_coletado' as LeadStatus,
+    observations: '',
+    lead_source: '',
+    segment: '',
+    follow_up_1: '',
+    follow_up_2: '',
+    follow_up_3: '',
+    last_contact: '',
+    next_action: '',
+    approach_date: new Date().toISOString().split('T')[0],
   });
+
+  // Sync form data when lead prop changes
+  useEffect(() => {
+    if (lead) {
+      setFormData({
+        company_name: lead.company_name || '',
+        contact_name: lead.contact_name || '',
+        whatsapp: lead.whatsapp || '',
+        instagram: lead.instagram || '',
+        status: lead.status || 'lead_coletado',
+        observations: lead.observations || '',
+        lead_source: lead.lead_source || '',
+        segment: lead.segment || '',
+        follow_up_1: lead.follow_up_1 || '',
+        follow_up_2: lead.follow_up_2 || '',
+        follow_up_3: lead.follow_up_3 || '',
+        last_contact: lead.last_contact || '',
+        next_action: lead.next_action || '',
+        approach_date: lead.approach_date || new Date().toISOString().split('T')[0],
+      });
+    } else {
+      setFormData({
+        company_name: '',
+        contact_name: '',
+        whatsapp: '',
+        instagram: '',
+        status: 'lead_coletado',
+        observations: '',
+        lead_source: '',
+        segment: '',
+        follow_up_1: '',
+        follow_up_2: '',
+        follow_up_3: '',
+        last_contact: '',
+        next_action: '',
+        approach_date: new Date().toISOString().split('T')[0],
+      });
+    }
+  }, [lead]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

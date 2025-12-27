@@ -49,15 +49,11 @@ export default function Funnel() {
                   <span className="text-lg font-bold">{statusLeads.length}</span>
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-2 max-h-[400px] overflow-y-auto">
-                {statusLeads.map((lead) => (
-                  <div key={lead.id} className="p-2 bg-muted/50 rounded-lg text-sm">
-                    <p className="font-medium truncate">{lead.company_name}</p>
-                    {lead.contact_name && <p className="text-xs text-muted-foreground truncate">{lead.contact_name}</p>}
-                  </div>
-                ))}
-                {statusLeads.length === 0 && <p className="text-xs text-muted-foreground text-center py-4">Nenhum lead</p>}
-              </CardContent>
+              {statusLeads.length === 0 && (
+                <CardContent>
+                  <p className="text-xs text-muted-foreground text-center py-2">Nenhum lead</p>
+                </CardContent>
+              )}
             </Card>
           );
         })}

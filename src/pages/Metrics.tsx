@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Lead } from '@/types/crm';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { PeriodFilter, PeriodType, filterByPeriod } from '@/components/filters/PeriodFilter';
+import { PeriodFilter, PeriodType, DateRange, filterByPeriod } from '@/components/filters/PeriodFilter';
 import { Loader2, TrendingUp, Users, Target, Percent } from 'lucide-react';
 
 const COLORS = ['hsl(217, 91%, 60%)', 'hsl(142, 76%, 36%)', 'hsl(38, 92%, 50%)', 'hsl(280, 65%, 60%)', 'hsl(0, 84%, 60%)'];
@@ -12,6 +12,7 @@ export default function Metrics() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState<PeriodType>('all');
+  const [dateRange, setDateRange] = useState<DateRange>({ from: undefined, to: undefined });
 
   useEffect(() => {
     const fetchLeads = async () => {
@@ -22,7 +23,7 @@ export default function Metrics() {
     fetchLeads();
   }, []);
 
-  const filteredLeads = filterByPeriod(leads, period);
+  const filteredLeads = filterByPeriod(leads, period, dateRange);
 
   const totalLeads = filteredLeads.length;
   const closedLeads = filteredLeads.filter(l => l.status === 'fechado').length;
@@ -56,7 +57,7 @@ export default function Metrics() {
           <h1 className="text-2xl font-bold">Métricas</h1>
           <p className="text-muted-foreground">{totalLeads} leads analisados no período</p>
         </div>
-        <PeriodFilter value={period} onChange={setPeriod} />
+        <PeriodFilter value={period} onChange={setPeriod} dateRange={dateRange} onDateRangeChange={setDateRange} />
       </div>
 
       {/* Stats Cards */}

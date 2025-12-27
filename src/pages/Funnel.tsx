@@ -3,13 +3,14 @@ import { supabase } from '@/integrations/supabase/client';
 import { Lead, LeadStatus, STATUS_ORDER } from '@/types/crm';
 import { LeadStatusBadge } from '@/components/leads/LeadStatusBadge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { PeriodFilter, PeriodType, filterByPeriod } from '@/components/filters/PeriodFilter';
+import { PeriodFilter, PeriodType, DateRange, filterByPeriod } from '@/components/filters/PeriodFilter';
 import { Loader2 } from 'lucide-react';
 
 export default function Funnel() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState<PeriodType>('all');
+  const [dateRange, setDateRange] = useState<DateRange>({ from: undefined, to: undefined });
 
   useEffect(() => {
     const fetchLeads = async () => {
@@ -20,7 +21,7 @@ export default function Funnel() {
     fetchLeads();
   }, []);
 
-  const filteredLeads = filterByPeriod(leads, period);
+  const filteredLeads = filterByPeriod(leads, period, dateRange);
   const getLeadsByStatus = (status: LeadStatus) => filteredLeads.filter(l => l.status === status);
 
   if (loading) {
@@ -34,7 +35,7 @@ export default function Funnel() {
           <h1 className="text-2xl font-bold">Funil de Prospecção</h1>
           <p className="text-muted-foreground">{filteredLeads.length} leads no período selecionado</p>
         </div>
-        <PeriodFilter value={period} onChange={setPeriod} />
+        <PeriodFilter value={period} onChange={setPeriod} dateRange={dateRange} onDateRangeChange={setDateRange} />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">

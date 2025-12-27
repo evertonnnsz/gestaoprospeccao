@@ -33,8 +33,12 @@ export default function Funnel() {
   const closedStatuses: LeadStatus[] = ['fechado', 'lead_perdido'];
   
   const getLeadsByStatus = (status: LeadStatus) => {
-    // Agendou Reunião e Reunião Realizada: incluir proposta_enviada + em_negociacao + fechados/perdidos
-    if (['agendou_reuniao', 'reuniao_realizada'].includes(status)) {
+    // Agendou Reunião: incluir reuniao_realizada + proposta_enviada + em_negociacao + fechados/perdidos
+    if (status === 'agendou_reuniao') {
+      return filteredLeads.filter(l => l.status === status || l.status === 'reuniao_realizada' || l.status === 'proposta_enviada' || l.status === 'em_negociacao' || closedStatuses.includes(l.status as LeadStatus));
+    }
+    // Reunião Realizada: incluir proposta_enviada + em_negociacao + fechados/perdidos
+    if (status === 'reuniao_realizada') {
       return filteredLeads.filter(l => l.status === status || l.status === 'proposta_enviada' || l.status === 'em_negociacao' || closedStatuses.includes(l.status as LeadStatus));
     }
     // Proposta Enviada: incluir em_negociacao + fechados/perdidos

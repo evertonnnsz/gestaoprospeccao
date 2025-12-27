@@ -5,6 +5,7 @@ import { Lead, LeadStatus, STATUS_LABELS } from '@/types/crm';
 import { StatsCard } from '@/components/dashboard/StatsCard';
 import { LeadStatusBadge } from '@/components/leads/LeadStatusBadge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { PeriodFilter, PeriodType, filterByPeriod } from '@/components/filters/PeriodFilter';
 import { 
   Users, 
   Target, 
@@ -24,6 +25,7 @@ export default function Dashboard() {
   const { profile } = useAuth();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
+  const [period, setPeriod] = useState<PeriodType>('all');
 
   useEffect(() => {
     fetchLeads();
@@ -45,12 +47,14 @@ export default function Dashboard() {
     }
   };
 
+  const filteredLeads = filterByPeriod(leads, period);
+
   // Calculate stats
-  const totalLeads = leads.length;
-  const closedLeads = leads.filter(l => l.status === 'fechado').length;
-  const meetingsScheduled = leads.filter(l => ['agendou_reuniao', 'reuniao_realizada'].includes(l.status)).length;
+  const totalLeads = filteredLeads.length;
+  const closedLeads = filteredLeads.filter(l => l.status === 'fechado').length;
+  const meetingsScheduled = filteredLeads.filter(l => ['agendou_reuniao', 'reuniao_realizada'].includes(l.status || '')).length;
   
-  const overdueFollowUps = leads.filter(lead => {
+  const overdueFollowUps = filteredLeads.filter(lead => {
     const followUps = [lead.follow_up_1, lead.follow_up_2, lead.follow_up_3].filter(Boolean);
     return followUps.some(date => date && isPast(new Date(date)) && !isToday(new Date(date)));
   }).length;
@@ -59,8 +63,8 @@ export default function Dashboard() {
 
   // Status distribution for chart
   const statusData = Object.entries(
-    leads.reduce((acc, lead) => {
-      acc[lead.status] = (acc[lead.status] || 0) + 1;
+    filteredLeads.reduce((acc, lead) => {
+      if (lead.status) acc[lead.status] = (acc[lead.status] || 0) + 1;
       return acc;
     }, {} as Record<string, number>)
   ).map(([status, count]) => ({
@@ -69,12 +73,12 @@ export default function Dashboard() {
   }));
 
   // Recent leads
-  const recentLeads = leads.slice(0, 5);
+  const recentLeads = filteredLeads.slice(0, 5);
 
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold">
             Olá, {profile?.full_name?.split(' ')[0] || 'Usuário'}!
@@ -83,6 +87,7 @@ export default function Dashboard() {
             {format(new Date(), "EEEE, dd 'de' MMMM", { locale: ptBR })}
           </p>
         </div>
+        <PeriodFilter value={period} onChange={setPeriod} />
       </div>
 
       {/* Stats Grid */}
@@ -207,7 +212,7 @@ export default function Dashboard() {
             </div>
             <div>
               <p className="text-2xl font-bold">
-                {leads.filter(l => l.status === 'em_negociacao').length}
+                {filteredLeads.filter(l => l.status === 'em_negociacao').length}
               </p>
               <p className="text-xs text-muted-foreground">Em Negociação</p>
             </div>
@@ -221,7 +226,7 @@ export default function Dashboard() {
             </div>
             <div>
               <p className="text-2xl font-bold">
-                {leads.filter(l => l.status === 'proposta_enviada').length}
+                {filteredLeads.filter(l => l.status === 'proposta_enviada').length}
               </p>
               <p className="text-xs text-muted-foreground">Propostas Enviadas</p>
             </div>
@@ -235,7 +240,7 @@ export default function Dashboard() {
             </div>
             <div>
               <p className="text-2xl font-bold">
-                {leads.filter(l => l.status === 'reuniao_realizada').length}
+                {filteredLeads.filter(l => l.status === 'reuniao_realizada').length}
               </p>
               <p className="text-xs text-muted-foreground">Reuniões Realizadas</p>
             </div>

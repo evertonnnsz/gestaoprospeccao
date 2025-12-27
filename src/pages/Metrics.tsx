@@ -27,10 +27,10 @@ export default function Metrics() {
 
   const totalLeads = filteredLeads.length;
   const closedLeads = filteredLeads.filter(l => l.status === 'fechado').length;
-  const meetingsScheduled = filteredLeads.filter(l => ['agendou_reuniao', 'reuniao_realizada'].includes(l.status || '')).length;
+  const meetingsHeld = filteredLeads.filter(l => ['reuniao_realizada', 'proposta_enviada', 'em_negociacao', 'fechado', 'lead_perdido'].includes(l.status || '')).length;
   const responseRate = totalLeads > 0 ? ((filteredLeads.filter(l => l.responded === true).length / totalLeads) * 100).toFixed(1) : '0';
   const closeRate = totalLeads > 0 ? ((closedLeads / totalLeads) * 100).toFixed(1) : '0';
-  const meetingRate = totalLeads > 0 ? ((meetingsScheduled / totalLeads) * 100).toFixed(1) : '0';
+  const meetingRate = totalLeads > 0 ? ((meetingsHeld / totalLeads) * 100).toFixed(1) : '0';
 
   const sourceData = Object.entries(
     filteredLeads.reduce((acc, l) => {

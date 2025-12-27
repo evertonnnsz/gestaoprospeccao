@@ -28,6 +28,7 @@ export interface Lead {
   follow_up_3: string | null;
   last_contact: string | null;
   next_action: string | null;
+  responded: boolean | null;
   created_at: string;
   updated_at: string;
 }

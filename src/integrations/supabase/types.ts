@@ -29,6 +29,7 @@ export type Database = {
           lead_source: string | null
           next_action: string | null
           observations: string | null
+          responded: boolean | null
           segment: string | null
           status: Database["public"]["Enums"]["lead_status"] | null
           updated_at: string | null
@@ -49,6 +50,7 @@ export type Database = {
           lead_source?: string | null
           next_action?: string | null
           observations?: string | null
+          responded?: boolean | null
           segment?: string | null
           status?: Database["public"]["Enums"]["lead_status"] | null
           updated_at?: string | null
@@ -69,6 +71,7 @@ export type Database = {
           lead_source?: string | null
           next_action?: string | null
           observations?: string | null
+          responded?: boolean | null
           segment?: string | null
           status?: Database["public"]["Enums"]["lead_status"] | null
           updated_at?: string | null

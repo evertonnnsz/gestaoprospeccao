@@ -5,11 +5,12 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Lead, LeadStatus, STATUS_LABELS, STATUS_ORDER } from '@/types/crm';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { Building2, User, Phone, Instagram, Calendar, MessageSquare } from 'lucide-react';
+import { Building2, User, Phone, Instagram, Calendar, MessageSquare, MessageCircle } from 'lucide-react';
 
 interface LeadFormProps {
   open: boolean;
@@ -38,6 +39,7 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
     last_contact: '',
     next_action: '',
     approach_date: new Date().toISOString().split('T')[0],
+    responded: false,
   });
 
   // Sync form data when lead prop changes
@@ -58,6 +60,7 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
         last_contact: lead.last_contact || '',
         next_action: lead.next_action || '',
         approach_date: lead.approach_date || new Date().toISOString().split('T')[0],
+        responded: lead.responded || false,
       });
     } else {
       setFormData({
@@ -75,6 +78,7 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
         last_contact: '',
         next_action: '',
         approach_date: new Date().toISOString().split('T')[0],
+        responded: false,
       });
     }
   }, [lead]);
@@ -93,6 +97,7 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
       follow_up_3: formData.follow_up_3 || null,
       last_contact: formData.last_contact || null,
       approach_date: formData.approach_date || null,
+      responded: formData.responded,
     };
 
     try {
@@ -317,6 +322,19 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
               value={formData.last_contact}
               onChange={(e) => setFormData({ ...formData, last_contact: e.target.value })}
             />
+          </div>
+
+          {/* Responded Checkbox */}
+          <div className="flex items-center space-x-3 p-4 bg-muted/50 rounded-lg">
+            <Checkbox
+              id="responded"
+              checked={formData.responded}
+              onCheckedChange={(checked) => setFormData({ ...formData, responded: checked === true })}
+            />
+            <Label htmlFor="responded" className="flex items-center gap-2 cursor-pointer">
+              <MessageCircle className="w-4 h-4 text-success" />
+              Lead respondeu a mensagem
+            </Label>
           </div>
 
           {/* Observations */}

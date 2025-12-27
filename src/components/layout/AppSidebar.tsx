@@ -6,6 +6,7 @@ import {
   Settings, 
   LogOut,
   UserCheck,
+  UsersRound,
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react';
@@ -24,6 +25,7 @@ const navItems = [
 
 const adminItems = [
   { title: 'Aprovações', url: '/approvals', icon: UserCheck },
+  { title: 'Usuários', url: '/users', icon: UsersRound },
 ];
 
 const bottomItems = [

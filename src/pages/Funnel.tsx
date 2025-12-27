@@ -1,13 +1,15 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Lead, LeadStatus, STATUS_LABELS, STATUS_ORDER } from '@/types/crm';
+import { Lead, LeadStatus, STATUS_ORDER } from '@/types/crm';
 import { LeadStatusBadge } from '@/components/leads/LeadStatusBadge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { PeriodFilter, PeriodType, filterByPeriod } from '@/components/filters/PeriodFilter';
 import { Loader2 } from 'lucide-react';
 
 export default function Funnel() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
+  const [period, setPeriod] = useState<PeriodType>('all');
 
   useEffect(() => {
     const fetchLeads = async () => {
@@ -18,7 +20,8 @@ export default function Funnel() {
     fetchLeads();
   }, []);
 
-  const getLeadsByStatus = (status: LeadStatus) => leads.filter(l => l.status === status);
+  const filteredLeads = filterByPeriod(leads, period);
+  const getLeadsByStatus = (status: LeadStatus) => filteredLeads.filter(l => l.status === status);
 
   if (loading) {
     return <div className="flex items-center justify-center h-full"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
@@ -26,7 +29,14 @@ export default function Funnel() {
 
   return (
     <div className="p-6 space-y-6">
-      <h1 className="text-2xl font-bold">Funil de Prospecção</h1>
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold">Funil de Prospecção</h1>
+          <p className="text-muted-foreground">{filteredLeads.length} leads no período selecionado</p>
+        </div>
+        <PeriodFilter value={period} onChange={setPeriod} />
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {STATUS_ORDER.map((status) => {
           const statusLeads = getLeadsByStatus(status);

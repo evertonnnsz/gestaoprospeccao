@@ -11,6 +11,7 @@ import Leads from "./pages/Leads";
 import Funnel from "./pages/Funnel";
 import Metrics from "./pages/Metrics";
 import Approvals from "./pages/Approvals";
+import Users from "./pages/Users";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
@@ -32,6 +33,7 @@ const App = () => (
               <Route path="/funnel" element={<Funnel />} />
               <Route path="/metrics" element={<Metrics />} />
               <Route path="/approvals" element={<Approvals />} />
+              <Route path="/users" element={<Users />} />
               <Route path="/settings" element={<Settings />} />
             </Route>
             <Route path="*" element={<NotFound />} />

@@ -55,6 +55,16 @@ export default function Dashboard() {
   const meetingsScheduled = filteredLeads.filter(l => ['agendou_reuniao', 'reuniao_realizada'].includes(l.status || '')).length;
   
   const overdueFollowUps = filteredLeads.filter(lead => {
+    // Don't count overdue for lost leads or those without interest
+    if (lead.status === 'lead_perdido' || lead.status === 'sem_interesse') {
+      return false;
+    }
+    
+    // Don't count overdue if all three follow-ups are filled
+    if (lead.follow_up_1 && lead.follow_up_2 && lead.follow_up_3) {
+      return false;
+    }
+    
     const followUps = [lead.follow_up_1, lead.follow_up_2, lead.follow_up_3].filter(Boolean);
     return followUps.some(date => date && isPast(new Date(date)) && !isToday(new Date(date)));
   }).length;

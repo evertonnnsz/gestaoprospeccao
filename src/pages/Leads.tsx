@@ -15,6 +15,7 @@ export default function Leads() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [respondedFilter, setRespondedFilter] = useState<string>('all');
   const [formOpen, setFormOpen] = useState(false);
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
   const [deletingLead, setDeletingLead] = useState<Lead | null>(null);
@@ -75,7 +76,11 @@ export default function Leads() {
     
     const matchesStatus = statusFilter === 'all' || lead.status === statusFilter;
     
-    return matchesSearch && matchesStatus;
+    const matchesResponded = respondedFilter === 'all' || 
+      (respondedFilter === 'yes' && lead.responded === true) ||
+      (respondedFilter === 'no' && (lead.responded === false || lead.responded === null));
+    
+    return matchesSearch && matchesStatus && matchesResponded;
   });
 
   const handleEdit = (lead: Lead) => {
@@ -125,6 +130,16 @@ export default function Leads() {
                 {STATUS_LABELS[status]}
               </SelectItem>
             ))}
+          </SelectContent>
+        </Select>
+        <Select value={respondedFilter} onValueChange={setRespondedFilter}>
+          <SelectTrigger className="w-full sm:w-[200px]">
+            <SelectValue placeholder="Filtrar por resposta" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todas as Respostas</SelectItem>
+            <SelectItem value="yes">Respondeu</SelectItem>
+            <SelectItem value="no">Não Respondeu</SelectItem>
           </SelectContent>
         </Select>
       </div>

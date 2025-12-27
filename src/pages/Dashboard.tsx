@@ -52,7 +52,7 @@ export default function Dashboard() {
   // Calculate stats
   const totalLeads = filteredLeads.length;
   const closedLeads = filteredLeads.filter(l => l.status === 'fechado').length;
-  const meetingsScheduled = filteredLeads.filter(l => ['agendou_reuniao', 'reuniao_realizada'].includes(l.status || '')).length;
+  const meetingsHeld = filteredLeads.filter(l => ['reuniao_realizada', 'proposta_enviada', 'em_negociacao', 'fechado', 'lead_perdido'].includes(l.status || '')).length;
   
   const overdueFollowUps = filteredLeads.filter(lead => {
     // Don't count overdue for lost leads or those without interest
@@ -109,8 +109,8 @@ export default function Dashboard() {
           variant="primary"
         />
         <StatsCard
-          title="Reuniões Agendadas"
-          value={meetingsScheduled}
+          title="Reuniões Realizadas"
+          value={meetingsHeld}
           icon={Calendar}
           variant="success"
         />

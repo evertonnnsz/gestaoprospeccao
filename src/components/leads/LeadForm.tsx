@@ -37,6 +37,7 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
     follow_up_3: lead?.follow_up_3 || '',
     last_contact: lead?.last_contact || '',
     next_action: lead?.next_action || '',
+    approach_date: lead?.approach_date || new Date().toISOString().split('T')[0],
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -52,6 +53,7 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
       follow_up_2: formData.follow_up_2 || null,
       follow_up_3: formData.follow_up_3 || null,
       last_contact: formData.last_contact || null,
+      approach_date: formData.approach_date || null,
     };
 
     try {
@@ -113,6 +115,21 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
                   value={formData.company_name}
                   onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
                   required
+                />
+              </div>
+            </div>
+
+            {/* Approach Date */}
+            <div className="space-y-2">
+              <Label htmlFor="approach_date">Data do Cadastro</Label>
+              <div className="relative">
+                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  id="approach_date"
+                  type="date"
+                  className="pl-10"
+                  value={formData.approach_date}
+                  onChange={(e) => setFormData({ ...formData, approach_date: e.target.value })}
                 />
               </div>
             </div>

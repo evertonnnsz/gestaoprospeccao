@@ -5,7 +5,7 @@ import { LeadStatusBadge } from '@/components/leads/LeadStatusBadge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PeriodFilter, PeriodType, DateRange, filterByPeriod } from '@/components/filters/PeriodFilter';
-import { Loader2 } from 'lucide-react';
+import { Loader2, MessageCircle } from 'lucide-react';
 
 export default function Funnel() {
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -30,6 +30,7 @@ export default function Funnel() {
     return true;
   });
   const getLeadsByStatus = (status: LeadStatus) => filteredLeads.filter(l => l.status === status);
+  const respondedLeads = periodFilteredLeads.filter(l => l.responded === true);
 
   if (loading) {
     return <div className="flex items-center justify-center h-full"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
@@ -56,6 +57,24 @@ export default function Funnel() {
           </Select>
         </div>
       </div>
+
+      {/* Card especial para leads que responderam */}
+      <Card className="shadow-sm border-2 border-green-200 bg-green-50/50 dark:bg-green-950/20 dark:border-green-800">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm flex items-center justify-between">
+            <span className="flex items-center gap-2 text-green-700 dark:text-green-400 font-medium">
+              <MessageCircle className="w-4 h-4" />
+              Leads que Responderam
+            </span>
+            <span className="text-lg font-bold text-green-700 dark:text-green-400">{respondedLeads.length}</span>
+          </CardTitle>
+        </CardHeader>
+        {respondedLeads.length === 0 && (
+          <CardContent>
+            <p className="text-xs text-muted-foreground text-center py-2">Nenhum lead respondeu</p>
+          </CardContent>
+        )}
+      </Card>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {STATUS_ORDER.map((status) => {

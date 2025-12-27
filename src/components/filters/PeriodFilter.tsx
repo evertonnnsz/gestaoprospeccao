@@ -99,25 +99,37 @@ export function PeriodFilter({ value, onChange, dateRange, onDateRangeChange }: 
   );
 }
 
-export function filterByPeriod<T extends { created_at: string | null }>(
+export function filterByPeriod<T extends { approach_date?: string | null }>(
   items: T[],
   period: PeriodType,
   dateRange?: DateRange
 ): T[] {
   if (period === 'all') return items;
 
+  const getItemDate = (item: T): Date | null => {
+    // Usa approach_date (data de cadastro/abordagem do lead)
+    if (item.approach_date) {
+      return new Date(item.approach_date + 'T00:00:00');
+    }
+    return null;
+  };
+
   if (period === 'custom' && dateRange) {
     return items.filter((item) => {
-      if (!item.created_at) return false;
-      const itemDate = new Date(item.created_at);
+      const itemDate = getItemDate(item);
+      if (!itemDate) return false;
       
       if (dateRange.from && dateRange.to) {
+        const startOfRange = new Date(dateRange.from);
+        startOfRange.setHours(0, 0, 0, 0);
         const endOfDay = new Date(dateRange.to);
         endOfDay.setHours(23, 59, 59, 999);
-        return itemDate >= dateRange.from && itemDate <= endOfDay;
+        return itemDate >= startOfRange && itemDate <= endOfDay;
       }
       if (dateRange.from) {
-        return itemDate >= dateRange.from;
+        const startOfRange = new Date(dateRange.from);
+        startOfRange.setHours(0, 0, 0, 0);
+        return itemDate >= startOfRange;
       }
       return true;
     });
@@ -148,8 +160,8 @@ export function filterByPeriod<T extends { created_at: string | null }>(
   }
 
   return items.filter((item) => {
-    if (!item.created_at) return false;
-    const itemDate = new Date(item.created_at);
+    const itemDate = getItemDate(item);
+    if (!itemDate) return false;
     return itemDate >= startDate;
   });
 }

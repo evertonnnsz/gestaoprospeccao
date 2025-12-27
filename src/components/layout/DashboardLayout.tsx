@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { AppSidebar } from './AppSidebar';
+import { OverdueFollowUpAlert } from '@/components/alerts/OverdueFollowUpAlert';
 import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -55,11 +56,14 @@ export function DashboardLayout() {
   }
 
   return (
-    <div className="min-h-screen flex w-full bg-background">
-      <AppSidebar />
-      <main className="flex-1 overflow-auto">
-        <Outlet />
-      </main>
+    <div className="min-h-screen flex flex-col w-full bg-background">
+      <OverdueFollowUpAlert />
+      <div className="flex flex-1">
+        <AppSidebar />
+        <main className="flex-1 overflow-auto">
+          <Outlet />
+        </main>
+      </div>
     </div>
   );
 }

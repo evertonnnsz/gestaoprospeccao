@@ -29,7 +29,18 @@ export default function Funnel() {
     if (respondedFilter === 'no') return lead.responded === false || lead.responded === null;
     return true;
   });
-  const getLeadsByStatus = (status: LeadStatus) => filteredLeads.filter(l => l.status === status);
+  // Status que representam leads que passaram por etapas anteriores
+  const closedStatuses: LeadStatus[] = ['fechado', 'lead_perdido'];
+  
+  const getLeadsByStatus = (status: LeadStatus) => {
+    // Para esses status, incluir também leads fechados/perdidos
+    const accumulativeStatuses: LeadStatus[] = ['agendou_reuniao', 'reuniao_realizada', 'proposta_enviada', 'em_negociacao'];
+    
+    if (accumulativeStatuses.includes(status)) {
+      return filteredLeads.filter(l => l.status === status || closedStatuses.includes(l.status as LeadStatus));
+    }
+    return filteredLeads.filter(l => l.status === status);
+  };
   const respondedLeads = periodFilteredLeads.filter(l => l.responded === true);
 
   if (loading) {

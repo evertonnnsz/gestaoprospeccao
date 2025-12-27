@@ -27,7 +27,7 @@ export default function Metrics() {
   const totalLeads = filteredLeads.length;
   const closedLeads = filteredLeads.filter(l => l.status === 'fechado').length;
   const meetingsScheduled = filteredLeads.filter(l => ['agendou_reuniao', 'reuniao_realizada'].includes(l.status || '')).length;
-  const responseRate = totalLeads > 0 ? ((filteredLeads.filter(l => !['lead_coletado', 'contato_iniciado'].includes(l.status || '')).length / totalLeads) * 100).toFixed(1) : '0';
+  const responseRate = totalLeads > 0 ? ((filteredLeads.filter(l => !['lead_coletado', 'contato_iniciado', 'visualizou_nao_respondeu'].includes(l.status || '')).length / totalLeads) * 100).toFixed(1) : '0';
   const closeRate = totalLeads > 0 ? ((closedLeads / totalLeads) * 100).toFixed(1) : '0';
   const meetingRate = totalLeads > 0 ? ((meetingsScheduled / totalLeads) * 100).toFixed(1) : '0';
 

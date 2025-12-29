@@ -198,62 +198,7 @@ export default function Dashboard() {
               </div>
             )}
           </CardContent>
-        </Card>
-      </div>
-
-      {/* Quick Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card className="p-4 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-success/10 flex items-center justify-center">
-              <CheckCircle2 className="w-5 h-5 text-success" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{closedLeads}</p>
-              <p className="text-xs text-muted-foreground">Fechados</p>
-            </div>
-          </div>
-        </Card>
-        
-        <Card className="p-4 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-              <Target className="w-5 h-5 text-primary" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">
-                {filteredLeads.filter(l => l.status === 'em_negociacao').length}
-              </p>
-              <p className="text-xs text-muted-foreground">Em Negociação</p>
-            </div>
-          </div>
-        </Card>
-        
-        <Card className="p-4 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-warning/10 flex items-center justify-center">
-              <Clock className="w-5 h-5 text-warning" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">
-                {filteredLeads.filter(l => l.status === 'proposta_enviada').length}
-              </p>
-              <p className="text-xs text-muted-foreground">Propostas Enviadas</p>
-            </div>
-          </div>
-        </Card>
-        
-        <Card className="p-4 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-chart-4/10 flex items-center justify-center">
-              <Calendar className="w-5 h-5 text-chart-4" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{meetingsHeld}</p>
-              <p className="text-xs text-muted-foreground">Reuniões Realizadas</p>
-            </div>
-          </div>
-        </Card>
+      </Card>
       </div>
     </div>
   );

@@ -8,7 +8,8 @@ interface FinancialSummaryCardsProps {
 }
 
 export function FinancialSummaryCards({ totalIncome, totalExpenses, clientsRevenue }: FinancialSummaryCardsProps) {
-  const balance = totalIncome - totalExpenses;
+  const combinedIncome = totalIncome + clientsRevenue;
+  const balance = combinedIncome - totalExpenses;
   
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -25,9 +26,9 @@ export function FinancialSummaryCards({ totalIncome, totalExpenses, clientsReven
           <TrendingUp className="h-4 w-4 text-emerald-500" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold text-emerald-600">{formatCurrency(totalIncome)}</div>
+          <div className="text-2xl font-bold text-emerald-600">{formatCurrency(combinedIncome)}</div>
           <p className="text-xs text-muted-foreground mt-1">
-            Período selecionado
+            Lançamentos + Clientes
           </p>
         </CardContent>
       </Card>

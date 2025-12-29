@@ -10,7 +10,7 @@ import { ExpensesByCategoryChart } from '@/components/financial/ExpensesByCatego
 import { IncomeVsExpensesChart } from '@/components/financial/IncomeVsExpensesChart';
 import { TransactionsTable } from '@/components/financial/TransactionsTable';
 import { TransactionForm } from '@/components/financial/TransactionForm';
-import { ProjectionsCard } from '@/components/financial/ProjectionsCard';
+
 import { PeriodFilter, PeriodType, DateRange, filterByPeriod } from '@/components/filters/PeriodFilter';
 import { Loader2 } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, subMonths, parseISO } from 'date-fns';
@@ -140,12 +140,6 @@ export default function Financial() {
     }));
   }, [transactions]);
 
-  // Calculate monthly expenses average
-  const monthlyExpensesAvg = useMemo(() => {
-    const monthsWithExpenses = monthlyData.filter(m => m.expenses > 0);
-    if (monthsWithExpenses.length === 0) return 0;
-    return monthsWithExpenses.reduce((sum, m) => sum + m.expenses, 0) / monthsWithExpenses.length;
-  }, [monthlyData]);
 
   const handleEdit = (transaction: FinancialTransaction) => {
     setEditingTransaction(transaction);
@@ -231,22 +225,12 @@ export default function Financial() {
         <ExpensesByCategoryChart data={expensesByCategory} />
       </div>
 
-      {/* Projections and Transactions */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
-          <TransactionsTable
-            transactions={filteredTransactions}
-            onEdit={handleEdit}
-            onRefresh={fetchData}
-          />
-        </div>
-        <div>
-          <ProjectionsCard
-            clients={clients}
-            monthlyExpensesAvg={monthlyExpensesAvg}
-          />
-        </div>
-      </div>
+      {/* Transactions */}
+      <TransactionsTable
+        transactions={filteredTransactions}
+        onEdit={handleEdit}
+        onRefresh={fetchData}
+      />
 
       {/* Transaction Form */}
       <TransactionForm

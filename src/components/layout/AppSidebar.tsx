@@ -9,6 +9,7 @@ import {
   UsersRound,
   ChevronLeft,
   ChevronRight,
+  Briefcase,
 } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -19,6 +20,7 @@ import { useState } from 'react';
 const navItems = [
   { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
   { title: 'Leads', url: '/leads', icon: Users },
+  { title: 'Clientes', url: '/clients', icon: Briefcase },
   { title: 'Funil', url: '/funnel', icon: Target },
   { title: 'Métricas', url: '/metrics', icon: BarChart3 },
 ];

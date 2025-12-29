@@ -18,6 +18,34 @@ interface ClientFormProps {
   onSuccess: () => void;
 }
 
+// Formata número para moeda brasileira (1400.50 -> "1.400,50")
+const formatCurrency = (value: number | string): string => {
+  const num = typeof value === 'string' ? parseFloat(value.replace(/\./g, '').replace(',', '.')) : value;
+  if (isNaN(num)) return '';
+  return num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
+
+// Converte string formatada para número (1.400,50 -> 1400.50)
+const parseCurrency = (value: string): number | null => {
+  if (!value) return null;
+  const cleaned = value.replace(/\./g, '').replace(',', '.');
+  const num = parseFloat(cleaned);
+  return isNaN(num) ? null : num;
+};
+
+// Formata input de moeda enquanto digita
+const handleCurrencyInput = (value: string): string => {
+  // Remove tudo que não seja número
+  const numbers = value.replace(/\D/g, '');
+  if (!numbers) return '';
+  
+  // Converte para centavos
+  const cents = parseInt(numbers, 10);
+  const reais = cents / 100;
+  
+  return reais.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
+
 export function ClientForm({ open, onOpenChange, client, lead, onSuccess }: ClientFormProps) {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -37,7 +65,7 @@ export function ClientForm({ open, onOpenChange, client, lead, onSuccess }: Clie
   useEffect(() => {
     if (client) {
       setFormData({
-        project_value: client.project_value?.toString() || '',
+        project_value: client.project_value ? formatCurrency(client.project_value) : '',
         project_start_date: client.project_start_date || '',
         payment_due_date: client.payment_due_date || '',
         contract_url: client.contract_url || '',
@@ -110,7 +138,7 @@ export function ClientForm({ open, onOpenChange, client, lead, onSuccess }: Clie
       const clientData = {
         user_id: user.id,
         lead_id: lead.id,
-        project_value: formData.project_value ? parseFloat(formData.project_value) : null,
+        project_value: parseCurrency(formData.project_value),
         project_start_date: formData.project_start_date || null,
         payment_due_date: formData.payment_due_date || null,
         contract_url: formData.contract_url || null,
@@ -173,11 +201,11 @@ export function ClientForm({ open, onOpenChange, client, lead, onSuccess }: Clie
               <Label htmlFor="project_value">Valor do Projeto (R$)</Label>
               <Input
                 id="project_value"
-                type="number"
-                step="0.01"
+                type="text"
+                inputMode="numeric"
                 placeholder="0,00"
                 value={formData.project_value}
-                onChange={(e) => setFormData(prev => ({ ...prev, project_value: e.target.value }))}
+                onChange={(e) => setFormData(prev => ({ ...prev, project_value: handleCurrencyInput(e.target.value) }))}
               />
             </div>
 

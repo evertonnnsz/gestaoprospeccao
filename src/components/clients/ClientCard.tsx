@@ -10,9 +10,10 @@ import {
   Clock, 
   Edit, 
   Trash2,
-  ExternalLink
+  ExternalLink,
+  AlertTriangle
 } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, addMonths, isBefore, isAfter } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 interface ClientCardProps {
@@ -35,8 +36,23 @@ export function ClientCard({ client, onEdit, onDelete }: ClientCardProps) {
     return format(new Date(date), 'dd/MM/yyyy', { locale: ptBR });
   };
 
+  // Verifica se o contrato está próximo do vencimento (1 mês)
+  const isContractExpiringSoon = () => {
+    if (!client.project_start_date || !client.contract_duration_months) {
+      return false;
+    }
+    const today = new Date();
+    const oneMonthFromNow = addMonths(today, 1);
+    const startDate = new Date(client.project_start_date);
+    const endDate = addMonths(startDate, client.contract_duration_months);
+    
+    return isAfter(endDate, today) && isBefore(endDate, oneMonthFromNow);
+  };
+
+  const contractExpiringSoon = isContractExpiringSoon();
+
   return (
-    <Card className="hover:shadow-md transition-shadow">
+    <Card className={`hover:shadow-md transition-shadow ${contractExpiringSoon ? 'border-warning ring-1 ring-warning/30' : ''}`}>
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
           <div>
@@ -48,6 +64,12 @@ export function ClientCard({ client, onEdit, onDelete }: ClientCardProps) {
               <p className="text-sm text-muted-foreground mt-1">
                 {client.lead.contact_name}
               </p>
+            )}
+            {contractExpiringSoon && (
+              <div className="flex items-center gap-1.5 mt-2 text-warning">
+                <AlertTriangle className="w-4 h-4" />
+                <span className="text-xs font-medium">Contrato vencendo em breve!</span>
+              </div>
             )}
           </div>
           <div className="flex gap-1">

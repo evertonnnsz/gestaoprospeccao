@@ -5,7 +5,7 @@ import { Lead, LeadStatus, STATUS_LABELS } from '@/types/crm';
 import { StatsCard } from '@/components/dashboard/StatsCard';
 import { LeadStatusBadge } from '@/components/leads/LeadStatusBadge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { PeriodFilter, PeriodType, filterByPeriod } from '@/components/filters/PeriodFilter';
+import { PeriodFilter, PeriodType, DateRange, filterByPeriod } from '@/components/filters/PeriodFilter';
 import { 
   Users, 
   Target, 
@@ -26,6 +26,7 @@ export default function Dashboard() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState<PeriodType>('all');
+  const [dateRange, setDateRange] = useState<DateRange>({ from: undefined, to: undefined });
 
   useEffect(() => {
     fetchLeads();
@@ -47,7 +48,7 @@ export default function Dashboard() {
     }
   };
 
-  const filteredLeads = filterByPeriod(leads, period);
+  const filteredLeads = filterByPeriod(leads, period, dateRange);
 
   // Calculate stats
   const totalLeads = filteredLeads.length;
@@ -97,7 +98,12 @@ export default function Dashboard() {
             {format(new Date(), "EEEE, dd 'de' MMMM", { locale: ptBR })}
           </p>
         </div>
-        <PeriodFilter value={period} onChange={setPeriod} />
+        <PeriodFilter 
+          value={period} 
+          onChange={setPeriod} 
+          dateRange={dateRange}
+          onDateRangeChange={setDateRange}
+        />
       </div>
 
       {/* Stats Grid */}

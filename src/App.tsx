@@ -9,6 +9,7 @@ import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Leads from "./pages/Leads";
 import Clients from "./pages/Clients";
+import Financial from "./pages/Financial";
 import Funnel from "./pages/Funnel";
 import Metrics from "./pages/Metrics";
 import Approvals from "./pages/Approvals";
@@ -32,6 +33,7 @@ const App = () => (
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/leads" element={<Leads />} />
               <Route path="/clients" element={<Clients />} />
+              <Route path="/financial" element={<Financial />} />
               <Route path="/funnel" element={<Funnel />} />
               <Route path="/metrics" element={<Metrics />} />
               <Route path="/approvals" element={<Approvals />} />

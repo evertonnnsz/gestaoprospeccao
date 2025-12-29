@@ -10,6 +10,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Briefcase,
+  DollarSign,
 } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -21,6 +22,7 @@ const navItems = [
   { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
   { title: 'Leads', url: '/leads', icon: Users },
   { title: 'Clientes', url: '/clients', icon: Briefcase },
+  { title: 'Financeiro', url: '/financial', icon: DollarSign },
   { title: 'Funil', url: '/funnel', icon: Target },
   { title: 'Métricas', url: '/metrics', icon: BarChart3 },
 ];

@@ -67,6 +67,56 @@ export type Database = {
           },
         ]
       }
+      financial_transactions: {
+        Row: {
+          amount: number
+          category: Database["public"]["Enums"]["expense_category"]
+          client_id: string | null
+          created_at: string
+          description: string
+          id: string
+          notes: string | null
+          transaction_date: string
+          type: Database["public"]["Enums"]["transaction_type"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          category?: Database["public"]["Enums"]["expense_category"]
+          client_id?: string | null
+          created_at?: string
+          description: string
+          id?: string
+          notes?: string | null
+          transaction_date?: string
+          type: Database["public"]["Enums"]["transaction_type"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          category?: Database["public"]["Enums"]["expense_category"]
+          client_id?: string | null
+          created_at?: string
+          description?: string
+          id?: string
+          notes?: string | null
+          transaction_date?: string
+          type?: Database["public"]["Enums"]["transaction_type"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "financial_transactions_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leads: {
         Row: {
           approach_date: string | null
@@ -202,6 +252,13 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "user"
+      expense_category:
+        | "marketing"
+        | "salarios"
+        | "aluguel"
+        | "ferramentas"
+        | "impostos"
+        | "outros"
       lead_status:
         | "lead_coletado"
         | "contato_iniciado"
@@ -214,6 +271,7 @@ export type Database = {
         | "fechado"
         | "sem_interesse"
         | "lead_perdido"
+      transaction_type: "income" | "expense"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -342,6 +400,14 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "user"],
+      expense_category: [
+        "marketing",
+        "salarios",
+        "aluguel",
+        "ferramentas",
+        "impostos",
+        "outros",
+      ],
       lead_status: [
         "lead_coletado",
         "contato_iniciado",
@@ -355,6 +421,7 @@ export const Constants = {
         "sem_interesse",
         "lead_perdido",
       ],
+      transaction_type: ["income", "expense"],
     },
   },
 } as const

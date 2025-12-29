@@ -14,6 +14,59 @@ export type Database = {
   }
   public: {
     Tables: {
+      clients: {
+        Row: {
+          contract_duration_months: number | null
+          contract_url: string | null
+          created_at: string
+          id: string
+          lead_id: string
+          notes: string | null
+          payment_due_date: string | null
+          project_start_date: string | null
+          project_value: number | null
+          services: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          contract_duration_months?: number | null
+          contract_url?: string | null
+          created_at?: string
+          id?: string
+          lead_id: string
+          notes?: string | null
+          payment_due_date?: string | null
+          project_start_date?: string | null
+          project_value?: number | null
+          services?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          contract_duration_months?: number | null
+          contract_url?: string | null
+          created_at?: string
+          id?: string
+          lead_id?: string
+          notes?: string | null
+          payment_due_date?: string | null
+          project_start_date?: string | null
+          project_value?: number | null
+          services?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clients_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: true
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leads: {
         Row: {
           approach_date: string | null

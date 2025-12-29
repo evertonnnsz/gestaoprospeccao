@@ -8,6 +8,7 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Leads from "./pages/Leads";
+import Clients from "./pages/Clients";
 import Funnel from "./pages/Funnel";
 import Metrics from "./pages/Metrics";
 import Approvals from "./pages/Approvals";
@@ -30,6 +31,7 @@ const App = () => (
             <Route element={<DashboardLayout />}>
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/leads" element={<Leads />} />
+              <Route path="/clients" element={<Clients />} />
               <Route path="/funnel" element={<Funnel />} />
               <Route path="/metrics" element={<Metrics />} />
               <Route path="/approvals" element={<Approvals />} />

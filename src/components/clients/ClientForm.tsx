@@ -86,6 +86,15 @@ export function ClientForm({ open, onOpenChange, client, lead, onSuccess }: Clie
     }
   }, [client, open]);
 
+  // Sanitiza o nome do arquivo removendo caracteres especiais
+  const sanitizeFileName = (name: string): string => {
+    return name
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '') // Remove acentos
+      .replace(/[^a-zA-Z0-9.-]/g, '_') // Substitui caracteres especiais por _
+      .replace(/_+/g, '_'); // Remove underscores duplicados
+  };
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !user) return;
@@ -101,7 +110,8 @@ export function ClientForm({ open, onOpenChange, client, lead, onSuccess }: Clie
 
     setUploading(true);
     try {
-      const fileName = `${user.id}/${Date.now()}_${file.name}`;
+      const sanitizedName = sanitizeFileName(file.name);
+      const fileName = `${user.id}/${Date.now()}_${sanitizedName}`;
       const { error: uploadError } = await supabase.storage
         .from('contracts')
         .upload(fileName, file);

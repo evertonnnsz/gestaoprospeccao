@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Lead, LeadStatus, STATUS_LABELS } from '@/types/crm';
@@ -23,6 +24,7 @@ const COLORS = ['hsl(217, 91%, 60%)', 'hsl(142, 76%, 36%)', 'hsl(38, 92%, 50%)',
 
 export default function Dashboard() {
   const { profile } = useAuth();
+  const navigate = useNavigate();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState<PeriodType>('all');
@@ -131,6 +133,7 @@ export default function Dashboard() {
           value={overdueFollowUps}
           icon={AlertTriangle}
           variant={overdueFollowUps > 0 ? 'destructive' : 'default'}
+          onClick={overdueFollowUps > 0 ? () => navigate('/leads?filter=overdue') : undefined}
         />
       </div>
 

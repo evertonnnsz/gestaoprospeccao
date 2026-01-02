@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Lead, LeadStatus, STATUS_LABELS, STATUS_ORDER } from '@/types/crm';
 import { LeadCard } from '@/components/leads/LeadCard';
@@ -8,18 +9,45 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Search, Filter, Loader2 } from 'lucide-react';
+import { Plus, Search, Filter, Loader2, AlertTriangle, X } from 'lucide-react';
+import { isPast, isToday } from 'date-fns';
+
+// Helper function to check if lead has overdue follow-up
+const hasOverdueFollowUp = (lead: Lead): boolean => {
+  if (lead.status === 'lead_perdido' || lead.status === 'sem_interesse') {
+    return false;
+  }
+  if (lead.follow_up_1 && lead.follow_up_2 && lead.follow_up_3) {
+    return false;
+  }
+  const followUps = [lead.follow_up_1, lead.follow_up_2, lead.follow_up_3].filter(Boolean);
+  return followUps.some(date => date && isPast(new Date(date)) && !isToday(new Date(date)));
+};
 
 export default function Leads() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [respondedFilter, setRespondedFilter] = useState<string>('all');
+  const [overdueFilter, setOverdueFilter] = useState<boolean>(searchParams.get('filter') === 'overdue');
   const [formOpen, setFormOpen] = useState(false);
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
   const [deletingLead, setDeletingLead] = useState<Lead | null>(null);
   const { toast } = useToast();
+
+  // Sync overdue filter with URL params
+  useEffect(() => {
+    const filterParam = searchParams.get('filter');
+    setOverdueFilter(filterParam === 'overdue');
+  }, [searchParams]);
+
+  const clearOverdueFilter = () => {
+    setOverdueFilter(false);
+    searchParams.delete('filter');
+    setSearchParams(searchParams);
+  };
 
   useEffect(() => {
     fetchLeads();
@@ -80,7 +108,9 @@ export default function Leads() {
       (respondedFilter === 'yes' && lead.responded === true) ||
       (respondedFilter === 'no' && (lead.responded === false || lead.responded === null));
     
-    return matchesSearch && matchesStatus && matchesResponded;
+    const matchesOverdue = !overdueFilter || hasOverdueFollowUp(lead);
+    
+    return matchesSearch && matchesStatus && matchesResponded && matchesOverdue;
   });
 
   const handleEdit = (lead: Lead) => {
@@ -98,14 +128,36 @@ export default function Leads() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Leads</h1>
-          <p className="text-muted-foreground">Gerencie seus leads de prospecção</p>
+          <h1 className="text-2xl font-bold">
+            {overdueFilter ? 'Follow-ups Vencidos' : 'Leads'}
+          </h1>
+          <p className="text-muted-foreground">
+            {overdueFilter ? 'Leads com follow-ups vencidos' : 'Gerencie seus leads de prospecção'}
+          </p>
         </div>
         <Button onClick={handleNewLead} className="gap-2">
           <Plus className="w-4 h-4" />
           Novo Lead
         </Button>
       </div>
+
+      {/* Overdue Filter Banner */}
+      {overdueFilter && (
+        <div className="bg-destructive/10 border border-destructive/20 rounded-lg px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-2 text-destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <span className="text-sm font-medium">
+              Exibindo apenas leads com follow-ups vencidos
+            </span>
+          </div>
+          <button
+            onClick={clearOverdueFilter}
+            className="text-destructive/70 hover:text-destructive transition-colors"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-4">

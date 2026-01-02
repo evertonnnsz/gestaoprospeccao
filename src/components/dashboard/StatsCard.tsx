@@ -10,6 +10,7 @@ interface StatsCardProps {
     isPositive: boolean;
   };
   variant?: 'default' | 'primary' | 'success' | 'warning' | 'destructive';
+  onClick?: () => void;
 }
 
 const variantStyles = {
@@ -28,12 +29,19 @@ const iconStyles = {
   destructive: 'bg-destructive/20 text-destructive',
 };
 
-export function StatsCard({ title, value, icon: Icon, trend, variant = 'default' }: StatsCardProps) {
+export function StatsCard({ title, value, icon: Icon, trend, variant = 'default', onClick }: StatsCardProps) {
   return (
-    <div className={cn(
-      "rounded-xl p-6 shadow-sm border border-border/50 transition-all hover:shadow-md animate-fade-in",
-      variantStyles[variant]
-    )}>
+    <div 
+      className={cn(
+        "rounded-xl p-6 shadow-sm border border-border/50 transition-all hover:shadow-md animate-fade-in",
+        variantStyles[variant],
+        onClick && "cursor-pointer"
+      )}
+      onClick={onClick}
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={onClick ? (e) => e.key === 'Enter' && onClick() : undefined}
+    >
       <div className="flex items-start justify-between">
         <div className="space-y-2">
           <p className="text-sm font-medium text-muted-foreground">{title}</p>

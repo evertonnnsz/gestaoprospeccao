@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Client, Lead } from '@/types/crm';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Client, Lead, MonthlyPaymentStatus } from '@/types/crm';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
@@ -60,6 +61,7 @@ export function ClientForm({ open, onOpenChange, client, lead, onSuccess }: Clie
     services: '',
     contract_duration_months: '',
     notes: '',
+    monthly_payment_status: 'pending' as 'paid' | 'overdue' | 'pending',
   });
 
   useEffect(() => {
@@ -72,6 +74,7 @@ export function ClientForm({ open, onOpenChange, client, lead, onSuccess }: Clie
         services: client.services || '',
         contract_duration_months: client.contract_duration_months?.toString() || '',
         notes: client.notes || '',
+        monthly_payment_status: (client.monthly_payment_status as 'paid' | 'overdue' | 'pending') || 'pending',
       });
     } else {
       setFormData({
@@ -82,6 +85,7 @@ export function ClientForm({ open, onOpenChange, client, lead, onSuccess }: Clie
         services: '',
         contract_duration_months: '',
         notes: '',
+        monthly_payment_status: 'pending',
       });
     }
   }, [client, open]);
@@ -155,6 +159,7 @@ export function ClientForm({ open, onOpenChange, client, lead, onSuccess }: Clie
         services: formData.services || null,
         contract_duration_months: formData.contract_duration_months ? parseInt(formData.contract_duration_months) : null,
         notes: formData.notes || null,
+        monthly_payment_status: formData.monthly_payment_status,
       };
 
       if (client) {
@@ -310,6 +315,25 @@ export function ClientForm({ open, onOpenChange, client, lead, onSuccess }: Clie
                 </Label>
               </div>
             )}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="monthly_payment_status">Status Pagamento Mês Vigente</Label>
+            <Select
+              value={formData.monthly_payment_status}
+              onValueChange={(value: 'paid' | 'overdue' | 'pending') => 
+                setFormData(prev => ({ ...prev, monthly_payment_status: value }))
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione o status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="pending">Pendente</SelectItem>
+                <SelectItem value="paid">Quitado</SelectItem>
+                <SelectItem value="overdue">Vencido</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-2">

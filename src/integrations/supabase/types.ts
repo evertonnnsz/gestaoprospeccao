@@ -21,6 +21,7 @@ export type Database = {
           created_at: string
           id: string
           lead_id: string
+          monthly_payment_status: string | null
           notes: string | null
           payment_due_date: string | null
           project_start_date: string | null
@@ -35,6 +36,7 @@ export type Database = {
           created_at?: string
           id?: string
           lead_id: string
+          monthly_payment_status?: string | null
           notes?: string | null
           payment_due_date?: string | null
           project_start_date?: string | null
@@ -49,6 +51,7 @@ export type Database = {
           created_at?: string
           id?: string
           lead_id?: string
+          monthly_payment_status?: string | null
           notes?: string | null
           payment_due_date?: string | null
           project_start_date?: string | null

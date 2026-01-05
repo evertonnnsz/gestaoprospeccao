@@ -33,6 +33,8 @@ export interface Lead {
   updated_at: string;
 }
 
+export type MonthlyPaymentStatus = 'paid' | 'overdue' | 'pending';
+
 export interface Client {
   id: string;
   user_id: string;
@@ -44,6 +46,7 @@ export interface Client {
   services: string | null;
   contract_duration_months: number | null;
   notes: string | null;
+  monthly_payment_status: MonthlyPaymentStatus | null;
   created_at: string;
   updated_at: string;
   lead?: Lead;

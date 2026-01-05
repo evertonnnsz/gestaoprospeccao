@@ -1,4 +1,4 @@
-import { Client } from '@/types/crm';
+import { Client, MonthlyPaymentStatus } from '@/types/crm';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -11,10 +11,19 @@ import {
   Edit, 
   Trash2,
   ExternalLink,
-  AlertTriangle
+  AlertTriangle,
+  CheckCircle2,
+  AlertCircle,
+  CircleDashed
 } from 'lucide-react';
 import { format, addMonths, isBefore, isAfter } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+
+const PAYMENT_STATUS_CONFIG: Record<MonthlyPaymentStatus, { label: string; icon: typeof CheckCircle2; className: string }> = {
+  paid: { label: 'Quitado', icon: CheckCircle2, className: 'bg-green-100 text-green-700 border-green-200' },
+  overdue: { label: 'Vencido', icon: AlertCircle, className: 'bg-red-100 text-red-700 border-red-200' },
+  pending: { label: 'Pendente', icon: CircleDashed, className: 'bg-yellow-100 text-yellow-700 border-yellow-200' },
+};
 
 interface ClientCardProps {
   client: Client;
@@ -83,6 +92,22 @@ export function ClientCard({ client, onEdit, onDelete }: ClientCardProps) {
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
+        {client.monthly_payment_status && (
+          <div className="flex items-center">
+            {(() => {
+              const status = client.monthly_payment_status as MonthlyPaymentStatus;
+              const config = PAYMENT_STATUS_CONFIG[status];
+              const Icon = config.icon;
+              return (
+                <Badge variant="outline" className={`gap-1 ${config.className}`}>
+                  <Icon className="w-3.5 h-3.5" />
+                  Mês: {config.label}
+                </Badge>
+              );
+            })()}
+          </div>
+        )}
+
         <div className="grid grid-cols-2 gap-3">
           <div className="flex items-center gap-2 text-sm">
             <DollarSign className="w-4 h-4 text-muted-foreground" />

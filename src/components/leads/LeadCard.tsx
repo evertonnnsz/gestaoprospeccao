@@ -1,4 +1,4 @@
-import { format, isPast, isToday } from 'date-fns';
+import { format, parseISO, startOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Lead } from '@/types/crm';
 import { LeadStatusBadge } from './LeadStatusBadge';
@@ -18,6 +18,19 @@ import {
   CheckCircle2,
   Bell
 } from 'lucide-react';
+
+// Helper functions to compare dates without timezone issues
+const isSameDay = (dateStr: string): boolean => {
+  const date = parseISO(dateStr);
+  const today = startOfDay(new Date());
+  return startOfDay(date).getTime() === today.getTime();
+};
+
+const isDatePast = (dateStr: string): boolean => {
+  const date = parseISO(dateStr);
+  const today = startOfDay(new Date());
+  return startOfDay(date).getTime() < today.getTime();
+};
 
 interface LeadCardProps {
   lead: Lead;
@@ -41,7 +54,7 @@ export function LeadCard({ lead, onEdit, onDelete, onUpdate }: LeadCardProps) {
     }
     
     const followUps = [lead.follow_up_1, lead.follow_up_2, lead.follow_up_3].filter(Boolean);
-    return followUps.some(date => date && isPast(new Date(date)) && !isToday(new Date(date)));
+    return followUps.some(date => date && isDatePast(date));
   };
 
   const hasTodayFollowUp = () => {
@@ -49,31 +62,32 @@ export function LeadCard({ lead, onEdit, onDelete, onUpdate }: LeadCardProps) {
       return false;
     }
     const followUps = [lead.follow_up_1, lead.follow_up_2, lead.follow_up_3].filter(Boolean);
-    return followUps.some(date => date && isToday(new Date(date)));
+    return followUps.some(date => date && isSameDay(date));
   };
 
   const getNextFollowUp = () => {
+    const today = startOfDay(new Date());
     const followUps = [lead.follow_up_1, lead.follow_up_2, lead.follow_up_3]
       .filter(Boolean)
-      .map(d => new Date(d!))
-      .filter(d => !isPast(d) || isToday(d))
+      .map(d => parseISO(d!))
+      .filter(d => startOfDay(d).getTime() >= today.getTime())
       .sort((a, b) => a.getTime() - b.getTime());
     return followUps[0];
   };
 
   const completeFollowUp = async () => {
     try {
-      const today = new Date().toISOString().split('T')[0];
-      const updates: Partial<Lead> = { last_contact: today };
+      const todayStr = new Date().toISOString().split('T')[0];
+      const updates: Partial<Lead> = { last_contact: todayStr };
 
       // Clear the follow-up that is for today
-      if (lead.follow_up_1 && isToday(new Date(lead.follow_up_1))) {
+      if (lead.follow_up_1 && isSameDay(lead.follow_up_1)) {
         updates.follow_up_1 = null;
       }
-      if (lead.follow_up_2 && isToday(new Date(lead.follow_up_2))) {
+      if (lead.follow_up_2 && isSameDay(lead.follow_up_2)) {
         updates.follow_up_2 = null;
       }
-      if (lead.follow_up_3 && isToday(new Date(lead.follow_up_3))) {
+      if (lead.follow_up_3 && isSameDay(lead.follow_up_3)) {
         updates.follow_up_3 = null;
       }
 

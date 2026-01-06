@@ -2,7 +2,6 @@ import { useEffect } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { AppSidebar } from './AppSidebar';
-import { OverdueFollowUpAlert } from '@/components/alerts/OverdueFollowUpAlert';
 import { TodayFollowUpAlert } from '@/components/alerts/TodayFollowUpAlert';
 import { ContractExpirationAlert } from '@/components/alerts/ContractExpirationAlert';
 import { Loader2 } from 'lucide-react';
@@ -60,7 +59,6 @@ export function DashboardLayout() {
   return (
     <div className="min-h-screen flex flex-col w-full bg-background">
       <TodayFollowUpAlert />
-      <OverdueFollowUpAlert />
       <ContractExpirationAlert />
       <div className="flex flex-1">
         <AppSidebar />

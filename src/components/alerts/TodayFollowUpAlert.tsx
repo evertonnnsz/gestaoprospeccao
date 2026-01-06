@@ -3,8 +3,15 @@ import { useNavigate } from 'react-router-dom';
 import { Bell, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { isToday } from 'date-fns';
+import { parseISO, startOfDay } from 'date-fns';
 import { Tables } from '@/integrations/supabase/types';
+
+// Helper function to compare dates without timezone issues
+const isSameDay = (dateStr: string): boolean => {
+  const date = parseISO(dateStr);
+  const today = startOfDay(new Date());
+  return startOfDay(date).getTime() === today.getTime();
+};
 
 type Lead = Tables<'leads'>;
 
@@ -31,7 +38,7 @@ export function TodayFollowUpAlert() {
           }
           
           const followUps = [lead.follow_up_1, lead.follow_up_2, lead.follow_up_3].filter(Boolean);
-          return followUps.some(date => date && isToday(new Date(date)));
+          return followUps.some(date => date && isSameDay(date));
         }).length;
         
         setTodayCount(count);

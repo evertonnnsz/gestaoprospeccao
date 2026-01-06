@@ -10,7 +10,21 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, Search, Filter, Loader2, AlertTriangle, X, Calendar } from 'lucide-react';
-import { isPast, isToday } from 'date-fns';
+import { isPast, isToday, parseISO, startOfDay } from 'date-fns';
+
+// Helper function to compare dates without timezone issues
+const isSameDay = (dateStr: string): boolean => {
+  const date = parseISO(dateStr);
+  const today = startOfDay(new Date());
+  return startOfDay(date).getTime() === today.getTime();
+};
+
+// Helper function to check if date is in the past (excluding today)
+const isDatePast = (dateStr: string): boolean => {
+  const date = parseISO(dateStr);
+  const today = startOfDay(new Date());
+  return startOfDay(date).getTime() < today.getTime();
+};
 
 // Helper function to check if lead has overdue follow-up
 const hasOverdueFollowUp = (lead: Lead): boolean => {
@@ -21,7 +35,7 @@ const hasOverdueFollowUp = (lead: Lead): boolean => {
     return false;
   }
   const followUps = [lead.follow_up_1, lead.follow_up_2, lead.follow_up_3].filter(Boolean);
-  return followUps.some(date => date && isPast(new Date(date)) && !isToday(new Date(date)));
+  return followUps.some(date => date && isDatePast(date));
 };
 
 // Helper function to check if lead has follow-up for today
@@ -30,7 +44,7 @@ const hasTodayFollowUp = (lead: Lead): boolean => {
     return false;
   }
   const followUps = [lead.follow_up_1, lead.follow_up_2, lead.follow_up_3].filter(Boolean);
-  return followUps.some(date => date && isToday(new Date(date)));
+  return followUps.some(date => date && isSameDay(date));
 };
 
 export default function Leads() {

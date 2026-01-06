@@ -16,9 +16,16 @@ import {
   Clock,
   CheckCircle2,
 } from 'lucide-react';
-import { isPast, isToday, format } from 'date-fns';
+import { parseISO, startOfDay, format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+
+// Helper function to compare dates without timezone issues
+const isSameDay = (dateStr: string): boolean => {
+  const date = parseISO(dateStr);
+  const today = startOfDay(new Date());
+  return startOfDay(date).getTime() === today.getTime();
+};
 
 const COLORS = ['hsl(217, 91%, 60%)', 'hsl(142, 76%, 36%)', 'hsl(38, 92%, 50%)', 'hsl(280, 65%, 60%)', 'hsl(0, 84%, 60%)'];
 
@@ -64,7 +71,7 @@ export default function Dashboard() {
     }
     
     const followUps = [lead.follow_up_1, lead.follow_up_2, lead.follow_up_3].filter(Boolean);
-    return followUps.some(date => date && isToday(new Date(date)));
+    return followUps.some(date => date && isSameDay(date));
   }).length;
 
   const closeRate = totalLeads > 0 ? ((closedLeads / totalLeads) * 100).toFixed(1) : 0;

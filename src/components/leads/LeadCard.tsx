@@ -5,6 +5,8 @@ import { LeadStatusBadge } from './LeadStatusBadge';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 import { 
   Building2, 
   Calendar, 
@@ -13,16 +15,20 @@ import {
   AlertTriangle,
   Edit2,
   Trash2,
-  ExternalLink 
+  CheckCircle2,
+  Bell
 } from 'lucide-react';
 
 interface LeadCardProps {
   lead: Lead;
   onEdit: (lead: Lead) => void;
   onDelete: (lead: Lead) => void;
+  onUpdate?: () => void;
 }
 
-export function LeadCard({ lead, onEdit, onDelete }: LeadCardProps) {
+export function LeadCard({ lead, onEdit, onDelete, onUpdate }: LeadCardProps) {
+  const { toast } = useToast();
+
   const hasOverdueFollowUp = () => {
     // Don't show overdue for lost leads or those without interest
     if (lead.status === 'lead_perdido' || lead.status === 'sem_interesse') {
@@ -38,6 +44,14 @@ export function LeadCard({ lead, onEdit, onDelete }: LeadCardProps) {
     return followUps.some(date => date && isPast(new Date(date)) && !isToday(new Date(date)));
   };
 
+  const hasTodayFollowUp = () => {
+    if (lead.status === 'lead_perdido' || lead.status === 'sem_interesse') {
+      return false;
+    }
+    const followUps = [lead.follow_up_1, lead.follow_up_2, lead.follow_up_3].filter(Boolean);
+    return followUps.some(date => date && isToday(new Date(date)));
+  };
+
   const getNextFollowUp = () => {
     const followUps = [lead.follow_up_1, lead.follow_up_2, lead.follow_up_3]
       .filter(Boolean)
@@ -47,7 +61,46 @@ export function LeadCard({ lead, onEdit, onDelete }: LeadCardProps) {
     return followUps[0];
   };
 
+  const completeFollowUp = async () => {
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const updates: Partial<Lead> = { last_contact: today };
+
+      // Clear the follow-up that is for today
+      if (lead.follow_up_1 && isToday(new Date(lead.follow_up_1))) {
+        updates.follow_up_1 = null;
+      }
+      if (lead.follow_up_2 && isToday(new Date(lead.follow_up_2))) {
+        updates.follow_up_2 = null;
+      }
+      if (lead.follow_up_3 && isToday(new Date(lead.follow_up_3))) {
+        updates.follow_up_3 = null;
+      }
+
+      const { error } = await supabase
+        .from('leads')
+        .update(updates)
+        .eq('id', lead.id);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Follow-up concluído',
+        description: 'O follow-up foi marcado como concluído.',
+      });
+
+      onUpdate?.();
+    } catch (error: any) {
+      toast({
+        title: 'Erro',
+        description: error.message,
+        variant: 'destructive',
+      });
+    }
+  };
+
   const isOverdue = hasOverdueFollowUp();
+  const isTodays = hasTodayFollowUp();
   const nextFollowUp = getNextFollowUp();
 
   const openWhatsApp = () => {
@@ -68,7 +121,8 @@ export function LeadCard({ lead, onEdit, onDelete }: LeadCardProps) {
     <Card 
       className={cn(
         "p-4 transition-all hover:shadow-md animate-fade-in",
-        isOverdue && "border-destructive/50 bg-destructive/5"
+        isOverdue && "border-destructive/50 bg-destructive/5",
+        isTodays && !isOverdue && "border-primary/50 bg-primary/5"
       )}
     >
       <div className="flex items-start justify-between gap-4">
@@ -95,6 +149,12 @@ export function LeadCard({ lead, onEdit, onDelete }: LeadCardProps) {
                 Follow-up vencido
               </span>
             )}
+            {isTodays && !isOverdue && (
+              <span className="inline-flex items-center gap-1 text-xs text-primary font-medium">
+                <Bell className="w-3 h-3" />
+                Follow-up hoje
+              </span>
+            )}
           </div>
 
           {/* Meta info */}
@@ -115,6 +175,19 @@ export function LeadCard({ lead, onEdit, onDelete }: LeadCardProps) {
             <p className="text-sm bg-muted/50 rounded px-2 py-1 truncate">
               Próxima ação: {lead.next_action}
             </p>
+          )}
+
+          {/* Complete Follow-up Button */}
+          {isTodays && (
+            <Button 
+              size="sm" 
+              variant="outline" 
+              className="gap-2 text-primary border-primary/30 hover:bg-primary/10"
+              onClick={completeFollowUp}
+            >
+              <CheckCircle2 className="w-4 h-4" />
+              Concluir Follow-up
+            </Button>
           )}
         </div>
 

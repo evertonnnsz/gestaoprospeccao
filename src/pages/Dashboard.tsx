@@ -57,19 +57,14 @@ export default function Dashboard() {
   const closedLeads = filteredLeads.filter(l => l.status === 'fechado').length;
   const meetingsHeld = filteredLeads.filter(l => ['reuniao_realizada', 'proposta_enviada', 'em_negociacao', 'fechado', 'lead_perdido'].includes(l.status || '')).length;
   
-  const overdueFollowUps = filteredLeads.filter(lead => {
-    // Don't count overdue for lost leads or those without interest
+  const todayFollowUps = leads.filter(lead => {
+    // Don't count for lost leads or those without interest
     if (lead.status === 'lead_perdido' || lead.status === 'sem_interesse') {
       return false;
     }
     
-    // Don't count overdue if all three follow-ups are filled
-    if (lead.follow_up_1 && lead.follow_up_2 && lead.follow_up_3) {
-      return false;
-    }
-    
     const followUps = [lead.follow_up_1, lead.follow_up_2, lead.follow_up_3].filter(Boolean);
-    return followUps.some(date => date && isPast(new Date(date)) && !isToday(new Date(date)));
+    return followUps.some(date => date && isToday(new Date(date)));
   }).length;
 
   const closeRate = totalLeads > 0 ? ((closedLeads / totalLeads) * 100).toFixed(1) : 0;
@@ -129,11 +124,11 @@ export default function Dashboard() {
           variant="default"
         />
         <StatsCard
-          title="Follow-ups Vencidos"
-          value={overdueFollowUps}
-          icon={AlertTriangle}
-          variant={overdueFollowUps > 0 ? 'destructive' : 'default'}
-          onClick={overdueFollowUps > 0 ? () => navigate('/leads?filter=overdue') : undefined}
+          title="Follow-ups do Dia"
+          value={todayFollowUps}
+          icon={Calendar}
+          variant={todayFollowUps > 0 ? 'warning' : 'default'}
+          onClick={todayFollowUps > 0 ? () => navigate('/leads?filter=today') : undefined}
         />
       </div>
 

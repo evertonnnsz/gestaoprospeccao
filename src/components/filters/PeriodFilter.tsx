@@ -3,7 +3,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
-import { Calendar as CalendarIcon } from 'lucide-react';
+import { Calendar as CalendarIcon, Check } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -33,12 +33,29 @@ const periodLabels: Record<PeriodType, string> = {
 
 export function PeriodFilter({ value, onChange, dateRange, onDateRangeChange }: PeriodFilterProps) {
   const [internalDateRange, setInternalDateRange] = useState<DateRange>({ from: undefined, to: undefined });
+  const [tempDateRange, setTempDateRange] = useState<DateRange>({ from: undefined, to: undefined });
+  const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   
   const currentDateRange = dateRange ?? internalDateRange;
   const setDateRange = onDateRangeChange ?? setInternalDateRange;
 
   const handlePeriodChange = (newValue: string) => {
     onChange(newValue as PeriodType);
+    if (newValue === 'custom') {
+      setTempDateRange(currentDateRange);
+    }
+  };
+
+  const handlePopoverOpen = (open: boolean) => {
+    if (open) {
+      setTempDateRange(currentDateRange);
+    }
+    setIsPopoverOpen(open);
+  };
+
+  const handleApplyDateRange = () => {
+    setDateRange(tempDateRange);
+    setIsPopoverOpen(false);
   };
 
   const formatDateRange = () => {
@@ -68,7 +85,7 @@ export function PeriodFilter({ value, onChange, dateRange, onDateRangeChange }: 
       </Select>
 
       {value === 'custom' && (
-        <Popover>
+        <Popover open={isPopoverOpen} onOpenChange={handlePopoverOpen}>
           <PopoverTrigger asChild>
             <Button
               variant="outline"
@@ -85,13 +102,23 @@ export function PeriodFilter({ value, onChange, dateRange, onDateRangeChange }: 
             <Calendar
               initialFocus
               mode="range"
-              defaultMonth={currentDateRange.from}
-              selected={{ from: currentDateRange.from, to: currentDateRange.to }}
-              onSelect={(range) => setDateRange({ from: range?.from, to: range?.to })}
+              defaultMonth={tempDateRange.from}
+              selected={{ from: tempDateRange.from, to: tempDateRange.to }}
+              onSelect={(range) => setTempDateRange({ from: range?.from, to: range?.to })}
               numberOfMonths={2}
               locale={ptBR}
               className="pointer-events-auto"
             />
+            <div className="p-3 border-t flex justify-end">
+              <Button 
+                size="sm" 
+                onClick={handleApplyDateRange}
+                disabled={!tempDateRange.from}
+              >
+                <Check className="w-4 h-4 mr-2" />
+                Aplicar
+              </Button>
+            </div>
           </PopoverContent>
         </Popover>
       )}

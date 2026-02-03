@@ -10,22 +10,34 @@ export interface ProspectResult {
   isExisting?: boolean;
 }
 
+export interface SearchParams {
+  niche: string;
+  state: string;
+  city: string;
+  limit?: number;
+  searchVariation?: number;
+}
+
 interface FirecrawlSearchResponse {
   success: boolean;
   error?: string;
   data?: ProspectResult[];
   total?: number;
-}
-
-interface SearchOptions {
-  limit?: number;
+  hasMore?: boolean;
+  searchVariation?: number;
 }
 
 export const firecrawlApi = {
-  async search(query: string, options?: SearchOptions): Promise<FirecrawlSearchResponse> {
+  async search(params: SearchParams): Promise<FirecrawlSearchResponse> {
     try {
       const { data, error } = await supabase.functions.invoke('firecrawl-search', {
-        body: { query, options },
+        body: { 
+          niche: params.niche,
+          state: params.state,
+          city: params.city,
+          limit: params.limit || 50,
+          searchVariation: params.searchVariation || 0,
+        },
       });
 
       if (error) {
@@ -41,6 +53,11 @@ export const firecrawlApi = {
         error: error instanceof Error ? error.message : 'Erro ao buscar leads' 
       };
     }
+  },
+
+  async loadMore(params: SearchParams, currentVariation: number): Promise<FirecrawlSearchResponse> {
+    // Increment variation to get different results
+    return this.search({ ...params, searchVariation: currentVariation + 1 });
   },
 
   async checkDuplicates(prospects: ProspectResult[], userId: string): Promise<ProspectResult[]> {
@@ -81,5 +98,21 @@ export const firecrawlApi = {
       console.error('Error in checkDuplicates:', error);
       return prospects;
     }
+  },
+
+  // Helper to deduplicate results from multiple searches
+  deduplicateResults(existing: ProspectResult[], newResults: ProspectResult[]): ProspectResult[] {
+    const existingNames = new Set(existing.map(p => p.company_name.toLowerCase().trim()));
+    const existingPhones = new Set(
+      existing.filter(p => p.whatsapp).map(p => p.whatsapp?.replace(/\D/g, ''))
+    );
+
+    const unique = newResults.filter(prospect => {
+      const nameExists = existingNames.has(prospect.company_name.toLowerCase().trim());
+      const phoneExists = prospect.whatsapp && existingPhones.has(prospect.whatsapp.replace(/\D/g, ''));
+      return !nameExists && !phoneExists;
+    });
+
+    return [...existing, ...unique];
   },
 };

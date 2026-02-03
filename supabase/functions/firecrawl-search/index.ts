@@ -19,13 +19,39 @@ interface ExtractedBusiness {
   description: string | null;
 }
 
+// Query variations to get more diverse results
+const QUERY_VARIATIONS = [
+  // Base query focused on Google Maps
+  (niche: string, city: string, state: string) => 
+    `"${niche}" "${city}" "${state}" site:google.com/maps`,
+  // Query with contact keywords
+  (niche: string, city: string, state: string) => 
+    `${niche} ${city} ${state} telefone whatsapp contato`,
+  // Query for business listings
+  (niche: string, city: string, state: string) => 
+    `"${niche}" em "${city}" ${state} endereço telefone`,
+  // Google My Business focused
+  (niche: string, city: string, state: string) => 
+    `${niche} perto de ${city} ${state} avaliações`,
+  // Social media focused
+  (niche: string, city: string, state: string) => 
+    `${niche} ${city} ${state} instagram @`,
+];
+
 function extractPhoneNumber(text: string): string | null {
   // Match various phone formats including Brazilian numbers
   const phonePatterns = [
-    /\+?55\s*\(?0?\d{2}\)?\s*9?\d{4}[-.\s]?\d{4}/g,
-    /\(?0?\d{2}\)?\s*9?\d{4}[-.\s]?\d{4}/g,
-    /\d{2}\s*9?\d{4}[-.\s]?\d{4}/g,
+    // Brazilian mobile with country code
+    /\+?55\s*\(?0?\d{2}\)?\s*9\d{4}[-.\s]?\d{4}/g,
+    // Brazilian landline with country code
+    /\+?55\s*\(?0?\d{2}\)?\s*[2-5]\d{3}[-.\s]?\d{4}/g,
+    // Mobile without country code
+    /\(?0?\d{2}\)?\s*9\d{4}[-.\s]?\d{4}/g,
+    // Landline without country code
+    /\(?0?\d{2}\)?\s*[2-5]\d{3}[-.\s]?\d{4}/g,
+    // General format with area code
     /\(\d{2,3}\)\s*\d{4,5}[-.\s]?\d{4}/g,
+    // Simple 10-11 digit sequence
     /\d{10,11}/g,
   ];
 
@@ -44,15 +70,23 @@ function extractPhoneNumber(text: string): string | null {
 
 function extractInstagram(text: string): string | null {
   const patterns = [
-    /@([a-zA-Z0-9_.]{1,30})/g,
-    /instagram\.com\/([a-zA-Z0-9_.]{1,30})/gi,
-    /ig:\s*@?([a-zA-Z0-9_.]{1,30})/gi,
+    // Direct @username
+    /@([a-zA-Z0-9_.]{3,30})(?![a-zA-Z0-9_.])/g,
+    // Instagram URL
+    /instagram\.com\/([a-zA-Z0-9_.]{3,30})/gi,
+    // IG: prefix
+    /ig:\s*@?([a-zA-Z0-9_.]{3,30})/gi,
+    // Instagram: prefix
+    /instagram:\s*@?([a-zA-Z0-9_.]{3,30})/gi,
   ];
+
+  const excludeList = ['instagram', 'facebook', 'twitter', 'youtube', 'linkedin', 'google', 'gmail', 'hotmail', 'email'];
 
   for (const pattern of patterns) {
     const matches = text.matchAll(pattern);
     for (const match of matches) {
-      if (match[1] && !['instagram', 'facebook', 'twitter', 'youtube'].includes(match[1].toLowerCase())) {
+      const username = match[1]?.toLowerCase();
+      if (username && !excludeList.includes(username) && username.length >= 3) {
         return `@${match[1]}`;
       }
     }
@@ -60,34 +94,80 @@ function extractInstagram(text: string): string | null {
   return null;
 }
 
-function parseSearchResults(results: SearchResult[], query: string): ExtractedBusiness[] {
+function extractWebsite(url: string, text: string): string | null {
+  // First check if the URL itself is a business website (not Google, social media, etc.)
+  const excludeDomains = ['google.com', 'facebook.com', 'instagram.com', 'twitter.com', 'youtube.com', 'linkedin.com', 'yelp.com'];
+  
+  if (url && !excludeDomains.some(d => url.includes(d))) {
+    try {
+      const urlObj = new URL(url);
+      return urlObj.origin;
+    } catch {
+      // Invalid URL, continue to text extraction
+    }
+  }
+
+  // Try to extract website from text
+  const websitePattern = /(?:www\.|https?:\/\/)([a-zA-Z0-9][-a-zA-Z0-9]*\.[a-zA-Z]{2,}(?:\.[a-zA-Z]{2})?)/gi;
+  const matches = text.matchAll(websitePattern);
+  
+  for (const match of matches) {
+    const domain = match[1]?.toLowerCase();
+    if (domain && !excludeDomains.some(d => domain.includes(d))) {
+      return `https://${domain}`;
+    }
+  }
+  
+  return null;
+}
+
+function parseSearchResults(results: SearchResult[], niche: string): ExtractedBusiness[] {
   const businesses: ExtractedBusiness[] = [];
   const seenNames = new Set<string>();
+  const seenPhones = new Set<string>();
 
   for (const result of results) {
     // Extract company name from title (usually the first part before | or -)
     let companyName = result.title
-      .split(/[|\-–—]/)[0]
+      .split(/[|\-–—·]/)[0]
       .replace(/Google Maps/gi, '')
       .replace(/Maps/gi, '')
+      .replace(/\s*-\s*Pesquisar/gi, '')
+      .replace(/\s*\(\d+\)/g, '') // Remove rating counts like (123)
       .trim();
 
-    // Skip if company name is empty or too generic
-    if (!companyName || companyName.length < 3 || seenNames.has(companyName.toLowerCase())) {
+    // Skip if company name is empty, too short, or too generic
+    if (!companyName || companyName.length < 3) {
       continue;
     }
 
-    seenNames.add(companyName.toLowerCase());
+    const normalizedName = companyName.toLowerCase().trim();
+    
+    // Skip duplicates
+    if (seenNames.has(normalizedName)) {
+      continue;
+    }
 
     const fullText = `${result.title} ${result.description || ''} ${result.markdown || ''}`;
+    const phone = extractPhoneNumber(fullText);
+    
+    // Skip if we already have this phone number
+    if (phone && seenPhones.has(phone)) {
+      continue;
+    }
+
+    seenNames.add(normalizedName);
+    if (phone) {
+      seenPhones.add(phone);
+    }
     
     const business: ExtractedBusiness = {
       company_name: companyName,
-      whatsapp: extractPhoneNumber(fullText),
-      website: result.url && !result.url.includes('google.com') ? result.url : null,
+      whatsapp: phone,
+      website: extractWebsite(result.url, fullText),
       instagram: extractInstagram(fullText),
-      segment: query.split(' ')[0] || null, // Use the first word of query as segment hint
-      description: result.description?.substring(0, 200) || null,
+      segment: niche,
+      description: result.description?.substring(0, 250) || null,
     };
 
     businesses.push(business);
@@ -102,11 +182,11 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { query, options } = await req.json();
+    const { niche, state, city, limit = 50, searchVariation = 0 } = await req.json();
 
-    if (!query) {
+    if (!niche || !state || !city) {
       return new Response(
-        JSON.stringify({ success: false, error: 'Query é obrigatória' }),
+        JSON.stringify({ success: false, error: 'Nicho, estado e cidade são obrigatórios' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -120,11 +200,12 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Build optimized search query for finding businesses
-    const searchQuery = `${query} contato telefone whatsapp`;
-    const limit = options?.limit || 15;
+    // Select query variation (cycle through available variations)
+    const variationIndex = searchVariation % QUERY_VARIATIONS.length;
+    const queryBuilder = QUERY_VARIATIONS[variationIndex];
+    const searchQuery = queryBuilder(niche, city, state);
 
-    console.log('Searching for:', searchQuery);
+    console.log(`Searching (variation ${variationIndex}):`, searchQuery);
 
     const response = await fetch('https://api.firecrawl.dev/v1/search', {
       method: 'POST',
@@ -134,7 +215,7 @@ Deno.serve(async (req) => {
       },
       body: JSON.stringify({
         query: searchQuery,
-        limit: limit,
+        limit: Math.min(limit, 100), // API max is typically 100
         lang: 'pt-br',
         country: 'br',
         scrapeOptions: {
@@ -155,15 +236,20 @@ Deno.serve(async (req) => {
 
     // Parse and extract business data from search results
     const results = data.data || [];
-    const businesses = parseSearchResults(results, query);
+    const businesses = parseSearchResults(results, niche);
 
-    console.log(`Found ${businesses.length} businesses`);
+    console.log(`Found ${businesses.length} businesses from ${results.length} results`);
+
+    // Determine if there might be more results with different queries
+    const hasMore = searchVariation < QUERY_VARIATIONS.length - 1;
 
     return new Response(
       JSON.stringify({ 
         success: true, 
         data: businesses,
         total: businesses.length,
+        hasMore,
+        searchVariation: variationIndex,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

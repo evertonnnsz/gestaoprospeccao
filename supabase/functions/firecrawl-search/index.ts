@@ -21,21 +21,21 @@ interface ExtractedBusiness {
 
 // Query variations to get more diverse results
 const QUERY_VARIATIONS = [
-  // Base query focused on Google Maps
+  // Simple direct search
   (niche: string, city: string, state: string) => 
-    `"${niche}" "${city}" "${state}" site:google.com/maps`,
-  // Query with contact keywords
+    `${niche} ${city} ${state} Brasil`,
+  // With contact info
   (niche: string, city: string, state: string) => 
-    `${niche} ${city} ${state} telefone whatsapp contato`,
-  // Query for business listings
+    `${niche} em ${city} telefone contato`,
+  // Business listings
   (niche: string, city: string, state: string) => 
-    `"${niche}" em "${city}" ${state} endereço telefone`,
-  // Google My Business focused
+    `${niche} ${city} endereço horário`,
+  // Reviews and ratings
   (niche: string, city: string, state: string) => 
-    `${niche} perto de ${city} ${state} avaliações`,
-  // Social media focused
+    `melhores ${niche} ${city}`,
+  // Social presence
   (niche: string, city: string, state: string) => 
-    `${niche} ${city} ${state} instagram @`,
+    `${niche} ${city} instagram whatsapp`,
 ];
 
 function extractPhoneNumber(text: string): string | null {
@@ -215,16 +215,13 @@ Deno.serve(async (req) => {
       },
       body: JSON.stringify({
         query: searchQuery,
-        limit: Math.min(limit, 100), // API max is typically 100
-        lang: 'pt-br',
-        country: 'br',
-        scrapeOptions: {
-          formats: ['markdown'],
-        },
+        limit: Math.min(limit, 100),
       }),
     });
 
     const data = await response.json();
+
+    console.log('Firecrawl raw response:', JSON.stringify(data).substring(0, 2000));
 
     if (!response.ok) {
       console.error('Firecrawl API error:', data);
@@ -236,6 +233,8 @@ Deno.serve(async (req) => {
 
     // Parse and extract business data from search results
     const results = data.data || [];
+    console.log(`Raw results count: ${results.length}`);
+    
     const businesses = parseSearchResults(results, niche);
 
     console.log(`Found ${businesses.length} businesses from ${results.length} results`);

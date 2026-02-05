@@ -37,9 +37,10 @@ interface LeadCardProps {
   onEdit: (lead: Lead) => void;
   onDelete: (lead: Lead) => void;
   onUpdate?: () => void;
+  hasCheckbox?: boolean;
 }
 
-export function LeadCard({ lead, onEdit, onDelete, onUpdate }: LeadCardProps) {
+export function LeadCard({ lead, onEdit, onDelete, onUpdate, hasCheckbox }: LeadCardProps) {
   const { toast } = useToast();
 
   const hasOverdueFollowUp = () => {
@@ -139,7 +140,7 @@ export function LeadCard({ lead, onEdit, onDelete, onUpdate }: LeadCardProps) {
         isTodays && !isOverdue && "border-primary/50 bg-primary/5"
       )}
     >
-      <div className="flex items-start justify-between gap-4">
+      <div className={cn("flex items-start justify-between gap-4", hasCheckbox && "pl-8")}>
         <div className="flex-1 min-w-0 space-y-3">
           {/* Header */}
           <div className="flex items-start gap-3">

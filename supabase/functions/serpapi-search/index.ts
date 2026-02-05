@@ -78,9 +78,9 @@
    try {
      const { niche, state, city, limit = 50, startOffset = 0 } = await req.json();
  
-     if (!niche || !state || !city) {
+    if (!niche) {
        return new Response(
-         JSON.stringify({ success: false, error: 'Nicho, estado e cidade são obrigatórios' }),
+        JSON.stringify({ success: false, error: 'Nicho é obrigatório' }),
          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
        );
      }
@@ -97,7 +97,18 @@
        );
      }
  
-     const query = `${niche} em ${city}, ${state}, Brasil`;
+    // Build query based on provided filters
+    let query = niche;
+    if (city && state && state !== 'all') {
+      query = `${niche} em ${city}, ${state}, Brasil`;
+    } else if (city) {
+      query = `${niche} em ${city}, Brasil`;
+    } else if (state && state !== 'all') {
+      query = `${niche} em ${state}, Brasil`;
+    } else {
+      query = `${niche} no Brasil`;
+    }
+    
      console.log(`SerpApi search: "${query}" | limit: ${limit} | startOffset: ${startOffset}`);
  
      const allProspects: ProspectResult[] = [];

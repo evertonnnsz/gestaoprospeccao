@@ -2,3 +2,6 @@ project_id = "zcdqmusmgefxxkkrjgad"
 
 [functions.firecrawl-search]
 verify_jwt = false
+ 
+ [functions.serpapi-search]
+ verify_jwt = false

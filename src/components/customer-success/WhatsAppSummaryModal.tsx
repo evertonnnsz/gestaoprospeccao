@@ -59,60 +59,58 @@
    const formattedStart = format(new Date(periodStart), 'dd/MM/yyyy', { locale: ptBR });
    const formattedEnd = format(new Date(periodEnd), 'dd/MM/yyyy', { locale: ptBR });
    
-   lines.push(`Olá, ${clientName}! 👋`);
+   lines.push(`Ola, ${clientName}!`);
    lines.push('');
-   lines.push(`Segue o resumo de performance personalizado das suas campanhas (${formattedStart} a ${formattedEnd}):`);
+   lines.push(`Segue o resumo de performance das suas campanhas (${formattedStart} a ${formattedEnd}):`);
    lines.push('');
    
    // Métricas dinâmicas - só inclui se > 0
    if (metrics.investment > 0) {
-     lines.push(`💰 Investimento: R$ ${formatCurrency(metrics.investment)}`);
+     lines.push(`* Investimento: R$ ${formatCurrency(metrics.investment)}`);
    }
    
    if (metrics.impressions > 0) {
-     lines.push(`👁️ Impressões: ${formatNumber(metrics.impressions)}`);
+     lines.push(`* Impressoes: ${formatNumber(metrics.impressions)}`);
    }
    
    if (metrics.clicks > 0) {
-     lines.push(`🖱️ Cliques: ${formatNumber(metrics.clicks)}`);
+     lines.push(`* Cliques: ${formatNumber(metrics.clicks)}`);
    }
    
    if (metrics.conversations > 0) {
-     lines.push(`💬 Conversas Iniciadas: ${formatNumber(metrics.conversations)}`);
+     lines.push(`* Conversas Iniciadas: ${formatNumber(metrics.conversations)}`);
    }
    
    if (metrics.leads > 0) {
-     lines.push(`📈 Leads Gerados: ${formatNumber(metrics.leads)}`);
+     lines.push(`* Leads Gerados: ${formatNumber(metrics.leads)}`);
    }
    
    if (metrics.ctr > 0) {
-     lines.push(`📊 CTR: ${metrics.ctr.toFixed(2)}%`);
+     lines.push(`* CTR: ${metrics.ctr.toFixed(2)}%`);
    }
    
    if (metrics.cpc > 0) {
-     lines.push(`🎯 CPC: R$ ${formatCurrency(metrics.cpc)}`);
+     lines.push(`* CPC: R$ ${formatCurrency(metrics.cpc)}`);
    }
    
    if (metrics.cpl > 0) {
-     lines.push(`💎 CPL: R$ ${formatCurrency(metrics.cpl)}`);
+     lines.push(`* CPL: R$ ${formatCurrency(metrics.cpl)}`);
    }
    
    // Métricas customizadas
-   const customEmojis = ['⭐', '📌', '🔥', '✨', '💡', '🎨', '📊', '🏆'];
    metrics.customMetrics.forEach((metric, index) => {
      if (metric.value > 0) {
-       const emoji = customEmojis[index % customEmojis.length];
        // Determina se o valor parece ser monetário (nome contém R$, Custo, Valor, etc)
        const isMonetary = /custo|valor|invest|r\$|preço|gasto/i.test(metric.name);
        const formattedValue = isMonetary 
          ? `R$ ${formatCurrency(metric.value)}`
          : formatNumber(metric.value);
-       lines.push(`${emoji} ${metric.name}: ${formattedValue}`);
+       lines.push(`* ${metric.name}: ${formattedValue}`);
      }
    });
    
    lines.push('');
-   lines.push('Estes são os indicadores que estamos acompanhando de perto para o seu negócio. Qualquer dúvida, estou aqui! 👊');
+   lines.push('Estes sao os indicadores que estamos acompanhando de perto para o seu negocio. Qualquer duvida, estou aqui!');
    
    return lines.join('\n');
  };

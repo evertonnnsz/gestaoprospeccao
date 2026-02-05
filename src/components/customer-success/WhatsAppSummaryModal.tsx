@@ -35,8 +35,8 @@
  };
  
  const formatWhatsAppUrl = (phone: string, message: string): string => {
-   // Remove caracteres especiais do telefone
-   const cleanPhone = phone.replace(/[\s\-\(\)\+\u200B\u200C\u200D]/g, '');
+  // Remove TODOS os caracteres que não são dígitos (mais robusto)
+  const cleanPhone = phone.replace(/\D/g, '');
    
    // Adiciona codigo do Brasil se nao tiver
    const finalPhone = cleanPhone.startsWith('55') ? cleanPhone : `55${cleanPhone}`;

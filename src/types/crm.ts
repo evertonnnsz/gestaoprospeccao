@@ -97,3 +97,48 @@ export const STATUS_ORDER: LeadStatus[] = [
   'sem_interesse',
   'lead_perdido',
 ];
+
+// Staging Lead types
+export interface StagingLead {
+  id: string;
+  user_id: string;
+  company_name: string;
+  contact_name: string | null;
+  whatsapp: string | null;
+  instagram: string | null;
+  segment: string | null;
+  observations: string | null;
+  is_reviewed: boolean;
+  has_validation_errors: boolean;
+  is_duplicate: boolean;
+  duplicate_lead_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ValidationResult {
+  isValid: boolean;
+  errors: string[];
+}
+
+export const validateStagingLead = (lead: StagingLead): ValidationResult => {
+  const errors: string[] = [];
+
+  // Validate company name
+  if (!lead.company_name?.trim()) {
+    errors.push('Nome da empresa é obrigatório');
+  }
+
+  // Validate phone (Brazilian format: 10-11 digits)
+  if (lead.whatsapp) {
+    const digits = lead.whatsapp.replace(/\D/g, '');
+    if (digits.length < 10 || digits.length > 11) {
+      errors.push('Telefone com formato inválido (esperado 10-11 dígitos)');
+    }
+  }
+
+  return {
+    isValid: errors.length === 0,
+    errors,
+  };
+};

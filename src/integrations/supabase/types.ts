@@ -290,6 +290,65 @@ export type Database = {
         }
         Relationships: []
       }
+      staging_leads: {
+        Row: {
+          company_name: string
+          contact_name: string | null
+          created_at: string
+          duplicate_lead_id: string | null
+          has_validation_errors: boolean
+          id: string
+          instagram: string | null
+          is_duplicate: boolean
+          is_reviewed: boolean
+          observations: string | null
+          segment: string | null
+          updated_at: string
+          user_id: string
+          whatsapp: string | null
+        }
+        Insert: {
+          company_name: string
+          contact_name?: string | null
+          created_at?: string
+          duplicate_lead_id?: string | null
+          has_validation_errors?: boolean
+          id?: string
+          instagram?: string | null
+          is_duplicate?: boolean
+          is_reviewed?: boolean
+          observations?: string | null
+          segment?: string | null
+          updated_at?: string
+          user_id: string
+          whatsapp?: string | null
+        }
+        Update: {
+          company_name?: string
+          contact_name?: string | null
+          created_at?: string
+          duplicate_lead_id?: string | null
+          has_validation_errors?: boolean
+          id?: string
+          instagram?: string | null
+          is_duplicate?: boolean
+          is_reviewed?: boolean
+          observations?: string | null
+          segment?: string | null
+          updated_at?: string
+          user_id?: string
+          whatsapp?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staging_leads_duplicate_lead_id_fkey"
+            columns: ["duplicate_lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           id: string

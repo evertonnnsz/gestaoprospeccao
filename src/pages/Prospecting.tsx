@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import { ProspectSearchForm, SearchParams } from '@/components/prospecting/ProspectSearchForm';
 import { ProspectCard } from '@/components/prospecting/ProspectCard';
 import { LeadForm } from '@/components/leads/LeadForm';
-import { LeadImportModal, ImportedLead } from '@/components/prospecting/LeadImportModal';
-import { LeadImportPreview } from '@/components/prospecting/LeadImportPreview';
+import { LeadImportModal } from '@/components/prospecting/LeadImportModal';
+import { StagingArea } from '@/components/prospecting/StagingArea';
 import { serpApi, ProspectResult } from '@/lib/api/serpapi';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -32,8 +32,7 @@ export default function Prospecting() {
 
   // Import modal state
   const [showImportModal, setShowImportModal] = useState(false);
-  const [showImportPreview, setShowImportPreview] = useState(false);
-  const [importedLeads, setImportedLeads] = useState<ImportedLead[]>([]);
+  const [stagingKey, setStagingKey] = useState(0); // Key to force refresh StagingArea
 
   const handleSearch = async (params: SearchParams) => {
     if (!user) {
@@ -177,17 +176,9 @@ export default function Prospecting() {
     });
   };
 
-  const handleImportContinue = (leads: ImportedLead[]) => {
-    setImportedLeads(leads);
-    setShowImportModal(false);
-    setShowImportPreview(true);
-  };
-
-  const handleImportSuccess = () => {
-    toast({
-      title: 'Importação finalizada!',
-      description: 'Os leads foram adicionados ao sistema.',
-    });
+  const handleImportComplete = () => {
+    // Force refresh of StagingArea by changing its key
+    setStagingKey(prev => prev + 1);
   };
 
   const newLeadsCount = results.filter(r => !r.isExisting).length;
@@ -217,6 +208,9 @@ export default function Prospecting() {
 
       {/* Search Form */}
       <ProspectSearchForm onSearch={handleSearch} isLoading={isLoading} />
+
+      {/* Staging Area - Sala de Espera */}
+      <StagingArea key={stagingKey} />
 
       {/* Error Alert */}
       {error && (
@@ -360,18 +354,11 @@ export default function Prospecting() {
         onSuccess={handleFormSuccess}
       />
 
-      {/* Import Modals */}
+      {/* Import Modal */}
       <LeadImportModal
         open={showImportModal}
         onOpenChange={setShowImportModal}
-        onContinueToPreview={handleImportContinue}
-      />
-
-      <LeadImportPreview
-        open={showImportPreview}
-        onOpenChange={setShowImportPreview}
-        leads={importedLeads}
-        onSuccess={handleImportSuccess}
+        onImportComplete={handleImportComplete}
       />
     </div>
   );

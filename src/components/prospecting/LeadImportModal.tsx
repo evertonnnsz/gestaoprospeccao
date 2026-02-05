@@ -1,5 +1,8 @@
 import { useState, useCallback } from 'react';
 import * as XLSX from 'xlsx';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
 import {
   Dialog,
   DialogContent,
@@ -15,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Upload, FileSpreadsheet, ArrowRight, AlertCircle } from 'lucide-react';
+import { Upload, FileSpreadsheet, ArrowRight, AlertCircle, Loader2 } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 const NO_MAPPING_VALUE = '__none__';
@@ -43,7 +46,7 @@ interface ColumnMapping {
 interface LeadImportModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onContinueToPreview: (leads: ImportedLead[]) => void;
+  onImportComplete: () => void;
 }
 
 const SYSTEM_FIELDS = [
@@ -58,8 +61,10 @@ const SYSTEM_FIELDS = [
 export function LeadImportModal({ 
   open, 
   onOpenChange, 
-  onContinueToPreview 
+  onImportComplete 
 }: LeadImportModalProps) {
+  const { user } = useAuth();
+  const { toast } = useToast();
   const [file, setFile] = useState<File | null>(null);
   const [headers, setHeaders] = useState<string[]>([]);
   const [rows, setRows] = useState<string[][]>([]);
@@ -233,7 +238,12 @@ export function LeadImportModal({
     }));
   };
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
+    if (!user) {
+      setError('Você precisa estar logado para importar leads.');
+      return;
+    }
+
     if (!mapping.company_name) {
       setError('O campo "Empresa" é obrigatório. Por favor, mapeie-o.');
       return;
@@ -254,15 +264,74 @@ export function LeadImportModal({
         segment: getValueByHeader(mapping.segment) || undefined,
         observations: getValueByHeader(mapping.observations) || undefined,
       };
-    }).filter(lead => lead.company_name); // Filter out rows without company name
+    }).filter(lead => lead.company_name);
 
     if (leads.length === 0) {
       setError('Nenhum lead válido encontrado. Verifique o mapeamento das colunas.');
       return;
     }
 
-    onContinueToPreview(leads);
-    resetState();
+    setIsProcessing(true);
+
+    try {
+      // Check for duplicates against existing leads
+      const { data: existingLeads } = await supabase
+        .from('leads')
+        .select('id, company_name, whatsapp')
+        .eq('user_id', user.id);
+
+      const stagingLeadsToInsert = leads.map(lead => {
+        // Check if duplicate
+        const duplicate = existingLeads?.find(existing => 
+          existing.company_name.toLowerCase() === lead.company_name.toLowerCase() ||
+          (lead.whatsapp && existing.whatsapp && 
+           lead.whatsapp.replace(/\D/g, '') === existing.whatsapp.replace(/\D/g, ''))
+        );
+
+        // Validate phone
+        let hasValidationErrors = false;
+        if (lead.whatsapp) {
+          const digits = lead.whatsapp.replace(/\D/g, '');
+          if (digits.length < 10 || digits.length > 11) {
+            hasValidationErrors = true;
+          }
+        }
+
+        return {
+          user_id: user.id,
+          company_name: lead.company_name,
+          contact_name: lead.contact_name || null,
+          whatsapp: lead.whatsapp || null,
+          instagram: lead.instagram || null,
+          segment: lead.segment || null,
+          observations: lead.observations || null,
+          is_reviewed: false,
+          has_validation_errors: hasValidationErrors,
+          is_duplicate: !!duplicate,
+          duplicate_lead_id: duplicate?.id || null,
+        };
+      });
+
+      const { error: insertError } = await supabase
+        .from('staging_leads')
+        .insert(stagingLeadsToInsert);
+
+      if (insertError) throw insertError;
+
+      toast({
+        title: 'Leads importados!',
+        description: `${leads.length} leads foram adicionados à Sala de Espera para revisão.`,
+      });
+
+      resetState();
+      onOpenChange(false);
+      onImportComplete();
+    } catch (err) {
+      console.error('Error importing leads:', err);
+      setError('Erro ao importar leads. Tente novamente.');
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const handleClose = () => {
@@ -367,15 +436,24 @@ export function LeadImportModal({
 
           {/* Actions */}
           <div className="flex justify-end gap-3 pt-4 border-t">
-            <Button variant="outline" onClick={handleClose}>
+            <Button variant="outline" onClick={handleClose} disabled={isProcessing}>
               Cancelar
             </Button>
             <Button 
               onClick={handleContinue}
-              disabled={headers.length === 0 || !mapping.company_name}
+              disabled={headers.length === 0 || !mapping.company_name || isProcessing}
             >
-              Continuar para Triagem
-              <ArrowRight className="w-4 h-4 ml-2" />
+              {isProcessing ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Importando...
+                </>
+              ) : (
+                <>
+                  Importar para Sala de Espera
+                  <ArrowRight className="w-4 h-4 ml-2" />
+                </>
+              )}
             </Button>
           </div>
         </div>

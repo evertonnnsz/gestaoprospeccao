@@ -28,13 +28,13 @@
          .from('clients')
          .select(`
            *,
-           lead:leads(company_name, contact_name)
+          lead:leads(company_name, contact_name, whatsapp)
          `)
          .eq('user_id', user?.id || '')
          .order('created_at', { ascending: false });
  
        if (error) throw error;
-       return data as (Client & { lead: { company_name: string; contact_name: string | null } })[];
+      return data as (Client & { lead: { company_name: string; contact_name: string | null; whatsapp: string | null } })[];
      },
      enabled: !!user?.id,
    });
@@ -151,6 +151,7 @@
            <PerformanceDashboard 
              clientId={selectedClientId}
              clientName={selectedClient?.lead?.company_name || 'Cliente'}
+              clientPhone={selectedClient?.lead?.whatsapp || null}
              campaigns={campaigns}
              isLoading={isLoadingCampaigns}
            />

@@ -1,6 +1,10 @@
  import { useMemo } from 'react';
+import { useState } from 'react';
  import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
  import { Skeleton } from '@/components/ui/skeleton';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { toast } from '@/hooks/use-toast';
  import { 
    DollarSign, 
    MessageCircle, 
@@ -9,9 +13,12 @@
    TrendingUp, 
    Eye,
    Target,
-   BarChart3
+  BarChart3,
+  Send
  } from 'lucide-react';
- import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { WhatsAppSummaryModal } from './WhatsAppSummaryModal';
+import type { Json } from '@/integrations/supabase/types';
  
  interface Campaign {
    id: string;
@@ -23,18 +30,22 @@
    leads_generated: number;
    period_start: string;
    period_end: string;
+  custom_metrics?: Json;
  }
  
  interface PerformanceDashboardProps {
    clientId: string;
    clientName: string;
+  clientPhone: string | null;
    campaigns: Campaign[];
    isLoading: boolean;
  }
  
  const COLORS = ['#3b82f6', '#f97316'];
  
- export function PerformanceDashboard({ clientId, clientName, campaigns, isLoading }: PerformanceDashboardProps) {
+export function PerformanceDashboard({ clientId, clientName, clientPhone, campaigns, isLoading }: PerformanceDashboardProps) {
+  const [showWhatsAppModal, setShowWhatsAppModal] = useState(false);
+
    const metrics = useMemo(() => {
      if (!campaigns.length) return null;
  
@@ -55,6 +66,48 @@
      };
    }, [campaigns]);
  
+  // Aggregate custom metrics from all campaigns
+  const aggregatedCustomMetrics = useMemo(() => {
+    const aggregated: Record<string, number> = {};
+    
+    campaigns.forEach(campaign => {
+      if (campaign.custom_metrics && Array.isArray(campaign.custom_metrics)) {
+        (campaign.custom_metrics as Array<{ name: string; value: number }>).forEach((metric) => {
+          if (metric.name) {
+            aggregated[metric.name] = (aggregated[metric.name] || 0) + (Number(metric.value) || 0);
+          }
+        });
+      }
+    });
+    
+    return Object.entries(aggregated).map(([name, value]) => ({ name, value }));
+  }, [campaigns]);
+
+  // Get period range from campaigns
+  const periodRange = useMemo(() => {
+    if (!campaigns.length) return { start: '', end: '' };
+    
+    const starts = campaigns.map(c => c.period_start).sort();
+    const ends = campaigns.map(c => c.period_end).sort();
+    
+    return {
+      start: starts[0],
+      end: ends[ends.length - 1],
+    };
+  }, [campaigns]);
+
+  const handleWhatsAppClick = () => {
+    if (!clientPhone) {
+      toast({
+        title: 'WhatsApp não cadastrado',
+        description: 'Este cliente não possui número de WhatsApp cadastrado. Atualize o cadastro do lead.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    setShowWhatsAppModal(true);
+  };
+
    const platformData = useMemo(() => {
      const byPlatform: Record<string, typeof metrics> = {};
      
@@ -90,8 +143,8 @@
      return (
        <Card>
          <CardHeader>
-           <Skeleton className="h-6 w-48" />
-           <Skeleton className="h-4 w-72 mt-2" />
+            <Skeleton className="h-6 w-48" />
+            <Skeleton className="h-4 w-72 mt-2" />
          </CardHeader>
          <CardContent>
            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -131,14 +184,37 @@
  
    return (
      <Card>
-       <CardHeader>
-         <CardTitle className="flex items-center gap-2">
-           <TrendingUp className="w-5 h-5" />
-           Dashboard de Performance
-         </CardTitle>
-         <CardDescription>
-           Métricas consolidadas para {clientName}
-         </CardDescription>
+      <CardHeader className="pb-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <TrendingUp className="w-5 h-5" />
+              Dashboard de Performance
+            </CardTitle>
+            <CardDescription>
+              Métricas consolidadas para {clientName}
+            </CardDescription>
+          </div>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  onClick={handleWhatsAppClick}
+                  disabled={!campaigns.length}
+                  className="bg-green-600 hover:bg-green-700 shrink-0"
+                >
+                  <Send className="w-4 h-4 mr-2" />
+                  Enviar Resumo via WhatsApp
+                </Button>
+              </TooltipTrigger>
+              {!campaigns.length && (
+                <TooltipContent>
+                  <p>Insira dados de campanhas para habilitar o envio</p>
+                </TooltipContent>
+              )}
+            </Tooltip>
+          </TooltipProvider>
+        </div>
        </CardHeader>
        <CardContent className="space-y-8">
          {/* KPI Cards */}
@@ -165,7 +241,7 @@
                    <CartesianGrid strokeDasharray="3 3" />
                    <XAxis dataKey="name" />
                    <YAxis />
-                   <Tooltip 
+                  <RechartsTooltip 
                      formatter={(value: number) => value.toLocaleString()}
                      contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))' }}
                    />
@@ -196,7 +272,7 @@
                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                      ))}
                    </Pie>
-                   <Tooltip 
+                  <RechartsTooltip 
                      formatter={(value: number) => `R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
                      contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))' }}
                    />
@@ -205,6 +281,29 @@
              </div>
            </div>
          )}
+
+        {/* WhatsApp Modal */}
+        {metrics && (
+          <WhatsAppSummaryModal
+            isOpen={showWhatsAppModal}
+            onClose={() => setShowWhatsAppModal(false)}
+            clientName={clientName}
+            clientPhone={clientPhone}
+            metrics={{
+              investment: metrics.investment,
+              impressions: metrics.impressions,
+              clicks: metrics.clicks,
+              conversations: metrics.conversations,
+              leads: metrics.leads,
+              ctr: metrics.ctr,
+              cpc: metrics.cpc,
+              cpl: metrics.cpl,
+              customMetrics: aggregatedCustomMetrics,
+            }}
+            periodStart={periodRange.start}
+            periodEnd={periodRange.end}
+          />
+        )}
        </CardContent>
      </Card>
    );

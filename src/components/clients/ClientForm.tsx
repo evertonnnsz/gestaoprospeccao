@@ -9,7 +9,7 @@ import { Client, Lead, MonthlyPaymentStatus } from '@/types/crm';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
-import { Loader2, Upload, FileText, X } from 'lucide-react';
+import { Loader2, Upload, FileText, X, Phone } from 'lucide-react';
 
 interface ClientFormProps {
   open: boolean;
@@ -63,6 +63,8 @@ export function ClientForm({ open, onOpenChange, client, lead, onSuccess }: Clie
     notes: '',
     monthly_payment_status: 'pending' as 'paid' | 'overdue' | 'pending',
   });
+  
+  const [whatsapp, setWhatsapp] = useState('');
 
   useEffect(() => {
     if (client) {
@@ -76,6 +78,8 @@ export function ClientForm({ open, onOpenChange, client, lead, onSuccess }: Clie
         notes: client.notes || '',
         monthly_payment_status: (client.monthly_payment_status as 'paid' | 'overdue' | 'pending') || 'pending',
       });
+      // Carrega o WhatsApp do lead associado
+      setWhatsapp(lead?.whatsapp || '');
     } else {
       setFormData({
         project_value: '',
@@ -87,8 +91,25 @@ export function ClientForm({ open, onOpenChange, client, lead, onSuccess }: Clie
         notes: '',
         monthly_payment_status: 'pending',
       });
+      setWhatsapp(lead?.whatsapp || '');
     }
   }, [client, open]);
+
+  // Formata WhatsApp enquanto digita
+  const formatWhatsAppInput = (value: string): string => {
+    // Remove tudo que não seja número
+    const numbers = value.replace(/\D/g, '');
+    
+    // Aplica máscara: (XX) XXXXX-XXXX
+    if (numbers.length <= 2) {
+      return numbers;
+    } else if (numbers.length <= 7) {
+      return `(${numbers.slice(0, 2)}) ${numbers.slice(2)}`;
+    } else if (numbers.length <= 11) {
+      return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 7)}-${numbers.slice(7)}`;
+    }
+    return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 7)}-${numbers.slice(7, 11)}`;
+  };
 
   // Sanitiza o nome do arquivo removendo caracteres especiais
   const sanitizeFileName = (name: string): string => {
@@ -149,6 +170,16 @@ export function ClientForm({ open, onOpenChange, client, lead, onSuccess }: Clie
 
     setLoading(true);
     try {
+      // Atualiza o WhatsApp no lead se foi alterado
+      if (lead && whatsapp !== (lead.whatsapp || '')) {
+        const { error: leadError } = await supabase
+          .from('leads')
+          .update({ whatsapp: whatsapp || null })
+          .eq('id', lead.id);
+        
+        if (leadError) throw leadError;
+      }
+
       const clientData = {
         user_id: user.id,
         lead_id: lead.id,
@@ -234,6 +265,23 @@ export function ClientForm({ open, onOpenChange, client, lead, onSuccess }: Clie
                 onChange={(e) => setFormData(prev => ({ ...prev, contract_duration_months: e.target.value }))}
               />
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="whatsapp" className="flex items-center gap-2">
+              <Phone className="w-4 h-4 text-green-600" />
+              Contato WhatsApp
+            </Label>
+            <Input
+              id="whatsapp"
+              type="tel"
+              placeholder="(00) 00000-0000"
+              value={whatsapp}
+              onChange={(e) => setWhatsapp(formatWhatsAppInput(e.target.value))}
+            />
+            <p className="text-xs text-muted-foreground">
+              Número usado para enviar resumos de performance
+            </p>
           </div>
 
           <div className="grid grid-cols-2 gap-4">

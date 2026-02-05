@@ -14,6 +14,71 @@ export type Database = {
   }
   public: {
     Tables: {
+      campanhas_anuncios: {
+        Row: {
+          campaign_name: string | null
+          clicks: number
+          client_id: string
+          conversations_started: number
+          created_at: string
+          id: string
+          impressions: number
+          investment: number
+          leads_generated: number
+          notes: string | null
+          period_end: string
+          period_start: string
+          platform: Database["public"]["Enums"]["ad_platform"]
+          source: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          campaign_name?: string | null
+          clicks?: number
+          client_id: string
+          conversations_started?: number
+          created_at?: string
+          id?: string
+          impressions?: number
+          investment?: number
+          leads_generated?: number
+          notes?: string | null
+          period_end: string
+          period_start: string
+          platform: Database["public"]["Enums"]["ad_platform"]
+          source?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          campaign_name?: string | null
+          clicks?: number
+          client_id?: string
+          conversations_started?: number
+          created_at?: string
+          id?: string
+          impressions?: number
+          investment?: number
+          leads_generated?: number
+          notes?: string | null
+          period_end?: string
+          period_start?: string
+          platform?: Database["public"]["Enums"]["ad_platform"]
+          source?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campanhas_anuncios_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clients: {
         Row: {
           contract_duration_months: number | null
@@ -254,6 +319,7 @@ export type Database = {
       }
     }
     Enums: {
+      ad_platform: "meta_ads" | "google_ads"
       app_role: "admin" | "user"
       expense_category:
         | "marketing"
@@ -402,6 +468,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      ad_platform: ["meta_ads", "google_ads"],
       app_role: ["admin", "user"],
       expense_category: [
         "marketing",

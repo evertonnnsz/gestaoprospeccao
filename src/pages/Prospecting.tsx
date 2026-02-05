@@ -1,14 +1,14 @@
-import { useState } from 'react';
+ import { useState, useEffect } from 'react';
 import { ProspectSearchForm, SearchParams } from '@/components/prospecting/ProspectSearchForm';
 import { ProspectCard } from '@/components/prospecting/ProspectCard';
 import { LeadForm } from '@/components/leads/LeadForm';
-import { firecrawlApi, ProspectResult } from '@/lib/api/firecrawl';
+ import { serpApi, ProspectResult } from '@/lib/api/serpapi';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { Lead } from '@/types/crm';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Search, Sparkles, AlertCircle, Users, Loader2, ChevronDown } from 'lucide-react';
+ import { Search, Sparkles, AlertCircle, Users, Loader2, ChevronDown, MapPin } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -22,7 +22,7 @@ export default function Prospecting() {
   const [error, setError] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(false);
   const [currentSearchParams, setCurrentSearchParams] = useState<SearchParams | null>(null);
-  const [currentVariation, setCurrentVariation] = useState(0);
+   const [nextOffset, setNextOffset] = useState(0);
   
   // Lead form state
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -43,37 +43,43 @@ export default function Prospecting() {
     setHasSearched(true);
     setResults([]);
     setCurrentSearchParams(params);
-    setCurrentVariation(0);
+     setNextOffset(0);
 
     try {
-      const response = await firecrawlApi.search(params);
+       const response = await serpApi.search(params);
 
       if (!response.success) {
-        setError(response.error || 'Erro ao buscar leads');
+         // Show user-friendly error messages
+         if (response.error?.includes('Chave da SerpApi')) {
+           setError('Chave da API não configurada. Contate o administrador.');
+         } else if (response.error?.includes('Chave de API')) {
+           setError('Erro na Chave de API. Verifique suas configurações.');
+         } else if (response.error?.includes('Limite de requisições')) {
+           setError('Limite de requisições atingido. Tente novamente mais tarde.');
+         } else {
+           setError(response.error || 'Erro ao buscar leads');
+         }
         setResults([]);
         setHasMore(false);
         return;
       }
 
       // Check for duplicates
-      const prospectsWithDuplicates = await firecrawlApi.checkDuplicates(
+       const prospectsWithDuplicates = await serpApi.checkDuplicates(
         response.data || [], 
         user.id
       );
 
       setResults(prospectsWithDuplicates);
       setHasMore(response.hasMore || false);
-      setCurrentVariation(response.searchVariation || 0);
+       setNextOffset(response.nextOffset || 0);
 
       if (prospectsWithDuplicates.length === 0) {
-        toast({
-          title: 'Nenhum resultado',
-          description: 'Tente ajustar os termos de busca.',
-        });
+         setError('Nenhum resultado encontrado para esta região. Tente ampliar o nicho ou verificar a ortografia.');
       } else {
         toast({
           title: 'Busca concluída!',
-          description: `Encontrados ${prospectsWithDuplicates.length} leads potenciais.`,
+           description: `Encontrados ${prospectsWithDuplicates.length} leads do Google Maps.`,
         });
       }
     } catch (err) {
@@ -90,7 +96,7 @@ export default function Prospecting() {
     setIsLoadingMore(true);
 
     try {
-      const response = await firecrawlApi.loadMore(currentSearchParams, currentVariation);
+       const response = await serpApi.loadMore(currentSearchParams, nextOffset);
 
       if (!response.success) {
         toast({
@@ -102,18 +108,18 @@ export default function Prospecting() {
       }
 
       // Check for duplicates in new results
-      const newProspects = await firecrawlApi.checkDuplicates(
+       const newProspects = await serpApi.checkDuplicates(
         response.data || [], 
         user.id
       );
 
       // Deduplicate against existing results
-      const deduplicatedResults = firecrawlApi.deduplicateResults(results, newProspects);
+       const deduplicatedResults = serpApi.deduplicateResults(results, newProspects);
       const newCount = deduplicatedResults.length - results.length;
 
       setResults(deduplicatedResults);
       setHasMore(response.hasMore || false);
-      setCurrentVariation(response.searchVariation || currentVariation + 1);
+       setNextOffset(response.nextOffset || nextOffset);
 
       toast({
         title: 'Mais resultados carregados!',
@@ -172,12 +178,12 @@ export default function Prospecting() {
       {/* Header */}
       <div className="flex items-center gap-3">
         <div className="p-2 bg-primary/10 rounded-lg">
-          <Sparkles className="w-6 h-6 text-primary" />
+           <MapPin className="w-6 h-6 text-primary" />
         </div>
         <div>
           <h1 className="text-2xl font-bold">Prospecção Inteligente</h1>
           <p className="text-muted-foreground">
-            Busque empresas na web e capture leads automaticamente
+             Busque empresas no Google Maps e capture leads automaticamente
           </p>
         </div>
       </div>
@@ -309,11 +315,11 @@ export default function Prospecting() {
       {!hasSearched && !isLoading && (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-            <Sparkles className="w-12 h-12 text-primary/50 mb-4" />
+             <MapPin className="w-12 h-12 text-primary/50 mb-4" />
             <h3 className="text-lg font-medium mb-2">Comece sua prospecção</h3>
             <p className="text-muted-foreground max-w-md">
               Selecione o nicho de mercado, estado e cidade para encontrar 
-              empresas potenciais que podem se tornar seus clientes.
+               empresas no Google Maps que podem se tornar seus clientes.
             </p>
           </CardContent>
         </Card>

@@ -1,20 +1,25 @@
 
-# Plano: Envio de Resumo Dinamico via WhatsApp
+# Plano: Importacao de Leads via Excel/CSV na Prospeccao
 
 ## Visao Geral
 
-Implementar um sistema de compartilhamento via WhatsApp que constroi mensagens personalizadas baseadas nas metricas que possuem dados para cada cliente, incluindo modal de pre-visualizacao e edicao antes do envio.
+Implementar um sistema completo de importacao de leads externos na aba de Prospeccao, permitindo upload de arquivos Excel (.xlsx, .xls) e CSV, mapeamento de colunas, visualizacao em tabela de triagem com verificacao de duplicatas, e salvamento seletivo de leads.
 
 ---
 
-## Estrutura da Solucao
+## Arquitetura da Solucao
 
 ```text
-+-------------------+     +---------------------+     +------------------+
-|  Dashboard de     |     |  Modal de Preview   |     |  WhatsApp URL    |
-|  Performance      | --> |  com Editor         | --> |  (wa.me/...)     |
-|  (Botao Enviar)   |     |  de Mensagem        |     |                  |
-+-------------------+     +---------------------+     +------------------+
++-------------------+     +---------------------+     +---------------------+     +------------------+
+|  Botao Importar   |     |  Modal de Upload    |     |  Mapeamento de      |     |  Tabela de       |
+|  Lista Externa    | --> |  + Leitura Arquivo  | --> |  Colunas            | --> |  Triagem/Preview |
++-------------------+     +---------------------+     +---------------------+     +------------------+
+                                                                                          |
+                                                                                          v
+                                                                                  +------------------+
+                                                                                  |  Salvamento no   |
+                                                                                  |  Banco de Dados  |
+                                                                                  +------------------+
 ```
 
 ---
@@ -23,225 +28,286 @@ Implementar um sistema de compartilhamento via WhatsApp que constroi mensagens p
 
 | Arquivo | Acao | Descricao |
 |---------|------|-----------|
-| `src/components/customer-success/WhatsAppSummaryModal.tsx` | Criar | Modal com preview e edicao da mensagem |
-| `src/components/customer-success/PerformanceDashboard.tsx` | Modificar | Adicionar botao de envio WhatsApp |
-| `src/pages/CustomerSuccess.tsx` | Modificar | Buscar dados do lead (whatsapp) junto com o cliente |
+| `src/components/prospecting/LeadImportModal.tsx` | Criar | Modal principal com upload e mapeamento |
+| `src/components/prospecting/LeadImportPreview.tsx` | Criar | Tabela de triagem com checkboxes e verificacao de duplicatas |
+| `src/pages/Prospecting.tsx` | Modificar | Adicionar botao "Importar Lista Externa" |
+| `package.json` | Modificar | Adicionar biblioteca `xlsx` para parsing de Excel |
 
 ---
 
-## 1. Atualizar Query de Clientes
+## 1. Dependencia Nova: SheetJS (xlsx)
 
-A query atual nao busca o numero de WhatsApp. Atualizar para incluir:
+Sera necessario instalar a biblioteca `xlsx` para parsear arquivos Excel:
 
-```typescript
-// Em CustomerSuccess.tsx
-.select(`
-  *,
-  lead:leads(company_name, contact_name, whatsapp)
-`)
+```bash
+npm install xlsx
 ```
 
+Esta biblioteca suporta .xlsx, .xls e .csv em um unico parser.
+
 ---
 
-## 2. Logica de Construcao Dinamica
+## 2. Estrutura do Modal de Importacao (LeadImportModal)
 
-A mensagem sera construida com base nos dados disponiveis:
+### Etapas do Fluxo
+
+1. **Upload do Arquivo**: Aceita .xlsx, .xls, .csv
+2. **Leitura e Parsing**: Extrai colunas do arquivo
+3. **Mapeamento de Colunas**: Usuario associa colunas do arquivo aos campos do sistema
+4. **Confirmacao**: Apos mapear, avanca para a tabela de triagem
+
+### Campos Mapeaveis
+
+| Campo do Sistema | Descricao |
+|------------------|-----------|
+| `company_name` | Nome da Empresa (obrigatorio) |
+| `contact_name` | Nome do Contato |
+| `whatsapp` | Numero do WhatsApp |
+| `instagram` | @ do Instagram |
+| `segment` | Segmento/Nicho |
+| `observations` | Observacoes adicionais |
+
+### Interface de Mapeamento
 
 ```text
-Dados de Entrada (Campaign Metrics):
-+---------------------+-------------+
-| Metrica             | Condicao    |
-+---------------------+-------------+
-| investment          | > 0         |
-| impressions         | > 0         |
-| clicks              | > 0         |
-| conversations       | > 0         |
-| leads               | > 0         |
-| ctr                 | calculado   |
-| cpc                 | calculado   |
-| cpl                 | calculado   |
-| custom_metrics      | array > 0   |
-+---------------------+-------------+
-```
-
-**Template da Mensagem:**
-
-```text
-Ola, [Nome do Cliente]! 👋
-
-Segue o resumo de performance personalizado das suas campanhas ([Data Inicio] a [Data Fim]):
-
-[Se investment > 0]     💰 Investimento: R$ [Valor]
-[Se impressions > 0]    👁️ Impressoes: [Valor]
-[Se clicks > 0]         🖱️ Cliques: [Valor]
-[Se conversations > 0]  💬 Conversas Iniciadas: [Valor]
-[Se leads > 0]          📈 Leads Gerados: [Valor]
-[Se ctr > 0]            📊 CTR: [Valor]%
-[Se cpc > 0]            🎯 CPC: R$ [Valor]
-[Se cpl > 0]            💎 CPL: R$ [Valor]
-[Para cada custom_metric] [emoji] [Nome]: [Valor]
-
-Estes sao os indicadores que estamos acompanhando de perto para o seu negocio. Qualquer duvida, estou aqui! 👊
++----------------------------------------------------------+
+| Importar Lista de Leads                               [X] |
++----------------------------------------------------------+
+|                                                          |
+| [1] Selecione o arquivo                                  |
+| +------------------------------------------------------+ |
+| | [Arraste ou clique para selecionar]                  | |
+| | Suporta: .xlsx, .xls, .csv                           | |
+| +------------------------------------------------------+ |
+|                                                          |
+| [2] Mapeie as colunas do seu arquivo:                    |
+|                                                          |
+| Empresa (obrigatorio):    [Dropdown: colunas do arquivo] |
+| Nome do Contato:          [Dropdown: colunas do arquivo] |
+| WhatsApp:                 [Dropdown: colunas do arquivo] |
+| Instagram:                [Dropdown: colunas do arquivo] |
+| Segmento:                 [Dropdown: colunas do arquivo] |
+| Observacoes:              [Dropdown: colunas do arquivo] |
+|                                                          |
+|              [Cancelar]    [Continuar para Triagem]      |
++----------------------------------------------------------+
 ```
 
 ---
 
-## 3. Estrutura do Modal (WhatsAppSummaryModal)
-
-### Props do Componente
-
-```typescript
-interface WhatsAppSummaryModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  clientName: string;
-  clientPhone: string;
-  metrics: {
-    investment: number;
-    impressions: number;
-    clicks: number;
-    conversations: number;
-    leads: number;
-    ctr: number;
-    cpc: number;
-    cpl: number;
-    customMetrics: Array<{ name: string; value: number }>;
-  };
-  periodStart: string;
-  periodEnd: string;
-}
-```
+## 3. Tabela de Triagem (LeadImportPreview)
 
 ### Funcionalidades
 
-1. **Preview da mensagem** - Area de texto mostrando o texto gerado
-2. **Campo editavel** - Usuario pode ajustar a mensagem antes de enviar
-3. **Botao "Confirmar e Abrir WhatsApp"** - Abre a URL wa.me com a mensagem codificada
-4. **Indicador de numero** - Mostra o numero de WhatsApp que sera usado
+1. **Verificacao de Duplicatas**: Compara WhatsApp e Nome da Empresa com a tabela `leads`
+2. **Indicador Visual**: Leads duplicados em amarelo/laranja com icone de alerta
+3. **Checkbox por Linha**: Selecao individual de leads
+4. **Checkbox Geral**: Selecionar/desmarcar todos os nao-duplicados
+5. **Botao "Salvar Lead"**: Salvamento individual por linha
+6. **Botao "Salvar Selecionados"**: Salvamento em massa
 
----
+### Regras de Duplicata
 
-## 4. Formatacao da URL WhatsApp
+| Condicao | Comportamento |
+|----------|---------------|
+| WhatsApp ja existe no banco | Marcar como duplicata, desabilitar checkbox por padrao |
+| Nome da empresa ja existe | Marcar como duplicata, desabilitar checkbox por padrao |
+| Ambos novos | Checkbox habilitado e marcado por padrao |
 
-```typescript
-const formatWhatsAppUrl = (phone: string, message: string): string => {
-  // Remove caracteres especiais do telefone
-  const cleanPhone = phone.replace(/[\s\-\(\)\+\u200B\u200C\u200D]/g, '');
-  
-  // Adiciona codigo do Brasil se nao tiver
-  const finalPhone = cleanPhone.startsWith('55') ? cleanPhone : `55${cleanPhone}`;
-  
-  // Codifica a mensagem para URL
-  const encodedMessage = encodeURIComponent(message);
-  
-  return `https://wa.me/${finalPhone}?text=${encodedMessage}`;
-};
-```
-
----
-
-## 5. Interface Visual do Modal
+### Interface da Tabela
 
 ```text
-+----------------------------------------------------------+
-| 📱 Enviar Resumo via WhatsApp                         [X] |
-+----------------------------------------------------------+
-|                                                          |
-| 📞 Numero: +55 81 99790-1365                             |
-|                                                          |
-| ┌──────────────────────────────────────────────────────┐ |
-| │ Ola, Taciana! 👋                                     │ |
-| │                                                      │ |
-| │ Segue o resumo de performance personalizado das      │ |
-| │ suas campanhas (01/01/2026 a 30/01/2026):           │ |
-| │                                                      │ |
-| │ 💰 Investimento: R$ 335,33                          │ |
-| │ 💬 Conversas Iniciadas: 543                         │ |
-| │ 🎯 Custo por Conversa: R$ 0,62                      │ |
-| │                                                      │ |
-| │ Estes sao os indicadores que estamos acompanhando   │ |
-| │ de perto para o seu negocio. Qualquer duvida,       │ |
-| │ estou aqui! 👊                                       │ |
-| └──────────────────────────────────────────────────────┘ |
-|                                                          |
-| ⚠️ Voce pode editar a mensagem antes de enviar          |
-|                                                          |
-| [Cancelar]              [✓ Confirmar e Abrir WhatsApp]   |
-+----------------------------------------------------------+
++------------------------------------------------------------------+
+| Triagem de Leads Importados                                   [X] |
++------------------------------------------------------------------+
+|                                                                  |
+| [x] Selecionar todos novos    Novos: 45 | Duplicados: 12        |
+|                                                                  |
+| +--------------------------------------------------------------+ |
+| | [ ] | Empresa      | WhatsApp       | Segmento    | Acao     | |
+| +--------------------------------------------------------------+ |
+| | [x] | ABC Comercio | (81) 99999... | Varejo      | [Salvar]  | |
+| | [x] | XYZ Tech     | (11) 88888... | Tecnologia  | [Salvar]  | |
+| | [!] | Loja 123     | (21) 77777... | Varejo      | [Existe]  | |  <- Linha em cor diferente
+| | [x] | Nova Empresa | (85) 66666... | Servicos    | [Salvar]  | |
+| +--------------------------------------------------------------+ |
+|                                                                  |
+| [!] = Lead possivelmente ja cadastrado (WhatsApp ou nome similar)|
+|                                                                  |
+|              [Cancelar]              [Salvar Selecionados (45)]  |
++------------------------------------------------------------------+
 ```
 
 ---
 
-## 6. Integracao com PerformanceDashboard
+## 4. Logica de Parsing de Arquivos
 
-Adicionar botao no header do dashboard:
-
-```typescript
-// Em PerformanceDashboard.tsx
-<CardHeader>
-  <div className="flex items-center justify-between">
-    <div>
-      <CardTitle>Dashboard de Performance</CardTitle>
-      <CardDescription>Metricas consolidadas para {clientName}</CardDescription>
-    </div>
-    <Button onClick={() => setShowWhatsAppModal(true)}>
-      <MessageCircle className="w-4 h-4 mr-2" />
-      Enviar Resumo via WhatsApp
-    </Button>
-  </div>
-</CardHeader>
-```
-
----
-
-## 7. Metricas Customizadas
-
-O sistema deve agregar as metricas customizadas de todas as campanhas:
+### Suporte Multi-formato
 
 ```typescript
-const aggregateCustomMetrics = (campaigns: Campaign[]): Record<string, number> => {
-  const aggregated: Record<string, number> = {};
+import * as XLSX from 'xlsx';
+
+const parseFile = async (file: File): Promise<{ headers: string[], rows: string[][] }> => {
+  const arrayBuffer = await file.arrayBuffer();
   
-  campaigns.forEach(campaign => {
-    if (campaign.custom_metrics && Array.isArray(campaign.custom_metrics)) {
-      campaign.custom_metrics.forEach((metric: { name: string; value: number }) => {
-        if (metric.name) {
-          aggregated[metric.name] = (aggregated[metric.name] || 0) + (metric.value || 0);
-        }
-      });
-    }
-  });
+  // XLSX suporta .xlsx, .xls e .csv automaticamente
+  const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+  const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+  const data = XLSX.utils.sheet_to_json(firstSheet, { header: 1 }) as string[][];
   
-  return aggregated;
+  const headers = data[0] || [];
+  const rows = data.slice(1);
+  
+  return { headers, rows };
 };
 ```
 
 ---
 
-## Fluxo de Usuario
+## 5. Verificacao de Duplicatas
 
-1. Usuario seleciona um cliente
-2. Dashboard de Performance exibe as metricas
-3. Usuario clica em "Enviar Resumo via WhatsApp"
-4. Modal abre com mensagem pre-construida baseada nas metricas ativas
-5. Usuario pode editar a mensagem se necessario
-6. Usuario clica em "Confirmar e Abrir WhatsApp"
-7. Navegador abre WhatsApp Web com a mensagem pronta
+Reutilizar a logica existente em `serpApi.checkDuplicates`:
+
+```typescript
+const checkDuplicates = async (leads: ImportedLead[], userId: string) => {
+  const { data: existingLeads } = await supabase
+    .from('leads')
+    .select('company_name, whatsapp')
+    .eq('user_id', userId);
+
+  const existingNames = new Set(
+    existingLeads?.map(l => l.company_name.toLowerCase().trim()) || []
+  );
+  
+  const existingPhones = new Set(
+    existingLeads?.filter(l => l.whatsapp)
+      .map(l => l.whatsapp?.replace(/\D/g, '')) || []
+  );
+
+  return leads.map(lead => ({
+    ...lead,
+    isDuplicate: 
+      existingNames.has(lead.company_name.toLowerCase().trim()) ||
+      (lead.whatsapp && existingPhones.has(lead.whatsapp.replace(/\D/g, '')))
+  }));
+};
+```
 
 ---
 
-## Tratamento de Erros
+## 6. Salvamento no Banco
 
-| Situacao | Comportamento |
-|----------|---------------|
-| Cliente sem WhatsApp cadastrado | Mostrar toast de erro e desabilitar botao |
-| Sem dados de campanhas | Botao desabilitado com tooltip explicativo |
-| Formato de telefone invalido | Validacao e mensagem de erro no modal |
+### Dados Padrao ao Salvar
+
+| Campo | Valor |
+|-------|-------|
+| `status` | `'lead_coletado'` |
+| `lead_source` | `'Importacao de Lista'` |
+| `approach_date` | Data atual |
+| `user_id` | ID do usuario logado |
+
+### Mutation de Salvamento
+
+```typescript
+const saveLeadsMutation = useMutation({
+  mutationFn: async (selectedLeads: ImportedLead[]) => {
+    const records = selectedLeads.map(lead => ({
+      user_id: user.id,
+      company_name: lead.company_name,
+      contact_name: lead.contact_name || null,
+      whatsapp: lead.whatsapp || null,
+      instagram: lead.instagram || null,
+      segment: lead.segment || null,
+      observations: lead.observations || null,
+      status: 'lead_coletado',
+      lead_source: 'Importacao de Lista',
+      approach_date: new Date().toISOString().split('T')[0],
+    }));
+
+    const { error } = await supabase.from('leads').insert(records);
+    if (error) throw error;
+    
+    return records.length;
+  },
+  onSuccess: (count) => {
+    toast({
+      title: 'Importacao concluida!',
+      description: `${count} lead(s) importado(s) com sucesso.`,
+    });
+  },
+});
+```
 
 ---
 
-## Arquivos a Modificar
+## 7. Integracao na Pagina de Prospeccao
 
-1. **Criar**: `src/components/customer-success/WhatsAppSummaryModal.tsx`
-2. **Modificar**: `src/components/customer-success/PerformanceDashboard.tsx`
-3. **Modificar**: `src/pages/CustomerSuccess.tsx`
+### Botao no Header
+
+```typescript
+// Em Prospecting.tsx - Adicionar ao lado do titulo
+<div className="flex items-center justify-between">
+  <div className="flex items-center gap-3">
+    <div className="p-2 bg-primary/10 rounded-lg">
+      <MapPin className="w-6 h-6 text-primary" />
+    </div>
+    <div>
+      <h1 className="text-2xl font-bold">Prospeccao Inteligente</h1>
+      <p className="text-muted-foreground">...</p>
+    </div>
+  </div>
+  
+  <Button onClick={() => setShowImportModal(true)}>
+    <FileUp className="w-4 h-4 mr-2" />
+    Importar Lista Externa
+  </Button>
+</div>
+```
+
+---
+
+## 8. Tratamento de Caracteres Especiais
+
+### Formatacao de Telefone
+
+```typescript
+const formatPhone = (phone: string): string => {
+  const cleaned = phone.replace(/\D/g, '');
+  if (cleaned.length === 11) {
+    return `(${cleaned.slice(0,2)}) ${cleaned.slice(2,7)}-${cleaned.slice(7)}`;
+  }
+  if (cleaned.length === 10) {
+    return `(${cleaned.slice(0,2)}) ${cleaned.slice(2,6)}-${cleaned.slice(6)}`;
+  }
+  return phone;
+};
+```
+
+### Leitura com Encoding Correto
+
+O SheetJS automaticamente detecta e trata encodings como UTF-8 e ISO-8859-1, garantindo que acentos e caracteres especiais sejam preservados.
+
+---
+
+## Fluxo Completo do Usuario
+
+1. Usuario clica em "Importar Lista Externa"
+2. Modal abre para upload do arquivo
+3. Usuario seleciona arquivo .xlsx, .xls ou .csv
+4. Sistema le e extrai as colunas do arquivo
+5. Usuario mapeia cada coluna do arquivo para um campo do sistema
+6. Ao clicar "Continuar para Triagem", sistema verifica duplicatas
+7. Tabela de triagem exibe leads com indicadores de duplicata
+8. Usuario seleciona quais leads deseja importar
+9. Usuario clica em "Salvar Selecionados" ou salva individualmente
+10. Sistema insere leads no banco com status "Lead Coletado" e origem "Importacao de Lista"
+11. Toast de sucesso informa quantos leads foram importados
+
+---
+
+## Arquivos Finais a Criar/Modificar
+
+1. **Criar**: `src/components/prospecting/LeadImportModal.tsx` - Modal com upload e mapeamento
+2. **Criar**: `src/components/prospecting/LeadImportPreview.tsx` - Tabela de triagem
+3. **Modificar**: `src/pages/Prospecting.tsx` - Adicionar botao e integracao do modal
+4. **Modificar**: `package.json` - Adicionar dependencia `xlsx`

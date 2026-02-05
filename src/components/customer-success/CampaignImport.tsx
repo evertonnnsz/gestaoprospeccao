@@ -3,7 +3,6 @@
  import { supabase } from '@/integrations/supabase/client';
  import { useAuth } from '@/contexts/AuthContext';
  import { Button } from '@/components/ui/button';
- import { Input } from '@/components/ui/input';
  import { Label } from '@/components/ui/label';
  import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
  import { Card, CardContent } from '@/components/ui/card';
@@ -26,8 +25,41 @@
    clicks: number;
    conversations_started: number;
    leads_generated: number;
+  reach?: number;
+  notes?: string;
  }
  
+// Parser CSV que respeita campos entre aspas
+const parseCSVLine = (line: string): string[] => {
+  const result: string[] = [];
+  let current = '';
+  let inQuotes = false;
+  
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+    if (char === '"') {
+      inQuotes = !inQuotes;
+    } else if ((char === ',' || char === ';') && !inQuotes) {
+      result.push(current.trim());
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+  result.push(current.trim());
+  return result;
+};
+
+// Formatar data para exibição (YYYY-MM-DD -> DD/MM/YYYY)
+const formatDateDisplay = (dateStr: string): string => {
+  if (!dateStr || dateStr.length < 10) return dateStr;
+  const parts = dateStr.split('-');
+  if (parts.length === 3 && parts[0].length === 4) {
+    return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  }
+  return dateStr;
+};
+
  export function CampaignImport({ clientId, onSuccess }: CampaignImportProps) {
    const { user } = useAuth();
    const fileInputRef = useRef<HTMLInputElement>(null);
@@ -40,11 +72,11 @@
      const lines = text.trim().split('\n');
      if (lines.length < 2) throw new Error('Arquivo vazio ou sem dados');
  
-     const headers = lines[0].toLowerCase().split(/[,;]/).map(h => h.trim());
+    const headers = parseCSVLine(lines[0].toLowerCase());
      const rows: ParsedRow[] = [];
  
      for (let i = 1; i < lines.length; i++) {
-       const values = lines[i].split(/[,;]/).map(v => v.trim().replace(/"/g, ''));
+      const values = parseCSVLine(lines[i]);
        if (values.length < 2) continue;
  
        const getCol = (possibleNames: string[]) => {
@@ -53,13 +85,22 @@
        };
  
        const parseNum = (val: string) => {
-         const cleaned = val.replace(/[R$\s.]/g, '').replace(',', '.');
+        // Remove R$, espaços e trata ambos os formatos decimais
+        const cleaned = val.replace(/[R$\s]/g, '');
+        // Se tem vírgula e ponto, assume formato brasileiro (1.234,56)
+        if (cleaned.includes(',') && cleaned.includes('.')) {
+          return parseFloat(cleaned.replace(/\./g, '').replace(',', '.')) || 0;
+        }
+        // Se só tem vírgula, assume formato brasileiro (1234,56)
+        if (cleaned.includes(',')) {
+          return parseFloat(cleaned.replace(',', '.')) || 0;
+        }
+        // Formato internacional com ponto (1234.56)
          return parseFloat(cleaned) || 0;
        };
  
        const parseDate = (val: string) => {
          if (!val) return new Date().toISOString().split('T')[0];
-         // Try different date formats
          const parts = val.split(/[\/\-]/);
          if (parts.length === 3) {
            if (parts[0].length === 4) return val; // YYYY-MM-DD
@@ -68,15 +109,21 @@
          return new Date().toISOString().split('T')[0];
        };
  
+      // Mapeamento atualizado para Meta Ads
+      const campaignName = getCol(['nome da campanha', 'campanha', 'campaign', 'nome']);
+      const reach = parseInt(getCol(['alcance', 'reach']).replace(/\D/g, '')) || 0;
+      
        rows.push({
-         campaign_name: getCol(['campanha', 'campaign', 'nome']),
-         period_start: parseDate(getCol(['inicio', 'start', 'data_inicio', 'de'])),
-         period_end: parseDate(getCol(['fim', 'end', 'data_fim', 'até', 'ate'])),
-         investment: parseNum(getCol(['investimento', 'gasto', 'spent', 'custo', 'valor'])),
-         impressions: parseInt(getCol(['impressoes', 'impressions', 'alcance'])) || 0,
+        campaign_name: campaignName,
+        period_start: parseDate(getCol(['inicio dos relatorios', 'início dos relatórios', 'inicio', 'start', 'data_inicio', 'de'])),
+        period_end: parseDate(getCol(['termino dos relatorios', 'término dos relatórios', 'fim', 'end', 'data_fim', 'até', 'ate'])),
+        investment: parseNum(getCol(['valor usado', 'valor usado (brl)', 'investimento', 'gasto', 'spent', 'custo', 'valor'])),
+        impressions: parseInt(getCol(['impressoes', 'impressões', 'impressions']).replace(/\D/g, '')) || 0,
          clicks: parseInt(getCol(['cliques', 'clicks', 'click'])) || 0,
-         conversations_started: parseInt(getCol(['conversas', 'conversations', 'mensagens'])) || 0,
+        conversations_started: parseInt(getCol(['resultados', 'conversas', 'conversations', 'mensagens']).replace(/\D/g, '')) || 0,
          leads_generated: parseInt(getCol(['leads', 'cadastros', 'conversoes'])) || 0,
+        reach,
+        notes: reach > 0 ? `Alcance: ${reach.toLocaleString('pt-BR')}` : undefined,
        });
      }
  
@@ -118,6 +165,7 @@
          conversations_started: row.conversations_started,
          leads_generated: row.leads_generated,
          source: 'import',
+          notes: row.notes || null,
        }));
  
        const { error } = await supabase
@@ -229,21 +277,23 @@
                    <th className="px-3 py-2 text-left">Período</th>
                    <th className="px-3 py-2 text-right">Investimento</th>
                    <th className="px-3 py-2 text-right">Impressões</th>
-                   <th className="px-3 py-2 text-right">Cliques</th>
+                    <th className="px-3 py-2 text-right">Alcance</th>
                    <th className="px-3 py-2 text-right">Conversas</th>
-                   <th className="px-3 py-2 text-right">Leads</th>
                  </tr>
                </thead>
                <tbody>
                  {parsedData.slice(0, 5).map((row, i) => (
                    <tr key={i} className="border-t">
                      <td className="px-3 py-2">{row.campaign_name || '-'}</td>
-                     <td className="px-3 py-2">{row.period_start} a {row.period_end}</td>
-                     <td className="px-3 py-2 text-right">R$ {row.investment.toFixed(2)}</td>
-                     <td className="px-3 py-2 text-right">{row.impressions.toLocaleString()}</td>
-                     <td className="px-3 py-2 text-right">{row.clicks.toLocaleString()}</td>
-                     <td className="px-3 py-2 text-right">{row.conversations_started}</td>
-                     <td className="px-3 py-2 text-right">{row.leads_generated}</td>
+                      <td className="px-3 py-2">
+                        {formatDateDisplay(row.period_start)} a {formatDateDisplay(row.period_end)}
+                      </td>
+                      <td className="px-3 py-2 text-right">
+                        {row.investment.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                      </td>
+                      <td className="px-3 py-2 text-right">{row.impressions.toLocaleString('pt-BR')}</td>
+                      <td className="px-3 py-2 text-right">{(row.reach || 0).toLocaleString('pt-BR')}</td>
+                      <td className="px-3 py-2 text-right">{row.conversations_started.toLocaleString('pt-BR')}</td>
                    </tr>
                  ))}
                </tbody>

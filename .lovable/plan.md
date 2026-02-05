@@ -1,88 +1,173 @@
 
-# Plano: Correção do Erro de UUID ao Salvar Lead da Prospecção
+# Plano: Ajuste do Parser de Importacao para Modelo Meta Ads
 
 ## Problema Identificado
 
-O erro `invalid input syntax for type uuid: "undefined"` ocorre porque o formulário de leads (`LeadForm.tsx`) está tentando fazer um **UPDATE** ao invés de um **INSERT**.
+O arquivo CSV do Meta Ads tem uma estrutura especifica que o parser atual nao reconhece:
 
-### Causa Raiz
-
-No `LeadForm.tsx`, a lógica na linha 108 é:
-```typescript
-if (lead) {
-  // Tenta fazer UPDATE usando lead.id
-}
+```text
+Colunas do arquivo:
++------------------------+---------------------+-------------------+
+| Nome da campanha       | Resultados          | Valor usado (BRL) |
+| Impressoes             | Alcance             | Inicio dos        |
+|                        |                     | relatorios        |
+| Termino dos relatorios | Tipo de resultado   | ...               |
++------------------------+---------------------+-------------------+
 ```
 
-O problema é que ao salvar um prospect da página de Prospecção, você passa um objeto com dados pre-preenchidos:
-```typescript
-const leadData: Partial<Lead> = {
-  company_name: prospect.company_name,
-  whatsapp: prospect.whatsapp || '',
-  // ... outros campos
-  // NÃO TEM 'id' aqui!
-};
-setSelectedProspect(leadData);
-```
+### Problemas Tecnicos
 
-Como o objeto `leadData` existe (não é `null`), a condição `if (lead)` retorna `true`, mas `lead.id` é `undefined`, causando o erro no banco de dados.
+1. **Parser CSV incorreto**: O atual usa `split(/[,;]/)` que quebra campos com aspas contendo virgulas
+2. **Nomes de colunas nao mapeados**: Os headers do Meta Ads nao estao nos arrays de busca
+3. **Formato de valores**: "Valor usado (BRL)" usa ponto como decimal (335.33), diferente do esperado
 
 ---
 
-## Solução
+## Mapeamento de Colunas (Meta Ads)
 
-Modificar a lógica do `LeadForm.tsx` para verificar se `lead.id` existe, não apenas se `lead` existe:
+| Coluna no CSV | Campo no Banco | Observacao |
+|---------------|----------------|------------|
+| Nome da campanha | campaign_name | Texto livre |
+| Resultados | conversations_started | Quando "Tipo de resultado" = "Conversas por mensagem iniciadas" |
+| Valor usado (BRL) | investment | Decimal com ponto (335.33) |
+| Impressoes | impressions | Inteiro |
+| Alcance | notes | Salvar como observacao |
+| Inicio dos relatorios | period_start | Formato YYYY-MM-DD |
+| Termino dos relatorios | period_end | Formato YYYY-MM-DD |
+
+---
+
+## Solucao Tecnica
+
+### 1. Corrigir Parser CSV
+
+Implementar parser que respeita campos entre aspas:
+
+```text
+Entrada: "Campo com, virgula",123,456
+Antes:  ["Campo com", " virgula", "123", "456"]  (ERRADO)
+Depois: ["Campo com, virgula", "123", "456"]     (CORRETO)
+```
+
+### 2. Atualizar Arrays de Mapeamento
 
 **Antes:**
 ```typescript
-if (lead) {
-  // UPDATE
-} else {
-  // INSERT
-}
+campaign_name: getCol(['campanha', 'campaign', 'nome'])
+investment: getCol(['investimento', 'gasto', 'spent', 'custo', 'valor'])
 ```
 
 **Depois:**
 ```typescript
-if (lead?.id) {
-  // UPDATE - só quando existe um ID válido
-} else {
-  // INSERT - para novos leads (incluindo da prospecção)
-}
+campaign_name: getCol(['nome da campanha', 'campanha', 'campaign', 'nome'])
+investment: getCol(['valor usado', 'valor usado (brl)', 'investimento', 'gasto', 'spent'])
+period_start: getCol(['inicio dos relatorios', 'inicio', 'start', 'data_inicio'])
+period_end: getCol(['termino dos relatorios', 'fim', 'end', 'data_fim'])
+impressions: getCol(['impressoes', 'impressions'])
+conversations_started: getCol(['resultados', 'conversas', 'conversations'])
 ```
+
+### 3. Adicionar Campo Alcance nas Notas
+
+O campo "Alcance" sera salvo no campo `notes` junto com outras informacoes:
+
+```typescript
+notes: `Alcance: ${getCol(['alcance', 'reach'])}`
+```
+
+### 4. Ajustar Tratamento de Decimais
+
+O valor vem como `335.33` (ponto decimal), entao a funcao `parseNum` precisa preservar o ponto:
+
+```typescript
+const parseNum = (val: string) => {
+  // Remove apenas R$ e espacos, mantendo o ponto como decimal
+  const cleaned = val.replace(/[R$\s]/g, '');
+  // Trata ambos os formatos: 335.33 e 335,33
+  return parseFloat(cleaned.replace(',', '.')) || 0;
+};
+```
+
+---
+
+## Interface de Preview Melhorada
+
+A tabela de pre-visualizacao mostrara os dados "traduzidos":
+
+| Campo | Exibicao Atual | Nova Exibicao |
+|-------|----------------|---------------|
+| Investimento | 335.33 | R$ 335,33 |
+| Periodo | 2026-01-05 a 2026-02-03 | 05/01/2026 a 03/02/2026 |
+| Impressoes | 52166 | 52.166 |
 
 ---
 
 ## Arquivo a Modificar
 
-| Arquivo | Alteração |
-|---------|-----------|
-| `src/components/leads/LeadForm.tsx` | Alterar condição de `if (lead)` para `if (lead?.id)` |
+| Arquivo | Alteracoes |
+|---------|------------|
+| `src/components/customer-success/CampaignImport.tsx` | Parser CSV, mapeamento de colunas, tratamento de decimais, preview melhorada |
 
 ---
 
-## Detalhes da Implementação
+## Detalhes da Implementacao
 
-### Alteração no LeadForm.tsx
+### Nova Funcao parseCSVLine
 
-Modificar as seguintes linhas:
+```typescript
+const parseCSVLine = (line: string): string[] => {
+  const result: string[] = [];
+  let current = '';
+  let inQuotes = false;
+  
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+    if (char === '"') {
+      inQuotes = !inQuotes;
+    } else if (char === ',' && !inQuotes) {
+      result.push(current.trim());
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+  result.push(current.trim());
+  return result;
+};
+```
 
-1. **Linha 108** - Condição principal do submit:
-   - De: `if (lead)`
-   - Para: `if (lead?.id)`
+### Interface ParsedRow Atualizada
 
-2. **Linha 150** - Título do modal:
-   - De: `{lead ? 'Editar Lead' : 'Novo Lead'}`
-   - Para: `{lead?.id ? 'Editar Lead' : 'Novo Lead'}`
+Adicionar campo `reach` para armazenar alcance:
 
-3. **Linha 364** - Texto do botão:
-   - De: `{lead ? 'Atualizar' : 'Criar Lead'}`
-   - Para: `{lead?.id ? 'Atualizar' : 'Criar Lead'}`
+```typescript
+interface ParsedRow {
+  campaign_name?: string;
+  period_start: string;
+  period_end: string;
+  investment: number;
+  impressions: number;
+  clicks: number;
+  conversations_started: number;
+  leads_generated: number;
+  reach?: number;  // Novo campo
+}
+```
 
 ---
 
-## Impacto
+## Resultado Esperado
 
-- Corrige o salvamento de leads vindos da prospecção
-- Mantém funcionando a edição de leads existentes (que possuem `id`)
-- Não afeta outras partes do sistema
+Ao importar o arquivo de exemplo, o sistema deve mostrar:
+
+```text
++-------------------------+------------------------+--------------+
+| Campanha                | Periodo                | Investimento |
++-------------------------+------------------------+--------------+
+| [TRAFEGO] [WHATS]       | 05/01/2026 a           | R$ 335,33    |
+| [NOV25]                 | 03/02/2026             |              |
++-------------------------+------------------------+--------------+
+| Impressoes: 52.166      | Conversas: 543         | Alcance:     |
+|                         |                        | 26.668       |
++-------------------------+------------------------+--------------+
+```

@@ -9,7 +9,8 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Search, Filter, Loader2, AlertTriangle, X, Calendar } from 'lucide-react';
+import { Plus, Search, Filter, Loader2, AlertTriangle, X, Calendar, Trash2 } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
 import { isPast, isToday, parseISO, startOfDay } from 'date-fns';
 
 // Helper function to compare dates without timezone issues
@@ -59,6 +60,8 @@ export default function Leads() {
   const [formOpen, setFormOpen] = useState(false);
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
   const [deletingLead, setDeletingLead] = useState<Lead | null>(null);
+  const [selectedLeads, setSelectedLeads] = useState<Set<string>>(new Set());
+  const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
   const { toast } = useToast();
 
   // Sync filters with URL params
@@ -111,6 +114,11 @@ export default function Leads() {
         description: 'O lead foi removido com sucesso.',
       });
       
+      setSelectedLeads(prev => {
+        const next = new Set(prev);
+        next.delete(deletingLead.id);
+        return next;
+      });
       fetchLeads();
     } catch (error: any) {
       toast({
@@ -120,6 +128,55 @@ export default function Leads() {
       });
     } finally {
       setDeletingLead(null);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedLeads.size === 0) return;
+
+    try {
+      const { error } = await supabase
+        .from('leads')
+        .delete()
+        .in('id', Array.from(selectedLeads));
+      
+      if (error) throw error;
+      
+      toast({
+        title: 'Leads removidos',
+        description: `${selectedLeads.size} lead(s) removido(s) com sucesso.`,
+      });
+      
+      setSelectedLeads(new Set());
+      fetchLeads();
+    } catch (error: any) {
+      toast({
+        title: 'Erro',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setShowBulkDeleteDialog(false);
+    }
+  };
+
+  const toggleLeadSelection = (leadId: string) => {
+    setSelectedLeads(prev => {
+      const next = new Set(prev);
+      if (next.has(leadId)) {
+        next.delete(leadId);
+      } else {
+        next.add(leadId);
+      }
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedLeads.size === filteredLeads.length) {
+      setSelectedLeads(new Set());
+    } else {
+      setSelectedLeads(new Set(filteredLeads.map(l => l.id)));
     }
   };
 
@@ -240,9 +297,39 @@ export default function Leads() {
         </Select>
       </div>
 
-      {/* Stats */}
-      <div className="flex items-center gap-4 text-sm text-muted-foreground">
-        <span>{filteredLeads.length} lead{filteredLeads.length !== 1 ? 's' : ''} encontrado{filteredLeads.length !== 1 ? 's' : ''}</span>
+      {/* Stats and Selection Controls */}
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          {filteredLeads.length > 0 && (
+            <div className="flex items-center gap-2">
+              <Checkbox
+                checked={selectedLeads.size === filteredLeads.length && filteredLeads.length > 0}
+                onCheckedChange={toggleSelectAll}
+                aria-label="Selecionar todos"
+              />
+              <span className="text-sm text-muted-foreground">
+                {selectedLeads.size > 0 
+                  ? `${selectedLeads.size} selecionado(s)` 
+                  : 'Selecionar todos'}
+              </span>
+            </div>
+          )}
+          <span className="text-sm text-muted-foreground">
+            {filteredLeads.length} lead{filteredLeads.length !== 1 ? 's' : ''} encontrado{filteredLeads.length !== 1 ? 's' : ''}
+          </span>
+        </div>
+        
+        {selectedLeads.size > 0 && (
+          <Button 
+            variant="destructive" 
+            size="sm" 
+            onClick={() => setShowBulkDeleteDialog(true)}
+            className="gap-2"
+          >
+            <Trash2 className="w-4 h-4" />
+            Excluir Selecionados ({selectedLeads.size})
+          </Button>
+        )}
       </div>
 
       {/* Leads Grid */}
@@ -271,13 +358,23 @@ export default function Leads() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {filteredLeads.map((lead) => (
-            <LeadCard
-              key={lead.id}
-              lead={lead}
-              onEdit={handleEdit}
-              onDelete={setDeletingLead}
-              onUpdate={fetchLeads}
-            />
+            <div key={lead.id} className="relative">
+              <div className="absolute top-4 left-4 z-10">
+                <Checkbox
+                  checked={selectedLeads.has(lead.id)}
+                  onCheckedChange={() => toggleLeadSelection(lead.id)}
+                  aria-label={`Selecionar ${lead.company_name}`}
+                  className="bg-background"
+                />
+              </div>
+              <LeadCard
+                lead={lead}
+                onEdit={handleEdit}
+                onDelete={setDeletingLead}
+                onUpdate={fetchLeads}
+                hasCheckbox
+              />
+            </div>
           ))}
         </div>
       )}
@@ -304,6 +401,25 @@ export default function Leads() {
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               Remover
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Bulk Delete Confirmation */}
+      <AlertDialog open={showBulkDeleteDialog} onOpenChange={setShowBulkDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remover Leads Selecionados</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja remover {selectedLeads.size} lead(s) selecionado(s)? 
+              Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleBulkDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Remover {selectedLeads.size} Lead(s)
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

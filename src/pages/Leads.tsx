@@ -12,6 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Plus, Search, Filter, Loader2, AlertTriangle, X, Calendar, Trash2 } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { isPast, isToday, parseISO, startOfDay } from 'date-fns';
+import { PeriodFilter, PeriodType, DateRange, filterByPeriod } from '@/components/filters/PeriodFilter';
 
 // Helper function to compare dates without timezone issues
 const isSameDay = (dateStr: string): boolean => {
@@ -55,6 +56,8 @@ export default function Leads() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [respondedFilter, setRespondedFilter] = useState<string>('all');
+  const [periodFilter, setPeriodFilter] = useState<PeriodType>('all');
+  const [dateRange, setDateRange] = useState<DateRange>({ from: undefined, to: undefined });
   const [overdueFilter, setOverdueFilter] = useState<boolean>(searchParams.get('filter') === 'overdue');
   const [todayFilter, setTodayFilter] = useState<boolean>(searchParams.get('filter') === 'today');
   const [formOpen, setFormOpen] = useState(false);
@@ -180,7 +183,10 @@ export default function Leads() {
     }
   };
 
-  const filteredLeads = leads.filter(lead => {
+  // Apply period filter first
+  const periodFilteredLeads = filterByPeriod(leads, periodFilter, dateRange);
+
+  const filteredLeads = periodFilteredLeads.filter(lead => {
     const matchesSearch = 
       lead.company_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (lead.contact_name?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false);
@@ -261,40 +267,50 @@ export default function Leads() {
       )}
 
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar por empresa ou contato..."
-            className="pl-10"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col sm:flex-row gap-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar por empresa ou contato..."
+              className="pl-10"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+          <PeriodFilter
+            value={periodFilter}
+            onChange={setPeriodFilter}
+            dateRange={dateRange}
+            onDateRangeChange={setDateRange}
           />
         </div>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-full sm:w-[200px]">
-            <Filter className="w-4 h-4 mr-2" />
-            <SelectValue placeholder="Filtrar por status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos os Status</SelectItem>
-            {STATUS_ORDER.map((status) => (
-              <SelectItem key={status} value={status}>
-                {STATUS_LABELS[status]}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={respondedFilter} onValueChange={setRespondedFilter}>
-          <SelectTrigger className="w-full sm:w-[200px]">
-            <SelectValue placeholder="Filtrar por resposta" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todas as Respostas</SelectItem>
-            <SelectItem value="yes">Respondeu</SelectItem>
-            <SelectItem value="no">Não Respondeu</SelectItem>
-          </SelectContent>
-        </Select>
+        <div className="flex flex-col sm:flex-row gap-4">
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-full sm:w-[200px]">
+              <Filter className="w-4 h-4 mr-2" />
+              <SelectValue placeholder="Filtrar por status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos os Status</SelectItem>
+              {STATUS_ORDER.map((status) => (
+                <SelectItem key={status} value={status}>
+                  {STATUS_LABELS[status]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={respondedFilter} onValueChange={setRespondedFilter}>
+            <SelectTrigger className="w-full sm:w-[200px]">
+              <SelectValue placeholder="Filtrar por resposta" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas as Respostas</SelectItem>
+              <SelectItem value="yes">Respondeu</SelectItem>
+              <SelectItem value="no">Não Respondeu</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {/* Stats and Selection Controls */}

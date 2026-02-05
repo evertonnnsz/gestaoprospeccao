@@ -1,168 +1,155 @@
 
 
-# Plano: Otimização da Prospecção Inteligente
+# Plano: Migração de Firecrawl para SerpApi (Google Maps)
 
-## Resumo
+## Visão Geral
 
-Vamos aprimorar o módulo de prospecção para retornar mais resultados através de buscas otimizadas, interface melhorada com campos específicos para Estado (dropdown) e Cidade, além de paginação para carregar mais resultados.
-
----
-
-## Análise das Limitações Atuais
-
-A API do Firecrawl tem um limite de resultados por busca (máximo ~100 por requisição). A busca atual está limitada a 15 resultados. Para maximizar os resultados, precisamos:
-
-1. Aumentar o limite de resultados por busca
-2. Usar queries mais otimizadas focadas em Google Meu Negócio
-3. Implementar múltiplas buscas com variações para cobrir mais resultados
-4. Adicionar funcionalidade de "Carregar Mais"
+Substituiremos a integração com Firecrawl pela SerpApi, utilizando o endpoint `google_maps` para buscar empresas locais diretamente do Google Maps. Esta mudança trará resultados mais precisos e volumosos para prospecção.
 
 ---
 
-## Etapas de Implementação
+## O Que Será Feito
 
-### 1. Atualizar Interface de Busca
+### 1. Solicitar sua Chave da SerpApi
+Antes de implementar, vou pedir para você inserir sua chave da SerpApi de forma segura. A chave será armazenada como um segredo do backend e nunca ficará exposta no código.
 
-**Arquivo**: `src/components/prospecting/ProspectSearchForm.tsx`
+### 2. Criar Nova Edge Function para SerpApi
+Criarei uma nova função `serpapi-search` que:
+- Conecta diretamente ao Google Maps via SerpApi
+- Busca empresas locais usando a query: `[Nicho] em [Cidade], [Estado]`
+- Implementa paginação automática (20 resultados por página)
+- Extrai: nome, telefone, website, endereço, avaliação e categoria
 
-Novos campos:
-- **Nicho/Palavra-chave**: Campo de texto (mantido)
-- **Estado**: Dropdown (Select) com todos os 27 estados brasileiros
-- **Cidade**: Campo de texto para o nome da cidade
-- **Quantidade de Resultados**: Slider ou select para definir limite (25, 50, 100)
+### 3. Implementar Paginação Automática ("Deep Search")
+O sistema fará múltiplas chamadas à API automaticamente:
+- Se você solicitar 50 resultados, fará 3 chamadas (páginas 0, 20, 40)
+- Se solicitar 100 resultados, fará 5 chamadas
+- O botão "Carregar Mais" buscará as próximas páginas
 
-Layout atualizado para 4 colunas no desktop:
-```text
-| Nicho/Palavra-chave | Estado (dropdown) | Cidade | Qtd. Resultados |
-|                        [Buscar Leads]                               |
-```
+### 4. Atualizar o Frontend
+- Atualizar o arquivo de API para usar a nova edge function
+- Manter toda a lógica de verificação de duplicatas
+- Manter a integração com Dashboard, Funil e Métricas
 
-### 2. Otimizar Edge Function
-
-**Arquivo**: `supabase/functions/firecrawl-search/index.ts`
-
-Melhorias:
-- Aumentar limite padrão de 15 para 50 resultados
-- Otimizar query para focar em Google Meu Negócio: 
-  - `"{nicho}" "{cidade}" "{estado}" site:google.com/maps OR "Google Meu Negócio"`
-- Melhorar extração de dados com regex mais abrangente
-- Adicionar suporte para múltiplas queries em sequência
-- Retornar informações de paginação (`hasMore`, `nextOffset`)
-
-### 3. Atualizar Cliente API
-
-**Arquivo**: `src/lib/api/firecrawl.ts`
-
-Novas funcionalidades:
-- Interface `SearchParams` com campos separados (niche, state, city, limit)
-- Método para carregar mais resultados com offset
-
-### 4. Atualizar Página de Prospecção
-
-**Arquivo**: `src/pages/Prospecting.tsx`
-
-Melhorias:
-- Contador de "Total de Leads Encontrados" em destaque
-- Botão "Carregar Mais" quando houver mais resultados
-- Gerenciamento de estado para acumular resultados de múltiplas buscas
-- Loading skeleton durante carregamento
-
-### 5. Criar Lista de Estados Brasileiros
-
-**Arquivo**: `src/lib/constants/brazilianStates.ts`
-
-Lista completa dos 27 estados com siglas e nomes completos para o dropdown.
+### 5. Melhorar Mensagens de Erro
+- "Nenhum resultado encontrado para esta região. Tente ampliar o nicho."
+- "Erro na Chave de API. Verifique suas configurações."
+- "Limite de requisições atingido. Tente novamente mais tarde."
 
 ---
 
-## Detalhes Técnicos
+## Dados que Serão Extraídos
 
-### Query Otimizada para Google Meu Negócio
-
-```text
-Formato: "{nicho}" + "{cidade}" + "{sigla_estado}" + "telefone" + "contato"
-Exemplo: "dentistas" "Recife" "PE" telefone contato whatsapp
-```
-
-### Estrutura de Resposta com Paginação
-
-```typescript
-interface SearchResponse {
-  success: boolean;
-  data: ProspectResult[];
-  total: number;
-  hasMore: boolean;
-  searchId: string; // Para rastrear buscas subsequentes
-}
-```
-
-### Estados Brasileiros (Dropdown)
-
-```typescript
-const BRAZILIAN_STATES = [
-  { value: 'AC', label: 'Acre' },
-  { value: 'AL', label: 'Alagoas' },
-  { value: 'AP', label: 'Amapá' },
-  // ... todos os 27 estados
-  { value: 'TO', label: 'Tocantins' },
-];
-```
-
----
-
-## Fluxo de "Carregar Mais"
-
-1. Usuário faz busca inicial
-2. Sistema retorna primeiros 50 resultados
-3. Se `hasMore: true`, exibe botão "Carregar Mais"
-4. Ao clicar, executa nova busca com query variada
-5. Novos resultados são adicionados aos existentes
-6. Verifica duplicatas antes de adicionar
-
----
-
-## Melhoria na Extração de Dados
-
-Priorizar campos do Google Meu Negócio:
-- Nome da Empresa (título do listing)
-- Telefone principal (formatação brasileira)
-- Website oficial
-- Endereço completo
-- Categoria/Segmento
-- Avaliação média (quando disponível)
+| Campo | Origem no Google Maps |
+|-------|----------------------|
+| Nome da Empresa | `title` |
+| Telefone/WhatsApp | `phone` |
+| Website | `website` |
+| Endereço | `address` |
+| Avaliação | `rating` + `reviews` |
+| Categoria/Segmento | `type` |
 
 ---
 
 ## Arquivos que Serão Modificados
 
-| Arquivo | Ação |
-|---------|------|
-| `src/components/prospecting/ProspectSearchForm.tsx` | Modificar - Adicionar dropdown de estados e novos campos |
-| `src/lib/api/firecrawl.ts` | Modificar - Atualizar interface e adicionar paginação |
-| `src/pages/Prospecting.tsx` | Modificar - Adicionar contador e botão "Carregar Mais" |
-| `supabase/functions/firecrawl-search/index.ts` | Modificar - Otimizar queries e aumentar limite |
-| `src/lib/constants/brazilianStates.ts` | Criar - Lista de estados brasileiros |
+1. **Nova Edge Function**: `supabase/functions/serpapi-search/index.ts`
+2. **Atualizar Config**: `supabase/config.toml` 
+3. **Nova API Client**: `src/lib/api/serpapi.ts`
+4. **Atualizar Página**: `src/pages/Prospecting.tsx`
+5. **Atualizar Card** (opcional): `src/components/prospecting/ProspectCard.tsx`
 
 ---
 
-## Considerações Importantes
+## Detalhes Técnicos
 
-1. **Limitações da API**: O Firecrawl Search retorna resultados de busca web, não dados diretos do Google Maps API. Os resultados dependem do que está indexado na web.
+### Estrutura da Edge Function SerpApi
 
-2. **Qualidade vs Quantidade**: Aumentar o limite pode trazer mais resultados, mas alguns podem ter menos dados extraídos (sem telefone, sem website).
+```text
+serpapi-search/index.ts
+├── Validação de parâmetros (niche, state, city, limit)
+├── Verificação da SERPAPI_KEY
+├── Construção da query: "[niche] em [city], [state], Brasil"
+├── Loop de paginação (start: 0, 20, 40...)
+├── Extração de dados de local_results
+├── Deduplicação por nome/telefone
+└── Retorno formatado (ProspectResult[])
+```
 
-3. **Custo de API**: Cada busca consome créditos do Firecrawl. Limites maiores consomem mais créditos por busca.
+### Chamada à API SerpApi
 
-4. **Integridade Mantida**: Todas as funcionalidades existentes (verificação de duplicatas, integração com Dashboard/Funil/Métricas) continuarão funcionando normalmente.
+```text
+GET https://serpapi.com/search.json
+  ?engine=google_maps
+  &q=dentistas+em+Recife,+Pernambuco,+Brasil
+  &hl=pt-br
+  &start=0
+  &api_key=YOUR_KEY
+```
+
+### Resposta Esperada (local_results)
+
+```text
+{
+  "local_results": [
+    {
+      "title": "Clínica Dental Sorrir",
+      "phone": "(81) 99999-9999",
+      "website": "https://clinicasorrir.com.br",
+      "address": "Rua das Flores, 123 - Boa Viagem",
+      "rating": 4.8,
+      "reviews": 156,
+      "type": "Dentista"
+    },
+    ...
+  ],
+  "serpapi_pagination": {
+    "next": "https://serpapi.com/search?start=20&..."
+  }
+}
+```
+
+### Fluxo de Paginação
+
+```text
+Usuário solicita 50 resultados
+         │
+         ▼
+┌─────────────────────┐
+│  Chamada 1: start=0 │ → 20 resultados
+└─────────────────────┘
+         │
+         ▼
+┌─────────────────────┐
+│ Chamada 2: start=20 │ → 20 resultados
+└─────────────────────┘
+         │
+         ▼
+┌─────────────────────┐
+│ Chamada 3: start=40 │ → 10 resultados
+└─────────────────────┘
+         │
+         ▼
+   Total: 50 resultados
+```
 
 ---
 
-## Resultado Esperado
+## Próximos Passos
 
-Após as melhorias:
-- Interface mais intuitiva com campos específicos
-- Buscas retornando 50+ resultados por vez
-- Possibilidade de carregar mais resultados progressivamente
-- Melhor precisão nas buscas por região específica
-- Contador visual do total de leads encontrados
+Após sua aprovação:
+
+1. Solicitarei sua chave da SerpApi
+2. Criarei a nova edge function
+3. Atualizarei o frontend
+4. Testaremos a busca de "Dentista" em "Recife"
+
+---
+
+## Onde Obter sua Chave SerpApi
+
+1. Acesse [serpapi.com](https://serpapi.com/)
+2. Crie uma conta gratuita (100 buscas/mês grátis)
+3. Vá em **Dashboard → API Key**
+4. Copie sua chave
 

@@ -18,6 +18,8 @@ import {
 import { Upload, FileSpreadsheet, ArrowRight, AlertCircle } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
+const NO_MAPPING_VALUE = '__none__';
+
 export interface ImportedLead {
   company_name: string;
   contact_name?: string;
@@ -225,7 +227,10 @@ export function LeadImportModal({
   }, []);
 
   const handleMappingChange = (field: keyof ColumnMapping, value: string) => {
-    setMapping(prev => ({ ...prev, [field]: value }));
+    setMapping(prev => ({ 
+      ...prev, 
+      [field]: value === NO_MAPPING_VALUE ? '' : value 
+    }));
   };
 
   const handleContinue = () => {
@@ -339,14 +344,14 @@ export function LeadImportModal({
                       {field.required && <span className="text-destructive ml-1">*</span>}
                     </Label>
                     <Select
-                      value={mapping[field.key as keyof ColumnMapping]}
+                      value={mapping[field.key as keyof ColumnMapping] || NO_MAPPING_VALUE}
                       onValueChange={(value) => handleMappingChange(field.key as keyof ColumnMapping, value)}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Selecione uma coluna" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">Não mapear</SelectItem>
+                        <SelectItem value={NO_MAPPING_VALUE}>Não mapear</SelectItem>
                         {headers.map((header, idx) => (
                           <SelectItem key={idx} value={header}>
                             {header}

@@ -1,14 +1,16 @@
- import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { ProspectSearchForm, SearchParams } from '@/components/prospecting/ProspectSearchForm';
 import { ProspectCard } from '@/components/prospecting/ProspectCard';
 import { LeadForm } from '@/components/leads/LeadForm';
- import { serpApi, ProspectResult } from '@/lib/api/serpapi';
+import { LeadImportModal, ImportedLead } from '@/components/prospecting/LeadImportModal';
+import { LeadImportPreview } from '@/components/prospecting/LeadImportPreview';
+import { serpApi, ProspectResult } from '@/lib/api/serpapi';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { Lead } from '@/types/crm';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
- import { Search, Sparkles, AlertCircle, Users, Loader2, ChevronDown, MapPin } from 'lucide-react';
+import { Search, Sparkles, AlertCircle, Users, Loader2, ChevronDown, MapPin, FileUp } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -22,11 +24,16 @@ export default function Prospecting() {
   const [error, setError] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(false);
   const [currentSearchParams, setCurrentSearchParams] = useState<SearchParams | null>(null);
-   const [nextOffset, setNextOffset] = useState(0);
+  const [nextOffset, setNextOffset] = useState(0);
   
   // Lead form state
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedProspect, setSelectedProspect] = useState<Partial<Lead> | null>(null);
+
+  // Import modal state
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [showImportPreview, setShowImportPreview] = useState(false);
+  const [importedLeads, setImportedLeads] = useState<ImportedLead[]>([]);
 
   const handleSearch = async (params: SearchParams) => {
     if (!user) {
@@ -170,22 +177,42 @@ export default function Prospecting() {
     });
   };
 
+  const handleImportContinue = (leads: ImportedLead[]) => {
+    setImportedLeads(leads);
+    setShowImportModal(false);
+    setShowImportPreview(true);
+  };
+
+  const handleImportSuccess = () => {
+    toast({
+      title: 'Importação finalizada!',
+      description: 'Os leads foram adicionados ao sistema.',
+    });
+  };
+
   const newLeadsCount = results.filter(r => !r.isExisting).length;
   const existingLeadsCount = results.filter(r => r.isExisting).length;
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-3">
-        <div className="p-2 bg-primary/10 rounded-lg">
-           <MapPin className="w-6 h-6 text-primary" />
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-primary/10 rounded-lg">
+            <MapPin className="w-6 h-6 text-primary" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold">Prospecção Inteligente</h1>
+            <p className="text-muted-foreground">
+              Busque empresas no Google Maps e capture leads automaticamente
+            </p>
+          </div>
         </div>
-        <div>
-          <h1 className="text-2xl font-bold">Prospecção Inteligente</h1>
-          <p className="text-muted-foreground">
-             Busque empresas no Google Maps e capture leads automaticamente
-          </p>
-        </div>
+        
+        <Button onClick={() => setShowImportModal(true)}>
+          <FileUp className="w-4 h-4 mr-2" />
+          Importar Lista Externa
+        </Button>
       </div>
 
       {/* Search Form */}
@@ -331,6 +358,20 @@ export default function Prospecting() {
         onOpenChange={setIsFormOpen}
         lead={selectedProspect as Lead}
         onSuccess={handleFormSuccess}
+      />
+
+      {/* Import Modals */}
+      <LeadImportModal
+        open={showImportModal}
+        onOpenChange={setShowImportModal}
+        onContinueToPreview={handleImportContinue}
+      />
+
+      <LeadImportPreview
+        open={showImportPreview}
+        onOpenChange={setShowImportPreview}
+        leads={importedLeads}
+        onSuccess={handleImportSuccess}
       />
     </div>
   );

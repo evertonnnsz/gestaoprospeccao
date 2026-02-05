@@ -1,173 +1,247 @@
 
-# Plano: Ajuste do Parser de Importacao para Modelo Meta Ads
+# Plano: Envio de Resumo Dinamico via WhatsApp
 
-## Problema Identificado
+## Visao Geral
 
-O arquivo CSV do Meta Ads tem uma estrutura especifica que o parser atual nao reconhece:
+Implementar um sistema de compartilhamento via WhatsApp que constroi mensagens personalizadas baseadas nas metricas que possuem dados para cada cliente, incluindo modal de pre-visualizacao e edicao antes do envio.
+
+---
+
+## Estrutura da Solucao
 
 ```text
-Colunas do arquivo:
-+------------------------+---------------------+-------------------+
-| Nome da campanha       | Resultados          | Valor usado (BRL) |
-| Impressoes             | Alcance             | Inicio dos        |
-|                        |                     | relatorios        |
-| Termino dos relatorios | Tipo de resultado   | ...               |
-+------------------------+---------------------+-------------------+
++-------------------+     +---------------------+     +------------------+
+|  Dashboard de     |     |  Modal de Preview   |     |  WhatsApp URL    |
+|  Performance      | --> |  com Editor         | --> |  (wa.me/...)     |
+|  (Botao Enviar)   |     |  de Mensagem        |     |                  |
++-------------------+     +---------------------+     +------------------+
 ```
 
-### Problemas Tecnicos
+---
 
-1. **Parser CSV incorreto**: O atual usa `split(/[,;]/)` que quebra campos com aspas contendo virgulas
-2. **Nomes de colunas nao mapeados**: Os headers do Meta Ads nao estao nos arrays de busca
-3. **Formato de valores**: "Valor usado (BRL)" usa ponto como decimal (335.33), diferente do esperado
+## Componentes a Criar/Modificar
+
+| Arquivo | Acao | Descricao |
+|---------|------|-----------|
+| `src/components/customer-success/WhatsAppSummaryModal.tsx` | Criar | Modal com preview e edicao da mensagem |
+| `src/components/customer-success/PerformanceDashboard.tsx` | Modificar | Adicionar botao de envio WhatsApp |
+| `src/pages/CustomerSuccess.tsx` | Modificar | Buscar dados do lead (whatsapp) junto com o cliente |
 
 ---
 
-## Mapeamento de Colunas (Meta Ads)
+## 1. Atualizar Query de Clientes
 
-| Coluna no CSV | Campo no Banco | Observacao |
-|---------------|----------------|------------|
-| Nome da campanha | campaign_name | Texto livre |
-| Resultados | conversations_started | Quando "Tipo de resultado" = "Conversas por mensagem iniciadas" |
-| Valor usado (BRL) | investment | Decimal com ponto (335.33) |
-| Impressoes | impressions | Inteiro |
-| Alcance | notes | Salvar como observacao |
-| Inicio dos relatorios | period_start | Formato YYYY-MM-DD |
-| Termino dos relatorios | period_end | Formato YYYY-MM-DD |
+A query atual nao busca o numero de WhatsApp. Atualizar para incluir:
+
+```typescript
+// Em CustomerSuccess.tsx
+.select(`
+  *,
+  lead:leads(company_name, contact_name, whatsapp)
+`)
+```
 
 ---
 
-## Solucao Tecnica
+## 2. Logica de Construcao Dinamica
 
-### 1. Corrigir Parser CSV
-
-Implementar parser que respeita campos entre aspas:
+A mensagem sera construida com base nos dados disponiveis:
 
 ```text
-Entrada: "Campo com, virgula",123,456
-Antes:  ["Campo com", " virgula", "123", "456"]  (ERRADO)
-Depois: ["Campo com, virgula", "123", "456"]     (CORRETO)
+Dados de Entrada (Campaign Metrics):
++---------------------+-------------+
+| Metrica             | Condicao    |
++---------------------+-------------+
+| investment          | > 0         |
+| impressions         | > 0         |
+| clicks              | > 0         |
+| conversations       | > 0         |
+| leads               | > 0         |
+| ctr                 | calculado   |
+| cpc                 | calculado   |
+| cpl                 | calculado   |
+| custom_metrics      | array > 0   |
++---------------------+-------------+
 ```
 
-### 2. Atualizar Arrays de Mapeamento
+**Template da Mensagem:**
 
-**Antes:**
-```typescript
-campaign_name: getCol(['campanha', 'campaign', 'nome'])
-investment: getCol(['investimento', 'gasto', 'spent', 'custo', 'valor'])
-```
+```text
+Ola, [Nome do Cliente]! 👋
 
-**Depois:**
-```typescript
-campaign_name: getCol(['nome da campanha', 'campanha', 'campaign', 'nome'])
-investment: getCol(['valor usado', 'valor usado (brl)', 'investimento', 'gasto', 'spent'])
-period_start: getCol(['inicio dos relatorios', 'inicio', 'start', 'data_inicio'])
-period_end: getCol(['termino dos relatorios', 'fim', 'end', 'data_fim'])
-impressions: getCol(['impressoes', 'impressions'])
-conversations_started: getCol(['resultados', 'conversas', 'conversations'])
-```
+Segue o resumo de performance personalizado das suas campanhas ([Data Inicio] a [Data Fim]):
 
-### 3. Adicionar Campo Alcance nas Notas
+[Se investment > 0]     💰 Investimento: R$ [Valor]
+[Se impressions > 0]    👁️ Impressoes: [Valor]
+[Se clicks > 0]         🖱️ Cliques: [Valor]
+[Se conversations > 0]  💬 Conversas Iniciadas: [Valor]
+[Se leads > 0]          📈 Leads Gerados: [Valor]
+[Se ctr > 0]            📊 CTR: [Valor]%
+[Se cpc > 0]            🎯 CPC: R$ [Valor]
+[Se cpl > 0]            💎 CPL: R$ [Valor]
+[Para cada custom_metric] [emoji] [Nome]: [Valor]
 
-O campo "Alcance" sera salvo no campo `notes` junto com outras informacoes:
-
-```typescript
-notes: `Alcance: ${getCol(['alcance', 'reach'])}`
-```
-
-### 4. Ajustar Tratamento de Decimais
-
-O valor vem como `335.33` (ponto decimal), entao a funcao `parseNum` precisa preservar o ponto:
-
-```typescript
-const parseNum = (val: string) => {
-  // Remove apenas R$ e espacos, mantendo o ponto como decimal
-  const cleaned = val.replace(/[R$\s]/g, '');
-  // Trata ambos os formatos: 335.33 e 335,33
-  return parseFloat(cleaned.replace(',', '.')) || 0;
-};
+Estes sao os indicadores que estamos acompanhando de perto para o seu negocio. Qualquer duvida, estou aqui! 👊
 ```
 
 ---
 
-## Interface de Preview Melhorada
+## 3. Estrutura do Modal (WhatsAppSummaryModal)
 
-A tabela de pre-visualizacao mostrara os dados "traduzidos":
-
-| Campo | Exibicao Atual | Nova Exibicao |
-|-------|----------------|---------------|
-| Investimento | 335.33 | R$ 335,33 |
-| Periodo | 2026-01-05 a 2026-02-03 | 05/01/2026 a 03/02/2026 |
-| Impressoes | 52166 | 52.166 |
-
----
-
-## Arquivo a Modificar
-
-| Arquivo | Alteracoes |
-|---------|------------|
-| `src/components/customer-success/CampaignImport.tsx` | Parser CSV, mapeamento de colunas, tratamento de decimais, preview melhorada |
-
----
-
-## Detalhes da Implementacao
-
-### Nova Funcao parseCSVLine
+### Props do Componente
 
 ```typescript
-const parseCSVLine = (line: string): string[] => {
-  const result: string[] = [];
-  let current = '';
-  let inQuotes = false;
-  
-  for (let i = 0; i < line.length; i++) {
-    const char = line[i];
-    if (char === '"') {
-      inQuotes = !inQuotes;
-    } else if (char === ',' && !inQuotes) {
-      result.push(current.trim());
-      current = '';
-    } else {
-      current += char;
-    }
-  }
-  result.push(current.trim());
-  return result;
-};
-```
-
-### Interface ParsedRow Atualizada
-
-Adicionar campo `reach` para armazenar alcance:
-
-```typescript
-interface ParsedRow {
-  campaign_name?: string;
-  period_start: string;
-  period_end: string;
-  investment: number;
-  impressions: number;
-  clicks: number;
-  conversations_started: number;
-  leads_generated: number;
-  reach?: number;  // Novo campo
+interface WhatsAppSummaryModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  clientName: string;
+  clientPhone: string;
+  metrics: {
+    investment: number;
+    impressions: number;
+    clicks: number;
+    conversations: number;
+    leads: number;
+    ctr: number;
+    cpc: number;
+    cpl: number;
+    customMetrics: Array<{ name: string; value: number }>;
+  };
+  periodStart: string;
+  periodEnd: string;
 }
 ```
 
+### Funcionalidades
+
+1. **Preview da mensagem** - Area de texto mostrando o texto gerado
+2. **Campo editavel** - Usuario pode ajustar a mensagem antes de enviar
+3. **Botao "Confirmar e Abrir WhatsApp"** - Abre a URL wa.me com a mensagem codificada
+4. **Indicador de numero** - Mostra o numero de WhatsApp que sera usado
+
 ---
 
-## Resultado Esperado
+## 4. Formatacao da URL WhatsApp
 
-Ao importar o arquivo de exemplo, o sistema deve mostrar:
+```typescript
+const formatWhatsAppUrl = (phone: string, message: string): string => {
+  // Remove caracteres especiais do telefone
+  const cleanPhone = phone.replace(/[\s\-\(\)\+\u200B\u200C\u200D]/g, '');
+  
+  // Adiciona codigo do Brasil se nao tiver
+  const finalPhone = cleanPhone.startsWith('55') ? cleanPhone : `55${cleanPhone}`;
+  
+  // Codifica a mensagem para URL
+  const encodedMessage = encodeURIComponent(message);
+  
+  return `https://wa.me/${finalPhone}?text=${encodedMessage}`;
+};
+```
+
+---
+
+## 5. Interface Visual do Modal
 
 ```text
-+-------------------------+------------------------+--------------+
-| Campanha                | Periodo                | Investimento |
-+-------------------------+------------------------+--------------+
-| [TRAFEGO] [WHATS]       | 05/01/2026 a           | R$ 335,33    |
-| [NOV25]                 | 03/02/2026             |              |
-+-------------------------+------------------------+--------------+
-| Impressoes: 52.166      | Conversas: 543         | Alcance:     |
-|                         |                        | 26.668       |
-+-------------------------+------------------------+--------------+
++----------------------------------------------------------+
+| 📱 Enviar Resumo via WhatsApp                         [X] |
++----------------------------------------------------------+
+|                                                          |
+| 📞 Numero: +55 81 99790-1365                             |
+|                                                          |
+| ┌──────────────────────────────────────────────────────┐ |
+| │ Ola, Taciana! 👋                                     │ |
+| │                                                      │ |
+| │ Segue o resumo de performance personalizado das      │ |
+| │ suas campanhas (01/01/2026 a 30/01/2026):           │ |
+| │                                                      │ |
+| │ 💰 Investimento: R$ 335,33                          │ |
+| │ 💬 Conversas Iniciadas: 543                         │ |
+| │ 🎯 Custo por Conversa: R$ 0,62                      │ |
+| │                                                      │ |
+| │ Estes sao os indicadores que estamos acompanhando   │ |
+| │ de perto para o seu negocio. Qualquer duvida,       │ |
+| │ estou aqui! 👊                                       │ |
+| └──────────────────────────────────────────────────────┘ |
+|                                                          |
+| ⚠️ Voce pode editar a mensagem antes de enviar          |
+|                                                          |
+| [Cancelar]              [✓ Confirmar e Abrir WhatsApp]   |
++----------------------------------------------------------+
 ```
+
+---
+
+## 6. Integracao com PerformanceDashboard
+
+Adicionar botao no header do dashboard:
+
+```typescript
+// Em PerformanceDashboard.tsx
+<CardHeader>
+  <div className="flex items-center justify-between">
+    <div>
+      <CardTitle>Dashboard de Performance</CardTitle>
+      <CardDescription>Metricas consolidadas para {clientName}</CardDescription>
+    </div>
+    <Button onClick={() => setShowWhatsAppModal(true)}>
+      <MessageCircle className="w-4 h-4 mr-2" />
+      Enviar Resumo via WhatsApp
+    </Button>
+  </div>
+</CardHeader>
+```
+
+---
+
+## 7. Metricas Customizadas
+
+O sistema deve agregar as metricas customizadas de todas as campanhas:
+
+```typescript
+const aggregateCustomMetrics = (campaigns: Campaign[]): Record<string, number> => {
+  const aggregated: Record<string, number> = {};
+  
+  campaigns.forEach(campaign => {
+    if (campaign.custom_metrics && Array.isArray(campaign.custom_metrics)) {
+      campaign.custom_metrics.forEach((metric: { name: string; value: number }) => {
+        if (metric.name) {
+          aggregated[metric.name] = (aggregated[metric.name] || 0) + (metric.value || 0);
+        }
+      });
+    }
+  });
+  
+  return aggregated;
+};
+```
+
+---
+
+## Fluxo de Usuario
+
+1. Usuario seleciona um cliente
+2. Dashboard de Performance exibe as metricas
+3. Usuario clica em "Enviar Resumo via WhatsApp"
+4. Modal abre com mensagem pre-construida baseada nas metricas ativas
+5. Usuario pode editar a mensagem se necessario
+6. Usuario clica em "Confirmar e Abrir WhatsApp"
+7. Navegador abre WhatsApp Web com a mensagem pronta
+
+---
+
+## Tratamento de Erros
+
+| Situacao | Comportamento |
+|----------|---------------|
+| Cliente sem WhatsApp cadastrado | Mostrar toast de erro e desabilitar botao |
+| Sem dados de campanhas | Botao desabilitado com tooltip explicativo |
+| Formato de telefone invalido | Validacao e mensagem de erro no modal |
+
+---
+
+## Arquivos a Modificar
+
+1. **Criar**: `src/components/customer-success/WhatsAppSummaryModal.tsx`
+2. **Modificar**: `src/components/customer-success/PerformanceDashboard.tsx`
+3. **Modificar**: `src/pages/CustomerSuccess.tsx`

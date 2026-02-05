@@ -105,7 +105,7 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
     };
 
     try {
-      if (lead) {
+      if (lead?.id) {
         const { error } = await supabase
           .from('leads')
           .update(payload)
@@ -147,7 +147,7 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{lead ? 'Editar Lead' : 'Novo Lead'}</DialogTitle>
+          <DialogTitle>{lead?.id ? 'Editar Lead' : 'Novo Lead'}</DialogTitle>
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -361,7 +361,7 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
               Cancelar
             </Button>
             <Button type="submit" disabled={loading}>
-              {loading ? 'Salvando...' : lead ? 'Atualizar' : 'Criar Lead'}
+              {loading ? 'Salvando...' : lead?.id ? 'Atualizar' : 'Criar Lead'}
             </Button>
           </DialogFooter>
         </form>

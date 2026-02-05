@@ -10,13 +10,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Search, MapPin, Loader2, Building2 } from 'lucide-react';
+import { Search, MapPin, Loader2, Building2, Globe } from 'lucide-react';
 import { BRAZILIAN_STATES } from '@/lib/constants/brazilianStates';
 
 export interface SearchParams {
   niche: string;
-  state: string;
-  city: string;
+  state: string | null;
+  city: string | null;
   limit: number;
 }
 
@@ -39,12 +39,17 @@ export function ProspectSearchForm({ onSearch, isLoading }: ProspectSearchFormPr
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (niche.trim() && state && city.trim()) {
-      onSearch({ niche: niche.trim(), state, city: city.trim(), limit });
+    if (niche.trim()) {
+      onSearch({ 
+        niche: niche.trim(), 
+        state: state || null, 
+        city: city.trim() || null, 
+        limit 
+      });
     }
   };
 
-  const isValid = niche.trim() && state && city.trim();
+  const isValid = niche.trim();
 
   return (
     <Card>
@@ -55,11 +60,11 @@ export function ProspectSearchForm({ onSearch, isLoading }: ProspectSearchFormPr
             <div className="space-y-2">
               <Label htmlFor="niche">Nicho / Palavra-chave *</Label>
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
                   id="niche"
                   className="pl-10"
-                  placeholder="Ex: dentistas, academias"
+                  placeholder="Ex: dentistas, academias, restaurantes"
                   value={niche}
                   onChange={(e) => setNiche(e.target.value)}
                   required
@@ -70,13 +75,14 @@ export function ProspectSearchForm({ onSearch, isLoading }: ProspectSearchFormPr
 
             {/* Estado */}
             <div className="space-y-2">
-              <Label htmlFor="state">Estado *</Label>
+              <Label htmlFor="state">Estado</Label>
               <Select value={state} onValueChange={setState} disabled={isLoading}>
                 <SelectTrigger id="state" className="w-full">
                   <Building2 className="w-4 h-4 mr-2 text-muted-foreground" />
                   <SelectValue placeholder="Selecione o estado" />
                 </SelectTrigger>
                 <SelectContent className="bg-background border shadow-lg z-50">
+                  <SelectItem value="all">Todo o Brasil</SelectItem>
                   {BRAZILIAN_STATES.map((s) => (
                     <SelectItem key={s.value} value={s.value}>
                       {s.label} ({s.value})
@@ -88,16 +94,15 @@ export function ProspectSearchForm({ onSearch, isLoading }: ProspectSearchFormPr
 
             {/* Cidade */}
             <div className="space-y-2">
-              <Label htmlFor="city">Cidade *</Label>
+              <Label htmlFor="city">Cidade</Label>
               <div className="relative">
                 <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
                   id="city"
                   className="pl-10"
-                  placeholder="Ex: Recife, São Paulo"
+                  placeholder="Ex: Recife, São Paulo (opcional)"
                   value={city}
                   onChange={(e) => setCity(e.target.value)}
-                  required
                   disabled={isLoading}
                 />
               </div>

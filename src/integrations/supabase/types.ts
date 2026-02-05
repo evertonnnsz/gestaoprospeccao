@@ -21,6 +21,7 @@ export type Database = {
           client_id: string
           conversations_started: number
           created_at: string
+          custom_metrics: Json | null
           id: string
           impressions: number
           investment: number
@@ -39,6 +40,7 @@ export type Database = {
           client_id: string
           conversations_started?: number
           created_at?: string
+          custom_metrics?: Json | null
           id?: string
           impressions?: number
           investment?: number
@@ -57,6 +59,7 @@ export type Database = {
           client_id?: string
           conversations_started?: number
           created_at?: string
+          custom_metrics?: Json | null
           id?: string
           impressions?: number
           investment?: number

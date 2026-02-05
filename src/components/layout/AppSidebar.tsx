@@ -12,6 +12,7 @@ import {
   Briefcase,
   DollarSign,
   Sparkles,
+  HeartHandshake,
 } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -27,6 +28,7 @@ const navItems = [
   { title: 'Financeiro', url: '/financial', icon: DollarSign },
   { title: 'Funil', url: '/funnel', icon: Target },
   { title: 'Métricas', url: '/metrics', icon: BarChart3 },
+  { title: 'Sucesso do Cliente', url: '/customer-success', icon: HeartHandshake },
 ];
 
 const adminItems = [

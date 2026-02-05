@@ -14,7 +14,8 @@ import {
   AlertTriangle,
   CheckCircle2,
   AlertCircle,
-  CircleDashed
+  CircleDashed,
+  Phone
 } from 'lucide-react';
 import { format, addMonths, isBefore, isAfter } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -117,6 +118,15 @@ export function ClientCard({ client, onEdit, onDelete }: ClientCardProps) {
             <Clock className="w-4 h-4 text-muted-foreground" />
             <span>{client.contract_duration_months ? `${client.contract_duration_months} meses` : '-'}</span>
           </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          {client.lead?.whatsapp && (
+            <div className="flex items-center gap-2 text-sm col-span-2">
+              <Phone className="w-4 h-4 text-green-600" />
+              <span>{client.lead.whatsapp}</span>
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-2 gap-3">

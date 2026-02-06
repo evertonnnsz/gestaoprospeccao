@@ -40,6 +40,10 @@ export function StagingLeadEditModal({
         instagram: lead.instagram || '',
         segment: lead.segment || '',
         observations: lead.observations || '',
+        cnpj: lead.cnpj || '',
+        razao_social: lead.razao_social || '',
+        nome_fantasia: lead.nome_fantasia || '',
+        endereco_completo: lead.endereco_completo || '',
       });
     }
   }, [lead]);
@@ -178,6 +182,45 @@ export function StagingLeadEditModal({
                 id="segment"
                 value={formData.segment || ''}
                 onChange={(e) => handleChange('segment', e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="cnpj">CNPJ</Label>
+              <Input
+                id="cnpj"
+                value={formData.cnpj || ''}
+                onChange={(e) => handleChange('cnpj', e.target.value)}
+                placeholder="00.000.000/0000-00"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="razao_social">Razão Social</Label>
+              <Input
+                id="razao_social"
+                value={formData.razao_social || ''}
+                onChange={(e) => handleChange('razao_social', e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="nome_fantasia">Nome Fantasia</Label>
+              <Input
+                id="nome_fantasia"
+                value={formData.nome_fantasia || ''}
+                onChange={(e) => handleChange('nome_fantasia', e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="endereco_completo">Endereço Completo</Label>
+              <Textarea
+                id="endereco_completo"
+                value={formData.endereco_completo || ''}
+                onChange={(e) => handleChange('endereco_completo', e.target.value)}
+                rows={2}
+                placeholder="Logradouro, nº, bairro, cidade - UF, CEP"
               />
             </div>
 

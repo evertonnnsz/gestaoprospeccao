@@ -191,9 +191,11 @@ export type Database = {
       leads: {
         Row: {
           approach_date: string | null
+          cnpj: string | null
           company_name: string
           contact_name: string | null
           created_at: string | null
+          endereco_completo: string | null
           follow_up_1: string | null
           follow_up_2: string | null
           follow_up_3: string | null
@@ -202,7 +204,9 @@ export type Database = {
           last_contact: string | null
           lead_source: string | null
           next_action: string | null
+          nome_fantasia: string | null
           observations: string | null
+          razao_social: string | null
           responded: boolean | null
           segment: string | null
           status: Database["public"]["Enums"]["lead_status"] | null
@@ -212,9 +216,11 @@ export type Database = {
         }
         Insert: {
           approach_date?: string | null
+          cnpj?: string | null
           company_name: string
           contact_name?: string | null
           created_at?: string | null
+          endereco_completo?: string | null
           follow_up_1?: string | null
           follow_up_2?: string | null
           follow_up_3?: string | null
@@ -223,7 +229,9 @@ export type Database = {
           last_contact?: string | null
           lead_source?: string | null
           next_action?: string | null
+          nome_fantasia?: string | null
           observations?: string | null
+          razao_social?: string | null
           responded?: boolean | null
           segment?: string | null
           status?: Database["public"]["Enums"]["lead_status"] | null
@@ -233,9 +241,11 @@ export type Database = {
         }
         Update: {
           approach_date?: string | null
+          cnpj?: string | null
           company_name?: string
           contact_name?: string | null
           created_at?: string | null
+          endereco_completo?: string | null
           follow_up_1?: string | null
           follow_up_2?: string | null
           follow_up_3?: string | null
@@ -244,7 +254,9 @@ export type Database = {
           last_contact?: string | null
           lead_source?: string | null
           next_action?: string | null
+          nome_fantasia?: string | null
           observations?: string | null
+          razao_social?: string | null
           responded?: boolean | null
           segment?: string | null
           status?: Database["public"]["Enums"]["lead_status"] | null
@@ -292,48 +304,60 @@ export type Database = {
       }
       staging_leads: {
         Row: {
+          cnpj: string | null
           company_name: string
           contact_name: string | null
           created_at: string
           duplicate_lead_id: string | null
+          endereco_completo: string | null
           has_validation_errors: boolean
           id: string
           instagram: string | null
           is_duplicate: boolean
           is_reviewed: boolean
+          nome_fantasia: string | null
           observations: string | null
+          razao_social: string | null
           segment: string | null
           updated_at: string
           user_id: string
           whatsapp: string | null
         }
         Insert: {
+          cnpj?: string | null
           company_name: string
           contact_name?: string | null
           created_at?: string
           duplicate_lead_id?: string | null
+          endereco_completo?: string | null
           has_validation_errors?: boolean
           id?: string
           instagram?: string | null
           is_duplicate?: boolean
           is_reviewed?: boolean
+          nome_fantasia?: string | null
           observations?: string | null
+          razao_social?: string | null
           segment?: string | null
           updated_at?: string
           user_id: string
           whatsapp?: string | null
         }
         Update: {
+          cnpj?: string | null
           company_name?: string
           contact_name?: string | null
           created_at?: string
           duplicate_lead_id?: string | null
+          endereco_completo?: string | null
           has_validation_errors?: boolean
           id?: string
           instagram?: string | null
           is_duplicate?: boolean
           is_reviewed?: boolean
+          nome_fantasia?: string | null
           observations?: string | null
+          razao_social?: string | null
           segment?: string | null
           updated_at?: string
           user_id?: string

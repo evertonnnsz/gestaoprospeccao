@@ -29,6 +29,10 @@ export interface Lead {
   last_contact: string | null;
   next_action: string | null;
   responded: boolean | null;
+  cnpj: string | null;
+  razao_social: string | null;
+  nome_fantasia: string | null;
+  endereco_completo: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -108,6 +112,10 @@ export interface StagingLead {
   instagram: string | null;
   segment: string | null;
   observations: string | null;
+  cnpj: string | null;
+  razao_social: string | null;
+  nome_fantasia: string | null;
+  endereco_completo: string | null;
   is_reviewed: boolean;
   has_validation_errors: boolean;
   is_duplicate: boolean;

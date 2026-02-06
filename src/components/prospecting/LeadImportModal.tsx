@@ -30,6 +30,10 @@ export interface ImportedLead {
   instagram?: string;
   segment?: string;
   observations?: string;
+  cnpj?: string;
+  razao_social?: string;
+  nome_fantasia?: string;
+  endereco_completo?: string;
   isDuplicate?: boolean;
   isSelected?: boolean;
 }
@@ -41,6 +45,10 @@ interface ColumnMapping {
   instagram: string;
   segment: string;
   observations: string;
+  cnpj: string;
+  razao_social: string;
+  nome_fantasia: string;
+  endereco_completo: string;
 }
 
 interface LeadImportModalProps {
@@ -56,6 +64,10 @@ const SYSTEM_FIELDS = [
   { key: 'instagram', label: 'Instagram', required: false },
   { key: 'segment', label: 'Segmento', required: false },
   { key: 'observations', label: 'Observações', required: false },
+  { key: 'cnpj', label: 'CNPJ', required: false },
+  { key: 'razao_social', label: 'Razão Social', required: false },
+  { key: 'nome_fantasia', label: 'Nome Fantasia', required: false },
+  { key: 'endereco_completo', label: 'Endereço Completo', required: false },
 ] as const;
 
 export function LeadImportModal({ 
@@ -75,6 +87,10 @@ export function LeadImportModal({
     instagram: '',
     segment: '',
     observations: '',
+    cnpj: '',
+    razao_social: '',
+    nome_fantasia: '',
+    endereco_completo: '',
   });
   const [error, setError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -90,6 +106,10 @@ export function LeadImportModal({
       instagram: '',
       segment: '',
       observations: '',
+      cnpj: '',
+      razao_social: '',
+      nome_fantasia: '',
+      endereco_completo: '',
     });
     setError(null);
   }, []);
@@ -140,6 +160,10 @@ export function LeadImportModal({
         instagram: '',
         segment: '',
         observations: '',
+        cnpj: '',
+        razao_social: '',
+        nome_fantasia: '',
+        endereco_completo: '',
       };
 
       const lowerHeaders = fileHeaders.map(h => h.toLowerCase());
@@ -204,6 +228,46 @@ export function LeadImportModal({
         }
       }
 
+      // Auto-detect CNPJ
+      const cnpjMatches = ['cnpj', 'cpf/cnpj', 'cpf_cnpj'];
+      for (const match of cnpjMatches) {
+        const idx = lowerHeaders.findIndex(h => h.includes(match));
+        if (idx !== -1) {
+          autoMapping.cnpj = fileHeaders[idx];
+          break;
+        }
+      }
+
+      // Auto-detect Razão Social
+      const razaoMatches = ['razao social', 'razão social', 'razao_social', 'nome jurídico', 'nome juridico'];
+      for (const match of razaoMatches) {
+        const idx = lowerHeaders.findIndex(h => h.includes(match));
+        if (idx !== -1) {
+          autoMapping.razao_social = fileHeaders[idx];
+          break;
+        }
+      }
+
+      // Auto-detect Nome Fantasia
+      const fantasiaMatches = ['fantasia', 'nome fantasia', 'nome_fantasia', 'nome comercial'];
+      for (const match of fantasiaMatches) {
+        const idx = lowerHeaders.findIndex(h => h.includes(match));
+        if (idx !== -1) {
+          autoMapping.nome_fantasia = fileHeaders[idx];
+          break;
+        }
+      }
+
+      // Auto-detect Endereço
+      const enderecoMatches = ['endereco', 'endereço', 'logradouro', 'cep', 'endereco_completo'];
+      for (const match of enderecoMatches) {
+        const idx = lowerHeaders.findIndex(h => h.includes(match));
+        if (idx !== -1) {
+          autoMapping.endereco_completo = fileHeaders[idx];
+          break;
+        }
+      }
+
       setMapping(autoMapping);
     } catch (err) {
       console.error('Error parsing file:', err);
@@ -263,6 +327,10 @@ export function LeadImportModal({
         instagram: getValueByHeader(mapping.instagram) || undefined,
         segment: getValueByHeader(mapping.segment) || undefined,
         observations: getValueByHeader(mapping.observations) || undefined,
+        cnpj: getValueByHeader(mapping.cnpj) || undefined,
+        razao_social: getValueByHeader(mapping.razao_social) || undefined,
+        nome_fantasia: getValueByHeader(mapping.nome_fantasia) || undefined,
+        endereco_completo: getValueByHeader(mapping.endereco_completo) || undefined,
       };
     }).filter(lead => lead.company_name);
 
@@ -305,6 +373,10 @@ export function LeadImportModal({
           instagram: lead.instagram || null,
           segment: lead.segment || null,
           observations: lead.observations || null,
+          cnpj: lead.cnpj || null,
+          razao_social: lead.razao_social || null,
+          nome_fantasia: lead.nome_fantasia || null,
+          endereco_completo: lead.endereco_completo || null,
           is_reviewed: false,
           has_validation_errors: hasValidationErrors,
           is_duplicate: !!duplicate,

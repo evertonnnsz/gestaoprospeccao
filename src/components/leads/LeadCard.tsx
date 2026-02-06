@@ -149,6 +149,12 @@ export function LeadCard({ lead, onEdit, onDelete, onUpdate, hasCheckbox }: Lead
             </div>
             <div className="min-w-0">
               <h3 className="font-semibold truncate">{lead.company_name}</h3>
+              {lead.razao_social && (
+                <p className="text-xs text-muted-foreground truncate">{lead.razao_social}</p>
+              )}
+              {lead.cnpj && (
+                <p className="text-xs text-muted-foreground font-mono">{lead.cnpj}</p>
+              )}
               {lead.contact_name && (
                 <p className="text-sm text-muted-foreground truncate">{lead.contact_name}</p>
               )}

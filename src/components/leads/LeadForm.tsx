@@ -10,7 +10,7 @@ import { Lead, LeadStatus, STATUS_LABELS, STATUS_ORDER } from '@/types/crm';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { Building2, User, Phone, Instagram, Calendar, MessageSquare, MessageCircle } from 'lucide-react';
+import { Building2, User, Phone, Instagram, Calendar, MessageSquare, MessageCircle, FileText, MapPin } from 'lucide-react';
 
 interface LeadFormProps {
   open: boolean;
@@ -40,6 +40,10 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
     next_action: '',
     approach_date: new Date().toISOString().split('T')[0],
     responded: false,
+    cnpj: '',
+    razao_social: '',
+    nome_fantasia: '',
+    endereco_completo: '',
   });
 
   const getDefaultFormData = () => ({
@@ -58,6 +62,10 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
     next_action: '',
     approach_date: new Date().toISOString().split('T')[0],
     responded: false,
+    cnpj: '',
+    razao_social: '',
+    nome_fantasia: '',
+    endereco_completo: '',
   });
 
   // Reset form when dialog opens or lead prop changes
@@ -80,6 +88,10 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
           next_action: lead.next_action || '',
           approach_date: lead.approach_date || new Date().toISOString().split('T')[0],
           responded: lead.responded || false,
+          cnpj: lead.cnpj || '',
+          razao_social: lead.razao_social || '',
+          nome_fantasia: lead.nome_fantasia || '',
+          endereco_completo: lead.endereco_completo || '',
         });
       } else {
         setFormData(getDefaultFormData());
@@ -102,6 +114,10 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
       last_contact: formData.last_contact || null,
       approach_date: formData.approach_date || null,
       responded: formData.responded,
+      cnpj: formData.cnpj || null,
+      razao_social: formData.razao_social || null,
+      nome_fantasia: formData.nome_fantasia || null,
+      endereco_completo: formData.endereco_completo || null,
     };
 
     try {
@@ -266,7 +282,57 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
                 value={formData.segment}
                 onChange={(e) => setFormData({ ...formData, segment: e.target.value })}
               />
+          </div>
+
+          {/* Dados Empresariais */}
+          <div className="space-y-4">
+            <Label className="flex items-center gap-2 text-base font-semibold">
+              <FileText className="w-4 h-4" />
+              Dados Empresariais
+            </Label>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="cnpj">CNPJ</Label>
+                <Input
+                  id="cnpj"
+                  placeholder="00.000.000/0000-00"
+                  value={formData.cnpj}
+                  onChange={(e) => setFormData({ ...formData, cnpj: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="razao_social">Razão Social</Label>
+                <Input
+                  id="razao_social"
+                  placeholder="Nome jurídico da empresa"
+                  value={formData.razao_social}
+                  onChange={(e) => setFormData({ ...formData, razao_social: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="nome_fantasia">Nome Fantasia</Label>
+                <Input
+                  id="nome_fantasia"
+                  placeholder="Nome comercial"
+                  value={formData.nome_fantasia}
+                  onChange={(e) => setFormData({ ...formData, nome_fantasia: e.target.value })}
+                />
+              </div>
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="endereco_completo" className="flex items-center gap-2">
+                <MapPin className="w-4 h-4" />
+                Endereço Completo
+              </Label>
+              <Textarea
+                id="endereco_completo"
+                rows={2}
+                placeholder="Logradouro, nº, bairro, cidade - UF, CEP"
+                value={formData.endereco_completo}
+                onChange={(e) => setFormData({ ...formData, endereco_completo: e.target.value })}
+              />
+            </div>
+          </div>
 
             {/* Next Action */}
             <div className="space-y-2">

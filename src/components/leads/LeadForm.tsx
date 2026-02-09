@@ -11,6 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { Building2, User, Phone, Instagram, Calendar, MessageSquare, MessageCircle, FileText, MapPin } from 'lucide-react';
+import { generateFollowUpDates } from '@/lib/utils/followUpDates';
 
 interface LeadFormProps {
   open: boolean;
@@ -46,32 +47,37 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
     endereco_completo: '',
   });
 
-  const getDefaultFormData = () => ({
-    company_name: '',
-    contact_name: '',
-    whatsapp: '',
-    instagram: '',
-    status: 'lead_coletado' as LeadStatus,
-    observations: '',
-    lead_source: '',
-    segment: '',
-    follow_up_1: '',
-    follow_up_2: '',
-    follow_up_3: '',
-    last_contact: '',
-    next_action: '',
-    approach_date: new Date().toISOString().split('T')[0],
-    responded: false,
-    cnpj: '',
-    razao_social: '',
-    nome_fantasia: '',
-    endereco_completo: '',
-  });
+  const getDefaultFormData = () => {
+    const followUps = generateFollowUpDates();
+    return {
+      company_name: '',
+      contact_name: '',
+      whatsapp: '',
+      instagram: '',
+      status: 'lead_coletado' as LeadStatus,
+      observations: '',
+      lead_source: '',
+      segment: '',
+      follow_up_1: followUps.follow_up_1,
+      follow_up_2: followUps.follow_up_2,
+      follow_up_3: followUps.follow_up_3,
+      last_contact: '',
+      next_action: '',
+      approach_date: new Date().toISOString().split('T')[0],
+      responded: false,
+      cnpj: '',
+      razao_social: '',
+      nome_fantasia: '',
+      endereco_completo: '',
+    };
+  };
 
   // Reset form when dialog opens or lead prop changes
   useEffect(() => {
     if (open) {
       if (lead) {
+        const isEditing = !!lead.id;
+        const followUps = !isEditing ? generateFollowUpDates() : null;
         setFormData({
           company_name: lead.company_name || '',
           contact_name: lead.contact_name || '',
@@ -81,9 +87,9 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
           observations: lead.observations || '',
           lead_source: lead.lead_source || '',
           segment: lead.segment || '',
-          follow_up_1: lead.follow_up_1 || '',
-          follow_up_2: lead.follow_up_2 || '',
-          follow_up_3: lead.follow_up_3 || '',
+          follow_up_1: lead.follow_up_1 || (followUps?.follow_up_1 ?? ''),
+          follow_up_2: lead.follow_up_2 || (followUps?.follow_up_2 ?? ''),
+          follow_up_3: lead.follow_up_3 || (followUps?.follow_up_3 ?? ''),
           last_contact: lead.last_contact || '',
           next_action: lead.next_action || '',
           approach_date: lead.approach_date || new Date().toISOString().split('T')[0],

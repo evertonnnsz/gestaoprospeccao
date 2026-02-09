@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { StagingLead, validateStagingLead } from '@/types/crm';
+import { generateFollowUpDates } from '@/lib/utils/followUpDates';
 import { StagingLeadEditModal } from './StagingLeadEditModal';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -136,6 +137,7 @@ export function StagingArea({ onLeadApproved }: StagingAreaProps) {
     setIsProcessing(true);
 
     try {
+      const followUps = generateFollowUpDates();
       // Insert into leads
       const { error: insertError } = await supabase.from('leads').insert({
         user_id: user.id,
@@ -152,6 +154,9 @@ export function StagingArea({ onLeadApproved }: StagingAreaProps) {
         status: 'lead_coletado',
         lead_source: 'Importação de Lista',
         approach_date: new Date().toISOString().split('T')[0],
+        follow_up_1: followUps.follow_up_1,
+        follow_up_2: followUps.follow_up_2,
+        follow_up_3: followUps.follow_up_3,
       });
 
       if (insertError) throw insertError;
@@ -212,6 +217,7 @@ export function StagingArea({ onLeadApproved }: StagingAreaProps) {
     }
 
     try {
+      const followUps = generateFollowUpDates();
       // Insert all valid leads
       const leadsToInsert = validLeads.map(lead => ({
         user_id: user.id,
@@ -228,6 +234,9 @@ export function StagingArea({ onLeadApproved }: StagingAreaProps) {
         status: 'lead_coletado' as const,
         lead_source: 'Importação de Lista',
         approach_date: new Date().toISOString().split('T')[0],
+        follow_up_1: followUps.follow_up_1,
+        follow_up_2: followUps.follow_up_2,
+        follow_up_3: followUps.follow_up_3,
       }));
 
       const { error: insertError } = await supabase

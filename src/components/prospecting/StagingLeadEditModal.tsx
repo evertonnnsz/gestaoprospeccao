@@ -12,7 +12,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertTriangle, Copy, Send, Save } from 'lucide-react';
+import { AlertTriangle, Copy, Send, Save, Search } from 'lucide-react';
+import { CnpjEnrichModal } from './CnpjEnrichModal';
+import { EnrichedCompanyData } from '@/lib/api/empresaqui';
 
 interface StagingLeadEditModalProps {
   lead: StagingLead | null;
@@ -30,6 +32,7 @@ export function StagingLeadEditModal({
   const [formData, setFormData] = useState<Partial<StagingLead>>({});
   const [isSaving, setIsSaving] = useState(false);
   const [isApproving, setIsApproving] = useState(false);
+  const [showEnrich, setShowEnrich] = useState(false);
 
   useEffect(() => {
     if (lead) {
@@ -92,173 +95,200 @@ export function StagingLeadEditModal({
     }
   };
 
+  const handleEnriched = (data: EnrichedCompanyData) => {
+    setFormData(prev => ({
+      ...prev,
+      cnpj: data.cnpj || prev.cnpj,
+      razao_social: data.razao_social || prev.razao_social,
+      nome_fantasia: data.nome_fantasia || prev.nome_fantasia,
+      segment: data.segmento || prev.segment,
+      whatsapp: data.whatsapp || prev.whatsapp,
+      endereco_completo: data.endereco_completo || prev.endereco_completo,
+    }));
+  };
+
   const isProcessing = isSaving || isApproving;
 
   return (
-    <Dialog open={!!lead} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Revisar Lead: {lead.company_name}</DialogTitle>
-        </DialogHeader>
+    <>
+      <Dialog open={!!lead} onOpenChange={(open) => !open && onClose()}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Revisar Lead: {lead.company_name}</DialogTitle>
+          </DialogHeader>
 
-        <div className="space-y-4 py-4">
-          {/* Duplicate Warning */}
-          {lead.is_duplicate && (
-            <Alert variant="destructive">
-              <Copy className="h-4 w-4" />
-              <AlertDescription>
-                <strong>Atenção:</strong> Este lead pode ser uma duplicata.
-                <br />
-                <Button variant="link" className="p-0 h-auto text-destructive underline">
-                  Ver Lead Existente
-                </Button>
-              </AlertDescription>
-            </Alert>
-          )}
+          <div className="space-y-4 py-4">
+            {/* Duplicate Warning */}
+            {lead.is_duplicate && (
+              <Alert variant="destructive">
+                <Copy className="h-4 w-4" />
+                <AlertDescription>
+                  <strong>Atenção:</strong> Este lead pode ser uma duplicata.
+                </AlertDescription>
+              </Alert>
+            )}
 
-          {/* Validation Errors Summary */}
-          {!validation.isValid && !lead.is_duplicate && (
-            <Alert>
-              <AlertTriangle className="h-4 w-4" />
-              <AlertDescription>
-                Corrija os erros destacados antes de aprovar.
-              </AlertDescription>
-            </Alert>
-          )}
+            {/* Validation Errors Summary */}
+            {!validation.isValid && !lead.is_duplicate && (
+              <Alert>
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>
+                  Corrija os erros destacados antes de aprovar.
+                </AlertDescription>
+              </Alert>
+            )}
 
-          {/* Form Fields */}
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="company_name">
-                Empresa <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="company_name"
-                value={formData.company_name || ''}
-                onChange={(e) => handleChange('company_name', e.target.value)}
-                className={fieldErrors.company_name ? 'border-destructive' : ''}
-              />
-              {fieldErrors.company_name && (
-                <p className="text-sm text-destructive">{fieldErrors.company_name}</p>
-              )}
-            </div>
+            {/* Enrich Button */}
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={() => setShowEnrich(true)}
+            >
+              <Search className="w-4 h-4 mr-2" />
+              Enriquecer com CNPJ (Empresa Aqui)
+            </Button>
 
-            <div className="space-y-2">
-              <Label htmlFor="contact_name">Nome do Contato</Label>
-              <Input
-                id="contact_name"
-                value={formData.contact_name || ''}
-                onChange={(e) => handleChange('contact_name', e.target.value)}
-              />
-            </div>
+            {/* Form Fields */}
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="company_name">
+                  Empresa <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="company_name"
+                  value={formData.company_name || ''}
+                  onChange={(e) => handleChange('company_name', e.target.value)}
+                  className={fieldErrors.company_name ? 'border-destructive' : ''}
+                />
+                {fieldErrors.company_name && (
+                  <p className="text-sm text-destructive">{fieldErrors.company_name}</p>
+                )}
+              </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="whatsapp">WhatsApp</Label>
-              <Input
-                id="whatsapp"
-                value={formData.whatsapp || ''}
-                onChange={(e) => handleChange('whatsapp', e.target.value)}
-                className={fieldErrors.whatsapp ? 'border-destructive' : ''}
-                placeholder="(XX) XXXXX-XXXX"
-              />
-              {fieldErrors.whatsapp && (
-                <p className="text-sm text-destructive">{fieldErrors.whatsapp}</p>
-              )}
-            </div>
+              <div className="space-y-2">
+                <Label htmlFor="contact_name">Nome do Contato</Label>
+                <Input
+                  id="contact_name"
+                  value={formData.contact_name || ''}
+                  onChange={(e) => handleChange('contact_name', e.target.value)}
+                />
+              </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="instagram">Instagram</Label>
-              <Input
-                id="instagram"
-                value={formData.instagram || ''}
-                onChange={(e) => handleChange('instagram', e.target.value)}
-                placeholder="@usuario"
-              />
-            </div>
+              <div className="space-y-2">
+                <Label htmlFor="whatsapp">WhatsApp</Label>
+                <Input
+                  id="whatsapp"
+                  value={formData.whatsapp || ''}
+                  onChange={(e) => handleChange('whatsapp', e.target.value)}
+                  className={fieldErrors.whatsapp ? 'border-destructive' : ''}
+                  placeholder="(XX) XXXXX-XXXX"
+                />
+                {fieldErrors.whatsapp && (
+                  <p className="text-sm text-destructive">{fieldErrors.whatsapp}</p>
+                )}
+              </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="segment">Segmento</Label>
-              <Input
-                id="segment"
-                value={formData.segment || ''}
-                onChange={(e) => handleChange('segment', e.target.value)}
-              />
-            </div>
+              <div className="space-y-2">
+                <Label htmlFor="instagram">Instagram</Label>
+                <Input
+                  id="instagram"
+                  value={formData.instagram || ''}
+                  onChange={(e) => handleChange('instagram', e.target.value)}
+                  placeholder="@usuario"
+                />
+              </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="cnpj">CNPJ</Label>
-              <Input
-                id="cnpj"
-                value={formData.cnpj || ''}
-                onChange={(e) => handleChange('cnpj', e.target.value)}
-                placeholder="00.000.000/0000-00"
-              />
-            </div>
+              <div className="space-y-2">
+                <Label htmlFor="segment">Segmento</Label>
+                <Input
+                  id="segment"
+                  value={formData.segment || ''}
+                  onChange={(e) => handleChange('segment', e.target.value)}
+                />
+              </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="razao_social">Razão Social</Label>
-              <Input
-                id="razao_social"
-                value={formData.razao_social || ''}
-                onChange={(e) => handleChange('razao_social', e.target.value)}
-              />
-            </div>
+              <div className="space-y-2">
+                <Label htmlFor="cnpj">CNPJ</Label>
+                <Input
+                  id="cnpj"
+                  value={formData.cnpj || ''}
+                  onChange={(e) => handleChange('cnpj', e.target.value)}
+                  placeholder="00.000.000/0000-00"
+                />
+              </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="nome_fantasia">Nome Fantasia</Label>
-              <Input
-                id="nome_fantasia"
-                value={formData.nome_fantasia || ''}
-                onChange={(e) => handleChange('nome_fantasia', e.target.value)}
-              />
-            </div>
+              <div className="space-y-2">
+                <Label htmlFor="razao_social">Razão Social</Label>
+                <Input
+                  id="razao_social"
+                  value={formData.razao_social || ''}
+                  onChange={(e) => handleChange('razao_social', e.target.value)}
+                />
+              </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="endereco_completo">Endereço Completo</Label>
-              <Textarea
-                id="endereco_completo"
-                value={formData.endereco_completo || ''}
-                onChange={(e) => handleChange('endereco_completo', e.target.value)}
-                rows={2}
-                placeholder="Logradouro, nº, bairro, cidade - UF, CEP"
-              />
-            </div>
+              <div className="space-y-2">
+                <Label htmlFor="nome_fantasia">Nome Fantasia</Label>
+                <Input
+                  id="nome_fantasia"
+                  value={formData.nome_fantasia || ''}
+                  onChange={(e) => handleChange('nome_fantasia', e.target.value)}
+                />
+              </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="observations">Observações</Label>
-              <Textarea
-                id="observations"
-                value={formData.observations || ''}
-                onChange={(e) => handleChange('observations', e.target.value)}
-                rows={3}
-              />
+              <div className="space-y-2">
+                <Label htmlFor="endereco_completo">Endereço Completo</Label>
+                <Textarea
+                  id="endereco_completo"
+                  value={formData.endereco_completo || ''}
+                  onChange={(e) => handleChange('endereco_completo', e.target.value)}
+                  rows={2}
+                  placeholder="Logradouro, nº, bairro, cidade - UF, CEP"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="observations">Observações</Label>
+                <Textarea
+                  id="observations"
+                  value={formData.observations || ''}
+                  onChange={(e) => handleChange('observations', e.target.value)}
+                  rows={3}
+                />
+              </div>
             </div>
           </div>
-        </div>
 
-        <DialogFooter className="flex-col sm:flex-row gap-2">
-          <Button variant="outline" onClick={onClose} disabled={isProcessing}>
-            Cancelar
-          </Button>
-          <Button
-            variant="secondary"
-            onClick={handleSave}
-            disabled={isProcessing}
-          >
-            <Save className="w-4 h-4 mr-2" />
-            {isSaving ? 'Salvando...' : 'Salvar Alterações'}
-          </Button>
-          {!lead.is_duplicate && (
-            <Button
-              onClick={handleApprove}
-              disabled={isProcessing || !validation.isValid}
-            >
-              <Send className="w-4 h-4 mr-2" />
-              {isApproving ? 'Aprovando...' : 'Aprovar e Enviar'}
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button variant="outline" onClick={onClose} disabled={isProcessing}>
+              Cancelar
             </Button>
-          )}
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+            <Button
+              variant="secondary"
+              onClick={handleSave}
+              disabled={isProcessing}
+            >
+              <Save className="w-4 h-4 mr-2" />
+              {isSaving ? 'Salvando...' : 'Salvar Alterações'}
+            </Button>
+            {!lead.is_duplicate && (
+              <Button
+                onClick={handleApprove}
+                disabled={isProcessing || !validation.isValid}
+              >
+                <Send className="w-4 h-4 mr-2" />
+                {isApproving ? 'Aprovando...' : 'Aprovar e Enviar'}
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <CnpjEnrichModal
+        open={showEnrich}
+        onOpenChange={setShowEnrich}
+        onEnriched={handleEnriched}
+        initialCnpj={formData.cnpj || ''}
+      />
+    </>
   );
 }

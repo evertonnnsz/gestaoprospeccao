@@ -252,6 +252,19 @@ export function LeadCard({ lead, onEdit, onDelete, onUpdate, hasCheckbox }: Lead
               Concluir Follow-up
             </Button>
           )}
+
+          {/* Renew Follow-up Button */}
+          {canRenewFollowUp() && (
+            <Button 
+              size="sm" 
+              variant="outline" 
+              className="gap-2 text-accent-foreground border-accent hover:bg-accent/80"
+              onClick={renewFollowUp}
+            >
+              <RefreshCw className="w-4 h-4" />
+              Renovar Follow-ups
+            </Button>
+          )}
         </div>
 
         {/* Actions */}

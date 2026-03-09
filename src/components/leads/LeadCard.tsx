@@ -16,8 +16,10 @@ import {
   Edit2,
   Trash2,
   CheckCircle2,
-  Bell
+  Bell,
+  RefreshCw
 } from 'lucide-react';
+import { generateFollowUpDates } from '@/lib/utils/followUpDates';
 
 // Helper functions to compare dates without timezone issues
 const isSameDay = (dateStr: string): boolean => {

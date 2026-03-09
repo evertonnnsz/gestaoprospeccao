@@ -78,6 +78,46 @@ export function LeadCard({ lead, onEdit, onDelete, onUpdate, hasCheckbox }: Lead
     return followUps[0];
   };
 
+  const canRenewFollowUp = () => {
+    if (lead.status === 'lead_perdido' || lead.status === 'sem_interesse' || lead.status === 'fechado') {
+      return false;
+    }
+    // Show renew when all 3 follow-ups are empty (completed/cleared) or all are past
+    const followUps = [lead.follow_up_1, lead.follow_up_2, lead.follow_up_3];
+    const allEmpty = followUps.every(f => !f);
+    const allPast = followUps.filter(Boolean).every(f => isDatePast(f!));
+    return allEmpty || allPast;
+  };
+
+  const renewFollowUp = async () => {
+    try {
+      const dates = generateFollowUpDates();
+      const { error } = await supabase
+        .from('leads')
+        .update({
+          follow_up_1: dates.follow_up_1,
+          follow_up_2: dates.follow_up_2,
+          follow_up_3: dates.follow_up_3,
+        })
+        .eq('id', lead.id);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Follow-ups renovados',
+        description: 'Novos follow-ups agendados para os próximos 3 dias úteis.',
+      });
+
+      onUpdate?.();
+    } catch (error: any) {
+      toast({
+        title: 'Erro',
+        description: error.message,
+        variant: 'destructive',
+      });
+    }
+  };
+
   const completeFollowUp = async () => {
     try {
       const todayStr = new Date().toISOString().split('T')[0];

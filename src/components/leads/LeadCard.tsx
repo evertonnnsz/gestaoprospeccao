@@ -253,8 +253,8 @@ export function LeadCard({ lead, onEdit, onDelete, onUpdate, hasCheckbox }: Lead
             </Button>
           )}
 
-          {/* Renew Follow-up Button */}
-          {canRenewFollowUp() && (
+          {/* Renew Follow-up Button - always visible for active leads */}
+          {lead.status !== 'lead_perdido' && lead.status !== 'sem_interesse' && lead.status !== 'fechado' && (
             <Button 
               size="sm" 
               variant="outline" 

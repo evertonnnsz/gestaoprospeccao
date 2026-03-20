@@ -120,6 +120,29 @@ export default function Onboarding() {
     },
   });
 
+  // Toggle applicable
+  const toggleApplicableMutation = useMutation({
+    mutationFn: async ({ taskId, applicable }: { taskId: string; applicable: boolean }) => {
+      const updates: any = {
+        is_applicable: applicable,
+        updated_at: new Date().toISOString(),
+      };
+      if (!applicable) {
+        updates.is_completed = false;
+        updates.completed_at = null;
+        updates.is_lead_responsibility = false;
+      }
+      const { error } = await supabase
+        .from('client_onboarding_tasks')
+        .update(updates)
+        .eq('id', taskId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['onboarding-tasks', selectedClientId] });
+    },
+  });
+
   const selectedClient = clients.find((c) => c.id === selectedClientId);
   const completedCount = tasks.filter((t) => t.is_completed).length;
   const progressPercent = tasks.length > 0 ? (completedCount / tasks.length) * 100 : 0;

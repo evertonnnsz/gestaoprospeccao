@@ -270,38 +270,72 @@ export default function Onboarding() {
                         <div
                           key={task.id}
                           className={`flex items-center gap-3 px-3 py-3 rounded-lg transition-colors ${
-                            task.is_completed ? 'bg-muted/40' : 'hover:bg-muted/30'
+                            !task.is_applicable
+                              ? 'bg-muted/20 opacity-50'
+                              : task.is_completed
+                              ? 'bg-muted/40'
+                              : 'hover:bg-muted/30'
                           }`}
                         >
                           <Checkbox
                             checked={task.is_completed}
+                            disabled={!task.is_applicable}
                             onCheckedChange={(checked) =>
                               toggleMutation.mutate({ taskId: task.id, completed: !!checked })
                             }
                           />
-                          <span className={`flex-1 text-sm ${task.is_completed ? 'line-through text-muted-foreground' : ''}`}>
+                          <span className={`flex-1 text-sm ${
+                            !task.is_applicable
+                              ? 'line-through text-muted-foreground'
+                              : task.is_completed
+                              ? 'line-through text-muted-foreground'
+                              : ''
+                          }`}>
                             {task.task_order} - {task.task_name}
                           </span>
 
-                          {task.is_lead_responsibility && (
+                          {!task.is_applicable && (
+                            <Badge variant="outline" className="text-xs gap-1 border-destructive/30 text-destructive">
+                              <Ban className="w-3 h-3" />
+                              N/A
+                            </Badge>
+                          )}
+
+                          {task.is_applicable && task.is_lead_responsibility && (
                             <Badge variant="secondary" className="text-xs gap-1">
                               <UserCheck className="w-3 h-3" />
                               Lead
                             </Badge>
                           )}
 
+                          {task.is_applicable && (
+                            <Button
+                              variant={task.is_lead_responsibility ? 'secondary' : 'ghost'}
+                              size="sm"
+                              className="text-xs h-7"
+                              onClick={() =>
+                                toggleLeadMutation.mutate({
+                                  taskId: task.id,
+                                  isLead: !task.is_lead_responsibility,
+                                })
+                              }
+                            >
+                              {task.is_lead_responsibility ? 'Remover do Lead' : 'Atribuir ao Lead'}
+                            </Button>
+                          )}
+
                           <Button
-                            variant={task.is_lead_responsibility ? 'secondary' : 'ghost'}
+                            variant="ghost"
                             size="sm"
-                            className="text-xs h-7"
+                            className={`text-xs h-7 ${!task.is_applicable ? 'text-primary' : 'text-muted-foreground'}`}
                             onClick={() =>
-                              toggleLeadMutation.mutate({
+                              toggleApplicableMutation.mutate({
                                 taskId: task.id,
-                                isLead: !task.is_lead_responsibility,
+                                applicable: !task.is_applicable,
                               })
                             }
                           >
-                            {task.is_lead_responsibility ? 'Remover do Lead' : 'Atribuir ao Lead'}
+                            {task.is_applicable ? 'Não se aplica' : 'Reativar'}
                           </Button>
                         </div>
                       ))}

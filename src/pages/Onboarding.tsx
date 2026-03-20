@@ -144,8 +144,9 @@ export default function Onboarding() {
   });
 
   const selectedClient = clients.find((c) => c.id === selectedClientId);
-  const completedCount = tasks.filter((t) => t.is_completed).length;
-  const progressPercent = tasks.length > 0 ? (completedCount / tasks.length) * 100 : 0;
+  const applicableTasks = tasks.filter((t) => t.is_applicable);
+  const completedCount = applicableTasks.filter((t) => t.is_completed).length;
+  const progressPercent = applicableTasks.length > 0 ? (completedCount / applicableTasks.length) * 100 : 0;
 
   // Group tasks by platform
   const groupedTasks = tasks.reduce<Record<string, OnboardingTask[]>>((acc, task) => {

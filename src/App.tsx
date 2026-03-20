@@ -18,6 +18,7 @@ import Users from "./pages/Users";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 import CustomerSuccess from "./pages/CustomerSuccess";
+import Onboarding from "./pages/Onboarding";
 
 const queryClient = new QueryClient();
 

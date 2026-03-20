@@ -9,7 +9,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { toast } from '@/hooks/use-toast';
-import { ClipboardCheck, Loader2, Users, UserCheck, Plus } from 'lucide-react';
+import { ClipboardCheck, Loader2, Users, UserCheck, Plus, Ban } from 'lucide-react';
 import { DEFAULT_ONBOARDING_TASKS, PLATFORM_LABELS, PLATFORM_COLORS } from '@/lib/constants/onboardingTasks';
 import type { Client } from '@/types/crm';
 

@@ -239,7 +239,7 @@ export default function Onboarding() {
                     Progresso — {selectedClient?.lead?.company_name}
                   </CardTitle>
                   <CardDescription>
-                    {completedCount} de {tasks.length} tarefas concluídas
+                    {completedCount} de {applicableTasks.length} tarefas concluídas
                   </CardDescription>
                 </CardHeader>
                 <CardContent>

@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { AppSidebar } from './AppSidebar';
 import { TodayFollowUpAlert } from '@/components/alerts/TodayFollowUpAlert';
 import { ContractExpirationAlert } from '@/components/alerts/ContractExpirationAlert';
+import { OnboardingPendingAlert } from '@/components/alerts/OnboardingPendingAlert';
 import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 

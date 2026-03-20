@@ -262,7 +262,6 @@ export default function Onboarding() {
                         <span className="text-sm font-normal text-muted-foreground">
                           {platformTasks.filter((t) => t.is_completed && t.is_applicable).length}/{platformTasks.filter((t) => t.is_applicable).length}
                         </span>
-                        </span>
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-1">

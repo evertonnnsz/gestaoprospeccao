@@ -260,7 +260,8 @@ export default function Onboarding() {
                           {PLATFORM_LABELS[platform]}
                         </Badge>
                         <span className="text-sm font-normal text-muted-foreground">
-                          {platformTasks.filter((t) => t.is_completed).length}/{platformTasks.length}
+                          {platformTasks.filter((t) => t.is_completed && t.is_applicable).length}/{platformTasks.filter((t) => t.is_applicable).length}
+                        </span>
                         </span>
                       </CardTitle>
                     </CardHeader>

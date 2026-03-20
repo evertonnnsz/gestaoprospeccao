@@ -30,6 +30,7 @@ const navItems = [
   { title: 'Funil', url: '/funnel', icon: Target },
   { title: 'Métricas', url: '/metrics', icon: BarChart3 },
   { title: 'Sucesso do Cliente', url: '/customer-success', icon: HeartHandshake },
+  { title: 'Onboarding', url: '/onboarding', icon: ClipboardCheck },
 ];
 
 const adminItems = [

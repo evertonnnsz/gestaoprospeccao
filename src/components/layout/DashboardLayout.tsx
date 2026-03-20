@@ -61,6 +61,7 @@ export function DashboardLayout() {
     <div className="min-h-screen flex flex-col w-full bg-background">
       <TodayFollowUpAlert />
       <ContractExpirationAlert />
+      <OnboardingPendingAlert />
       <div className="flex flex-1">
         <AppSidebar />
         <main className="flex-1 overflow-auto">

@@ -41,6 +41,7 @@ const App = () => (
               <Route path="/funnel" element={<Funnel />} />
               <Route path="/metrics" element={<Metrics />} />
               <Route path="/customer-success" element={<CustomerSuccess />} />
+              <Route path="/onboarding" element={<Onboarding />} />
               <Route path="/approvals" element={<Approvals />} />
               <Route path="/users" element={<Users />} />
               <Route path="/settings" element={<Settings />} />

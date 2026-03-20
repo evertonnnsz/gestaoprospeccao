@@ -88,6 +88,7 @@ export type Database = {
           completed_at: string | null
           created_at: string
           id: string
+          is_applicable: boolean
           is_completed: boolean
           is_lead_responsibility: boolean
           platform: Database["public"]["Enums"]["onboarding_platform"]
@@ -101,6 +102,7 @@ export type Database = {
           completed_at?: string | null
           created_at?: string
           id?: string
+          is_applicable?: boolean
           is_completed?: boolean
           is_lead_responsibility?: boolean
           platform?: Database["public"]["Enums"]["onboarding_platform"]
@@ -114,6 +116,7 @@ export type Database = {
           completed_at?: string | null
           created_at?: string
           id?: string
+          is_applicable?: boolean
           is_completed?: boolean
           is_lead_responsibility?: boolean
           platform?: Database["public"]["Enums"]["onboarding_platform"]

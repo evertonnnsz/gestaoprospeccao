@@ -1,0 +1,1 @@
+ALTER TABLE public.client_onboarding_tasks ADD COLUMN is_applicable BOOLEAN NOT NULL DEFAULT true;

@@ -9,7 +9,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { toast } from '@/hooks/use-toast';
-import { ClipboardCheck, Loader2, Users, UserCheck, Plus } from 'lucide-react';
+import { ClipboardCheck, Loader2, Users, UserCheck, Plus, Ban } from 'lucide-react';
 import { DEFAULT_ONBOARDING_TASKS, PLATFORM_LABELS, PLATFORM_COLORS } from '@/lib/constants/onboardingTasks';
 import type { Client } from '@/types/crm';
 
@@ -22,6 +22,7 @@ type OnboardingTask = {
   platform: string;
   is_completed: boolean;
   is_lead_responsibility: boolean;
+  is_applicable: boolean;
   completed_at: string | null;
   created_at: string;
   updated_at: string;
@@ -119,9 +120,33 @@ export default function Onboarding() {
     },
   });
 
+  // Toggle applicable
+  const toggleApplicableMutation = useMutation({
+    mutationFn: async ({ taskId, applicable }: { taskId: string; applicable: boolean }) => {
+      const updates: any = {
+        is_applicable: applicable,
+        updated_at: new Date().toISOString(),
+      };
+      if (!applicable) {
+        updates.is_completed = false;
+        updates.completed_at = null;
+        updates.is_lead_responsibility = false;
+      }
+      const { error } = await supabase
+        .from('client_onboarding_tasks')
+        .update(updates)
+        .eq('id', taskId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['onboarding-tasks', selectedClientId] });
+    },
+  });
+
   const selectedClient = clients.find((c) => c.id === selectedClientId);
-  const completedCount = tasks.filter((t) => t.is_completed).length;
-  const progressPercent = tasks.length > 0 ? (completedCount / tasks.length) * 100 : 0;
+  const applicableTasks = tasks.filter((t) => t.is_applicable);
+  const completedCount = applicableTasks.filter((t) => t.is_completed).length;
+  const progressPercent = applicableTasks.length > 0 ? (completedCount / applicableTasks.length) * 100 : 0;
 
   // Group tasks by platform
   const groupedTasks = tasks.reduce<Record<string, OnboardingTask[]>>((acc, task) => {
@@ -214,7 +239,7 @@ export default function Onboarding() {
                     Progresso — {selectedClient?.lead?.company_name}
                   </CardTitle>
                   <CardDescription>
-                    {completedCount} de {tasks.length} tarefas concluídas
+                    {completedCount} de {applicableTasks.length} tarefas concluídas
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -235,7 +260,7 @@ export default function Onboarding() {
                           {PLATFORM_LABELS[platform]}
                         </Badge>
                         <span className="text-sm font-normal text-muted-foreground">
-                          {platformTasks.filter((t) => t.is_completed).length}/{platformTasks.length}
+                          {platformTasks.filter((t) => t.is_completed && t.is_applicable).length}/{platformTasks.filter((t) => t.is_applicable).length}
                         </span>
                       </CardTitle>
                     </CardHeader>
@@ -244,38 +269,72 @@ export default function Onboarding() {
                         <div
                           key={task.id}
                           className={`flex items-center gap-3 px-3 py-3 rounded-lg transition-colors ${
-                            task.is_completed ? 'bg-muted/40' : 'hover:bg-muted/30'
+                            !task.is_applicable
+                              ? 'bg-muted/20 opacity-50'
+                              : task.is_completed
+                              ? 'bg-muted/40'
+                              : 'hover:bg-muted/30'
                           }`}
                         >
                           <Checkbox
                             checked={task.is_completed}
+                            disabled={!task.is_applicable}
                             onCheckedChange={(checked) =>
                               toggleMutation.mutate({ taskId: task.id, completed: !!checked })
                             }
                           />
-                          <span className={`flex-1 text-sm ${task.is_completed ? 'line-through text-muted-foreground' : ''}`}>
+                          <span className={`flex-1 text-sm ${
+                            !task.is_applicable
+                              ? 'line-through text-muted-foreground'
+                              : task.is_completed
+                              ? 'line-through text-muted-foreground'
+                              : ''
+                          }`}>
                             {task.task_order} - {task.task_name}
                           </span>
 
-                          {task.is_lead_responsibility && (
+                          {!task.is_applicable && (
+                            <Badge variant="outline" className="text-xs gap-1 border-destructive/30 text-destructive">
+                              <Ban className="w-3 h-3" />
+                              N/A
+                            </Badge>
+                          )}
+
+                          {task.is_applicable && task.is_lead_responsibility && (
                             <Badge variant="secondary" className="text-xs gap-1">
                               <UserCheck className="w-3 h-3" />
                               Lead
                             </Badge>
                           )}
 
+                          {task.is_applicable && (
+                            <Button
+                              variant={task.is_lead_responsibility ? 'secondary' : 'ghost'}
+                              size="sm"
+                              className="text-xs h-7"
+                              onClick={() =>
+                                toggleLeadMutation.mutate({
+                                  taskId: task.id,
+                                  isLead: !task.is_lead_responsibility,
+                                })
+                              }
+                            >
+                              {task.is_lead_responsibility ? 'Remover do Lead' : 'Atribuir ao Lead'}
+                            </Button>
+                          )}
+
                           <Button
-                            variant={task.is_lead_responsibility ? 'secondary' : 'ghost'}
+                            variant="ghost"
                             size="sm"
-                            className="text-xs h-7"
+                            className={`text-xs h-7 ${!task.is_applicable ? 'text-primary' : 'text-muted-foreground'}`}
                             onClick={() =>
-                              toggleLeadMutation.mutate({
+                              toggleApplicableMutation.mutate({
                                 taskId: task.id,
-                                isLead: !task.is_lead_responsibility,
+                                applicable: !task.is_applicable,
                               })
                             }
                           >
-                            {task.is_lead_responsibility ? 'Remover do Lead' : 'Atribuir ao Lead'}
+                            {task.is_applicable ? 'Não se aplica' : 'Reativar'}
                           </Button>
                         </div>
                       ))}

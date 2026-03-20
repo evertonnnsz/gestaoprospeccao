@@ -82,6 +82,56 @@ export type Database = {
           },
         ]
       }
+      client_onboarding_tasks: {
+        Row: {
+          client_id: string
+          completed_at: string | null
+          created_at: string
+          id: string
+          is_completed: boolean
+          is_lead_responsibility: boolean
+          platform: Database["public"]["Enums"]["onboarding_platform"]
+          task_name: string
+          task_order: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          client_id: string
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          is_completed?: boolean
+          is_lead_responsibility?: boolean
+          platform?: Database["public"]["Enums"]["onboarding_platform"]
+          task_name: string
+          task_order: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          client_id?: string
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          is_completed?: boolean
+          is_lead_responsibility?: boolean
+          platform?: Database["public"]["Enums"]["onboarding_platform"]
+          task_name?: string
+          task_order?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_onboarding_tasks_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clients: {
         Row: {
           contract_duration_months: number | null
@@ -426,6 +476,7 @@ export type Database = {
         | "fechado"
         | "sem_interesse"
         | "lead_perdido"
+      onboarding_platform: "geral" | "google_ads" | "meta_ads" | "site"
       transaction_type: "income" | "expense"
     }
     CompositeTypes: {
@@ -577,6 +628,7 @@ export const Constants = {
         "sem_interesse",
         "lead_perdido",
       ],
+      onboarding_platform: ["geral", "google_ads", "meta_ads", "site"],
       transaction_type: ["income", "expense"],
     },
   },

@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { AppSidebar } from './AppSidebar';
 import { TodayFollowUpAlert } from '@/components/alerts/TodayFollowUpAlert';
 import { ContractExpirationAlert } from '@/components/alerts/ContractExpirationAlert';
+import { OnboardingPendingAlert } from '@/components/alerts/OnboardingPendingAlert';
 import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -60,6 +61,7 @@ export function DashboardLayout() {
     <div className="min-h-screen flex flex-col w-full bg-background">
       <TodayFollowUpAlert />
       <ContractExpirationAlert />
+      <OnboardingPendingAlert />
       <div className="flex flex-1">
         <AppSidebar />
         <main className="flex-1 overflow-auto">

@@ -18,6 +18,7 @@ import Users from "./pages/Users";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 import CustomerSuccess from "./pages/CustomerSuccess";
+import Onboarding from "./pages/Onboarding";
 
 const queryClient = new QueryClient();
 
@@ -40,6 +41,7 @@ const App = () => (
               <Route path="/funnel" element={<Funnel />} />
               <Route path="/metrics" element={<Metrics />} />
               <Route path="/customer-success" element={<CustomerSuccess />} />
+              <Route path="/onboarding" element={<Onboarding />} />
               <Route path="/approvals" element={<Approvals />} />
               <Route path="/users" element={<Users />} />
               <Route path="/settings" element={<Settings />} />

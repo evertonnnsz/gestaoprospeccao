@@ -22,6 +22,7 @@ type OnboardingTask = {
   platform: string;
   is_completed: boolean;
   is_lead_responsibility: boolean;
+  is_applicable: boolean;
   completed_at: string | null;
   created_at: string;
   updated_at: string;

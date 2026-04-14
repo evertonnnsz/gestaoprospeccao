@@ -30,8 +30,8 @@ export function generateFollowUpDates(baseDate?: Date): {
   const base = baseDate || new Date();
   return {
     follow_up_1: toDateString(addBusinessDays(base, 1)),
-    follow_up_2: null as string | null,
-    follow_up_3: null as string | null,
+    follow_up_2: toDateString(addBusinessDays(base, 2)),
+    follow_up_3: toDateString(addBusinessDays(base, 3)),
   };
 }
 

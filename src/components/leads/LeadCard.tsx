@@ -19,7 +19,7 @@ import {
   Bell,
   RefreshCw
 } from 'lucide-react';
-import { generateFollowUpDates } from '@/lib/utils/followUpDates';
+import { generateFollowUpDates, generateNextFollowUpFromContact } from '@/lib/utils/followUpDates';
 
 // Helper functions to compare dates without timezone issues
 const isSameDay = (dateStr: string): boolean => {
@@ -120,16 +120,21 @@ export function LeadCard({ lead, onEdit, onDelete, onUpdate, hasCheckbox }: Lead
 
   const completeFollowUp = async () => {
     try {
-      const todayStr = new Date().toISOString().split('T')[0];
+      const today = new Date();
+      const todayStr = today.toISOString().split('T')[0];
       const updates: Partial<Lead> = { last_contact: todayStr };
 
-      // Clear the follow-up that is for today
+      // Concluir follow-up 1: limpa e recalcula follow-up 2 a partir de hoje
       if (lead.follow_up_1 && isSameDay(lead.follow_up_1)) {
         updates.follow_up_1 = null;
+        updates.follow_up_2 = generateNextFollowUpFromContact(today, 2);
       }
+      // Concluir follow-up 2: limpa e recalcula follow-up 3 a partir de hoje
       if (lead.follow_up_2 && isSameDay(lead.follow_up_2)) {
         updates.follow_up_2 = null;
+        updates.follow_up_3 = generateNextFollowUpFromContact(today, 3);
       }
+      // Concluir follow-up 3: apenas limpa
       if (lead.follow_up_3 && isSameDay(lead.follow_up_3)) {
         updates.follow_up_3 = null;
       }

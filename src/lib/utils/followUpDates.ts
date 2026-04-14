@@ -34,3 +34,26 @@ export function generateFollowUpDates(baseDate?: Date): {
     follow_up_3: toDateString(addBusinessDays(base, 3)),
   };
 }
+
+/**
+ * Calcula o próximo follow-up com base na data do último contato.
+ * Follow-up 2: +2 dias úteis a partir do contato
+ * Follow-up 3: +3 dias úteis a partir do contato
+ */
+export function generateNextFollowUpFromContact(
+  contactDate: Date,
+  followUpNumber: 2 | 3
+): string {
+  return toDateString(addBusinessDays(contactDate, followUpNumber));
+}
+  follow_up_1: string;
+  follow_up_2: string;
+  follow_up_3: string;
+} {
+  const base = baseDate || new Date();
+  return {
+    follow_up_1: toDateString(addBusinessDays(base, 1)),
+    follow_up_2: toDateString(addBusinessDays(base, 2)),
+    follow_up_3: toDateString(addBusinessDays(base, 3)),
+  };
+}

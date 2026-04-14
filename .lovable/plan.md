@@ -1,31 +1,30 @@
 
 
-## Plano: Corrigir cadência dos Follow-ups (dinâmica em vez de fixa)
+## Plano: Espaçar Follow-ups (48h e 72h entre cada um)
 
-### Problema
+### Situação atual
+Os 3 follow-ups são agendados em dias úteis consecutivos: D+1, D+2, D+3. Resultado: datas muito próximas (ex: 15/04, 16/04, 17/04).
 
-Atualmente, ao criar um lead (manual, prospecção ou sala de espera), o sistema agenda os 3 follow-ups de uma vez (D+1, D+2, D+3). A regra aprovada diz que **apenas o Follow-up 1** deve ser agendado na criação. Os demais devem ser calculados dinamicamente quando cada follow-up anterior for concluído.
+### Nova regra
+- **Follow-up 1**: 1 dia útil após a criação (D+1)
+- **Follow-up 2**: 2 dias úteis **após o Follow-up 1** (48h de intervalo) → D+3
+- **Follow-up 3**: 3 dias úteis **após o Follow-up 2** (72h de intervalo) → D+6
 
-### Regra correta
+Exemplo com base em 14/04 (segunda):
+- FU1: 15/04 (terça)
+- FU2: 17/04 (quinta) — 2 dias úteis depois do FU1
+- FU3: 22/04 (quarta) — 3 dias úteis depois do FU2
 
-- **Criação do lead**: Apenas `follow_up_1 = D+1`. `follow_up_2` e `follow_up_3` ficam `null`.
-- **Ao concluir FU1**: `follow_up_2 = +2 dias úteis a partir de hoje` (já implementado).
-- **Ao concluir FU2**: `follow_up_3 = +3 dias úteis a partir de hoje` (já implementado).
-- **Renovar Follow-ups**: Também deve seguir a mesma lógica — agendar apenas FU1 para D+1, deixando FU2 e FU3 nulos.
+### Alteração técnica
 
-### Alterações técnicas
+**Arquivo único: `src/lib/utils/followUpDates.ts`**
 
-**1. `src/lib/utils/followUpDates.ts`**
-- Alterar `generateFollowUpDates` para retornar apenas `follow_up_1` preenchido. `follow_up_2` e `follow_up_3` retornam `null`.
+Alterar `generateFollowUpDates` para calcular as datas de forma escalonada:
+```
+follow_up_1 = base + 1 dia útil
+follow_up_2 = follow_up_1 + 2 dias úteis
+follow_up_3 = follow_up_2 + 3 dias úteis
+```
 
-**2. `src/components/leads/LeadForm.tsx`**
-- Nenhuma mudança necessária (já usa `generateFollowUpDates`).
-
-**3. `src/components/prospecting/StagingArea.tsx`**
-- Nenhuma mudança necessária (já usa `generateFollowUpDates`).
-
-**4. `src/components/leads/LeadCard.tsx`**
-- `renewFollowUp`: já usa `generateFollowUpDates`, então herdará a mudança automaticamente — agendará apenas FU1.
-
-Todas as 4 referências a `generateFollowUpDates` serão corrigidas pela mudança única na função utilitária.
+Isso afeta automaticamente todos os pontos que usam essa função: criação de lead, importação da sala de espera e renovação de follow-ups.
 

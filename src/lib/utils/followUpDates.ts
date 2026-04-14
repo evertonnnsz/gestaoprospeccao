@@ -28,10 +28,13 @@ export function generateFollowUpDates(baseDate?: Date): {
   follow_up_3: string;
 } {
   const base = baseDate || new Date();
+  const fu1 = addBusinessDays(base, 1);
+  const fu2 = addBusinessDays(fu1, 2);
+  const fu3 = addBusinessDays(fu2, 3);
   return {
-    follow_up_1: toDateString(addBusinessDays(base, 1)),
-    follow_up_2: toDateString(addBusinessDays(base, 2)),
-    follow_up_3: toDateString(addBusinessDays(base, 3)),
+    follow_up_1: toDateString(fu1),
+    follow_up_2: toDateString(fu2),
+    follow_up_3: toDateString(fu3),
   };
 }
 

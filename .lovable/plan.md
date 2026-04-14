@@ -1,110 +1,31 @@
 
 
-# Plano: Campos Empresariais B2B para Leads
+## Plano: Alterar cadência dos Follow-ups
 
-## Visao Geral
+### O que muda
 
-Adicionar campos de dados empresariais (CNPJ, Razao Social, Nome Fantasia, Endereco Completo) nas tabelas `leads` e `staging_leads`, e atualizar todos os componentes relacionados: formulario de lead, importacao, sala de espera e card de lead.
+A lógica atual agenda os 3 follow-ups em dias úteis consecutivos (D+1, D+2, D+3 a partir da data base). A nova regra será:
 
----
+- **Follow-up 1**: 1 dia útil após o primeiro contato (D+1) -- sem mudança
+- **Follow-up 2**: 2 dias úteis após o último contato (D+2) -- sem mudança numérica mas a semântica muda
+- **Follow-up 3**: 3 dias úteis após o último contato (D+3) -- sem mudança numérica
 
-## 1. Migracao do Banco de Dados
+Na prática, como todos partem da mesma data base (data de criação ou data atual na renovação), os valores D+1, D+2, D+3 em dias úteis permanecem iguais ao que já está implementado. A diferença real seria se o follow-up 2 e 3 devessem ser recalculados com base na data do último contato efetivo (quando o usuário conclui o follow-up anterior).
 
-Adicionar 4 novas colunas em ambas as tabelas:
+**Interpretação provável**: Ao concluir o Follow-up 1, o sistema deve recalcular Follow-up 2 para D+2 a partir daquele momento. Ao concluir o Follow-up 2, recalcular Follow-up 3 para D+3 a partir daquele momento. Isso cria uma cadência dinâmica em vez de fixa.
 
-### Tabela `leads`
+### Alterações técnicas
 
-| Coluna | Tipo | Nullable | Default |
-|--------|------|----------|---------|
-| cnpj | text | Sim | null |
-| razao_social | text | Sim | null |
-| nome_fantasia | text | Sim | null |
-| endereco_completo | text | Sim | null |
+**1. `src/lib/utils/followUpDates.ts`**
+- Manter `generateFollowUpDates` para criação inicial (D+1, D+2, D+3 a partir da data base)
+- Adicionar nova função `generateNextFollowUpFromContact(contactDate: Date, followUpNumber: 2 | 3)` que calcula o próximo follow-up com base na data do último contato:
+  - Follow-up 2: +2 dias úteis a partir do contato
+  - Follow-up 3: +3 dias úteis a partir do contato
 
-### Tabela `staging_leads`
+**2. `src/components/leads/LeadCard.tsx`** — função `completeFollowUp`
+- Ao concluir Follow-up 1: além de limpar `follow_up_1`, recalcular `follow_up_2` para +2 dias úteis a partir de hoje
+- Ao concluir Follow-up 2: além de limpar `follow_up_2`, recalcular `follow_up_3` para +3 dias úteis a partir de hoje
+- Ao concluir Follow-up 3: apenas limpa `follow_up_3` (comportamento atual)
 
-| Coluna | Tipo | Nullable | Default |
-|--------|------|----------|---------|
-| cnpj | text | Sim | null |
-| razao_social | text | Sim | null |
-| nome_fantasia | text | Sim | null |
-| endereco_completo | text | Sim | null |
-
-As politicas RLS existentes continuam validas, pois filtram por `user_id`.
-
----
-
-## 2. Arquivos a Modificar
-
-| Arquivo | Mudanca |
-|---------|---------|
-| `src/types/crm.ts` | Adicionar campos ao tipo `Lead` e `StagingLead` |
-| `src/components/leads/LeadForm.tsx` | Adicionar campos CNPJ, Razao Social, Nome Fantasia, Endereco |
-| `src/components/leads/LeadCard.tsx` | Exibir Razao Social e CNPJ quando disponivel |
-| `src/components/prospecting/LeadImportModal.tsx` | Adicionar mapeamento para novos campos no SYSTEM_FIELDS e ColumnMapping |
-| `src/components/prospecting/StagingArea.tsx` | Transferir novos campos ao aprovar lead |
-| `src/components/prospecting/StagingLeadEditModal.tsx` | Exibir e editar novos campos no modal de revisao |
-
----
-
-## 3. Detalhes por Componente
-
-### 3.1 LeadImportModal
-
-Adicionar ao `SYSTEM_FIELDS`:
-- CNPJ
-- Razao Social
-- Nome Fantasia
-- Endereco Completo
-
-Adicionar auto-deteccao de colunas para termos como "cnpj", "razao social", "fantasia", "endereco", "logradouro", "cep".
-
-Atualizar `ColumnMapping` e `ImportedLead` com os 4 novos campos.
-
-### 3.2 LeadForm (Formulario de Lead)
-
-Adicionar secao "Dados Empresariais" com campos:
-- CNPJ (com icone)
-- Razao Social
-- Nome Fantasia
-- Endereco Completo (textarea para logradouro, numero, bairro, cidade, CEP)
-
-Incluir novos campos no payload de criacao/atualizacao.
-
-### 3.3 StagingLeadEditModal
-
-Adicionar os 4 campos ao formulario de revisao, permitindo edicao e conferencia antes da aprovacao.
-
-### 3.4 StagingArea
-
-Atualizar `handleApproveOne` e `handleBulkApprove` para transferir `cnpj`, `razao_social`, `nome_fantasia` e `endereco_completo` ao inserir na tabela `leads`.
-
-Atualizar `handleEditSave` para persistir os novos campos na `staging_leads`.
-
-### 3.5 LeadCard
-
-Exibir CNPJ e Razao Social abaixo do nome da empresa quando disponivel, de forma compacta.
-
-### 3.6 Tipos (crm.ts)
-
-Adicionar os 4 campos em `Lead` e `StagingLead`:
-
-```text
-cnpj: string | null
-razao_social: string | null
-nome_fantasia: string | null
-endereco_completo: string | null
-```
-
----
-
-## 4. Ordem de Implementacao
-
-1. Migracao do banco (adicionar colunas)
-2. Atualizar tipos em `crm.ts`
-3. Atualizar `LeadImportModal` (mapeamento)
-4. Atualizar `StagingLeadEditModal` (revisao)
-5. Atualizar `StagingArea` (aprovacao)
-6. Atualizar `LeadForm` (formulario)
-7. Atualizar `LeadCard` (exibicao)
+Isso garante que a cadência se adapta ao momento real do contato, não à data de criação do lead.
 

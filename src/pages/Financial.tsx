@@ -14,7 +14,7 @@ import { GamifiedPanel } from '@/components/financial/gamified/GamifiedPanel';
 import { splitClientsRevenue } from '@/lib/utils/clientRevenue';
 import { getPeriodRange, filterByRange } from '@/lib/utils/periodRange';
 
-import { PeriodFilter, PeriodType, DateRange, filterByPeriod } from '@/components/filters/PeriodFilter';
+import { PeriodFilter, PeriodType, DateRange } from '@/components/filters/PeriodFilter';
 import { Loader2 } from 'lucide-react';
 import { format, subMonths, parseISO, eachDayOfInterval, eachMonthOfInterval, differenceInDays, startOfMonth, endOfMonth, startOfYear, endOfYear } from 'date-fns';
 import { ptBR } from 'date-fns/locale';

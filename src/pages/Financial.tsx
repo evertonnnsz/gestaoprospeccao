@@ -11,6 +11,7 @@ import { IncomeVsExpensesChart } from '@/components/financial/IncomeVsExpensesCh
 import { TransactionsTable } from '@/components/financial/TransactionsTable';
 import { TransactionForm } from '@/components/financial/TransactionForm';
 import { GamifiedPanel } from '@/components/financial/gamified/GamifiedPanel';
+import { splitClientsRevenue } from '@/lib/utils/clientRevenue';
 
 import { PeriodFilter, PeriodType, DateRange, filterByPeriod } from '@/components/filters/PeriodFilter';
 import { Loader2 } from 'lucide-react';
@@ -102,10 +103,8 @@ export default function Financial() {
     return { income, expenses };
   }, [filteredTransactions]);
 
-  // Calculate clients revenue (from active contracts)
-  const clientsRevenue = useMemo(() => {
-    return clients.reduce((sum, client) => sum + (Number(client.project_value) || 0), 0);
-  }, [clients]);
+  // Calculate clients revenue split by payment status
+  const clientsRevenueBreakdown = useMemo(() => splitClientsRevenue(clients), [clients]);
 
   // Calculate expenses by category
   const expensesByCategory = useMemo(() => {
@@ -237,7 +236,8 @@ export default function Financial() {
       <FinancialSummaryCards
         totalIncome={totals.income}
         totalExpenses={totals.expenses}
-        clientsRevenue={clientsRevenue}
+        clientsRevenue={clientsRevenueBreakdown.received}
+        clientsReceivable={clientsRevenueBreakdown.receivable}
       />
 
       {/* Charts */}

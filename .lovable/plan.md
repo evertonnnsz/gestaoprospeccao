@@ -1,98 +1,67 @@
 
-## Reformulação da aba Financeiro — Central Gamificada
+## Problema
 
-A imagem mostra um painel gamificado que combina **financeiro + prospecção + funil**. Vou reformular a aba "Financeiro" para esse formato, mantendo intactas as transações (lançamentos manuais) embaixo e adicionando todo o painel gamificado em cima.
+Hoje o "faturamento de clientes" é calculado somando o `project_value` de **todos** os contratos, ignorando o `monthly_payment_status`. Quando você marca um cliente como **Pendente** ou **Atrasado** no cadastro, o número de faturamento não muda — o que esconde a realidade do que efetivamente entrou no caixa.
 
-### 1. Cabeçalho
+A aba **Clientes** ainda não tem nenhum bloco de faturamento; só os cards individuais. Os cards de faturamento ficam no **Financeiro** ("Receita de Clientes") e na **Central Gamificada** ("Faturamento Mensal Atual").
 
-Trocar o título atual por:
-- **CENTRAL DE PROSPECÇÃO GAMIFICADA** (com ícone de joystick) à esquerda
-- Nome da empresa do usuário (vindo de `profiles.company_name`) à direita, em destaque laranja
+## Decisão
 
-### 2. Faixa superior — 4 KPIs gamificados
+1. Adicionar um **resumo de faturamento do mês no topo da aba Clientes**, refletindo o status de pagamento.
+2. **Atualizar** os cards já existentes no Financeiro e na Central Gamificada para usar a mesma lógica baseada em status — assim o número fica consistente em todo o app.
 
-Cards grandes com ícone, número grande e legenda:
+Critério: um cliente só conta no "Faturamento Recebido" do mês quando está com status **Pago**. Pendente e Atrasado entram em "A Receber".
 
-| Card | Ícone | Valor | Cálculo |
-|---|---|---|---|
-| **OFENSIVA** | 🔥 | Dias seguidos de prospecção | Sequência de dias consecutivos com pelo menos 1 lead criado (`leads.created_at`) até hoje |
-| **META DIÁRIA** | 🎯 | `feito / planejado` | feito = leads criados hoje; planejado = "Ação Diária" do simulador (ver seção 3) |
-| **ACUMULADO** | 🚀 | Total de disparos frios | Total de leads do usuário (todos os tempos) |
-| **CONVERSÃO DE VENDAS** | 🏆 | % | clientes fechados ÷ total de leads × 100 |
+## Mudanças
 
-### 3. Bloco "SUA OPERAÇÃO ATUAL" (coluna 1)
+### 1. Aba Clientes — novo bloco de resumo (`src/pages/Clients.tsx`)
 
-Lê dados reais do CRM:
-- **Faturamento Mensal Atual**: soma de `clients.project_value` dos contratos ativos (destaque azul-escuro)
-- **Número de Clientes Ativos**: count de `clients` (destaque azul-escuro)
-- **Ticket Médio Base (Autom.)**: faturamento ÷ clientes (calculado, fundo claro)
+Adicionar 3 cards compactos acima da busca:
 
-### 4. Bloco "SIMULADOR (FUTURO)" (coluna 2) — interativo
+| Card | Cálculo | Cor |
+|---|---|---|
+| Faturamento Previsto | soma de `project_value` de todos clientes | neutro |
+| Recebido no Mês | soma de `project_value` onde `monthly_payment_status = 'paid'` | verde |
+| A Receber | soma onde status é `pending` ou `overdue` | amarelo / destaque |
 
-Inputs editáveis (persistidos em nova tabela `prospecting_goals` por usuário):
-- **Novo Faturamento Desejado** (input R$, destaque)
-- **Ticket Lançamento Prospecção** (input R$, destaque)
-- **Prazo a Bater (Meses)** (input número, destaque)
+Reutilizar `Card` / `CardContent` do shadcn. Mostrar também a contagem de clientes em cada bucket (ex.: "3 clientes pagos").
 
-Calculados automaticamente (fundo claro):
-- **Total Clientes p/ Bater Meta** = Faturamento Desejado ÷ Ticket
-- **Faltam X Novos Clientes** = Total − Clientes Ativos
-- **Taxa Conversão Planejada** (input %, destaque) — usuário define
-- **Disparos por Mês** = Faltam Clientes ÷ Taxa ÷ Prazo
-- **Disparos por Semana** = Mês ÷ 4
-- **AÇÃO DIÁRIA** = Semana ÷ 5 (dias úteis), em destaque laranja grande
+### 2. Financeiro — `FinancialSummaryCards` (`src/components/financial/FinancialSummaryCards.tsx` + `src/pages/Financial.tsx`)
 
-### 5. Bloco "SEU FUNIL REAL" (coluna 3)
+- Trocar o card "Receita de Clientes" por **"Recebido (Clientes)"** = soma de `project_value` apenas dos `paid`.
+- Atualizar o card "Receita Total" e "Saldo" para usar esse novo valor (recebido), em vez do total bruto. Saldo passa a refletir caixa real.
 
-Lê do CRM (mesma lógica cumulativa do Funil):
-- **Prospecções Frias Totais**: total de leads
-- **Respostas Totais (Sim)**: leads com `responded = true`
-- **Reuniões Totais (Sim)**: leads em `reuniao_realizada` ou posteriores
-- **CONTRATOS FECHADOS (Sim)**: leads em `fechado` (destaque verde)
+### 3. Central Gamificada — `GamifiedPanel.tsx`
 
-Taxas calculadas:
-- **Taxa Resposta (Warm-up)** = Respostas ÷ Prospecções
-- **Taxa Agendamento (Quente)** = Reuniões ÷ Respostas
-- **Taxa Fechamento (Deal Won)** = Fechados ÷ Reuniões
+- "Faturamento Mensal Atual" passa a somar apenas clientes com `monthly_payment_status = 'paid'`.
+- "Número de Clientes Ativos" continua contando todos os contratos (para não distorcer ticket médio).
+- "Ticket Médio Base" continua sendo `faturamento previsto / clientes` (base do simulador), com tooltip explicando.
 
-### 6. Bloco "FEEDBACK DO SISTEMA" (coluna 4)
+### 4. Memória
 
-Card de alerta dinâmico:
-- Se conversão real < taxa planejada → **MODO DE ALERTA** (fundo amarelo claro): "Sua conversão global está em X% e a sua grande meta exige Y%. Verifique em qual etapa do funil o prospect esfriou e ajuste sua abordagem."
-- Se conversão real ≥ planejada → **MODO META** (fundo verde): mensagem de parabéns
-- Se sem dados → mensagem instrucional
+Atualizar `mem://features/client-management/core-logic` registrando que faturamento agregado considera `monthly_payment_status` (`paid` = recebido, `pending`/`overdue` = a receber).
 
-### 7. Manter abaixo (sem mudança)
+## Detalhes técnicos
 
-- Transações financeiras (tabela + form)
-- Gráficos Receita vs Despesas e Despesas por Categoria
-- Filtro de período e exportar
+- Helper utilitário em `src/lib/utils/clientRevenue.ts`:
+  ```ts
+  export function splitClientsRevenue(clients: Client[]) {
+    const sum = (list: Client[]) => list.reduce((s, c) => s + (Number(c.project_value) || 0), 0);
+    const paid = clients.filter(c => c.monthly_payment_status === 'paid');
+    const pending = clients.filter(c => c.monthly_payment_status === 'pending' || c.monthly_payment_status === 'overdue');
+    return {
+      total: sum(clients),
+      received: sum(paid),
+      receivable: sum(pending),
+      paidCount: paid.length,
+      receivableCount: pending.length,
+    };
+  }
+  ```
+- Importar e usar em `Clients.tsx`, `Financial.tsx` e `GamifiedPanel.tsx`.
+- Não mexer em RLS nem em schema (campo `monthly_payment_status` já existe na tabela `clients`).
 
-### Detalhes técnicos
+## Fora do escopo
 
-**Nova tabela** `prospecting_goals`:
-- `id`, `user_id` (FK auth.users, unique), `desired_revenue numeric`, `launch_ticket numeric`, `deadline_months int`, `planned_conversion_rate numeric`, `created_at`, `updated_at`
-- RLS: usuário só lê/escreve o próprio registro
-- Upsert ao editar inputs do simulador (debounce 800ms)
-
-**Novos componentes** em `src/components/financial/gamified/`:
-- `GamifiedHeader.tsx`
-- `KpiStrip.tsx` (4 cards do topo)
-- `OperationCard.tsx`
-- `SimulatorCard.tsx` (com inputs e cálculos)
-- `RealFunnelCard.tsx`
-- `SystemFeedbackCard.tsx`
-
-**Arquivos modificados**:
-- `src/pages/Financial.tsx`: monta o painel gamificado acima do conteúdo atual; busca `leads`, `clients`, `prospecting_goals` e `profiles.company_name`
-- Migration SQL para criar `prospecting_goals` + RLS + trigger `updated_at`
-
-**Cálculo da Ofensiva**: query distinta de `date(created_at)` em `leads`, ordenada desc, conta dias consecutivos a partir de hoje (ou ontem) sem gaps.
-
-**Paleta**: manter design system atual (azul primário, laranja como `--warning` ou accent novo). Cards com fundo claro padrão e os "valores destaque" da imagem usam fundo `bg-primary text-primary-foreground` (azul-escuro) ou `bg-warning` (laranja para Ação Diária).
-
-### Fora do escopo
-
-- Não alterar o Dashboard nem o Funil
-- Não mexer em transações financeiras existentes
-- Não adicionar gráficos novos ao painel gamificado (só números, como na imagem)
+- Não estamos criando histórico mensal de pagamento (hoje há um único status por cliente).
+- Não vamos criar lançamento automático em `financial_transactions` ao marcar pago — fica como possível próximo passo.

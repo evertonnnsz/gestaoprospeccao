@@ -282,8 +282,9 @@ export default function Funnel() {
                         </div>
                       </div>
                     </div>
-                  );
-                })}
+                    );
+                  });
+                })()}
 
                 {/* Conversão total */}
                 <div className="mt-6 pt-4 border-t flex items-center justify-between">

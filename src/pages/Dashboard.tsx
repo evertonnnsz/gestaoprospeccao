@@ -34,7 +34,6 @@ const SOURCE_COLORS: Record<string, string> = {
   'Instagram': 'hsl(322, 75%, 55%)',
   'PaP': 'hsl(38, 92%, 50%)',
   'Cold Call': 'hsl(280, 65%, 60%)',
-  'Outros': 'hsl(0, 0%, 60%)',
 };
 
 const MEETING_STATUSES: LeadStatus[] = [
@@ -91,9 +90,13 @@ export default function Dashboard() {
     let result = filterByPeriod(leads, period, dateRange);
 
     if (sourceFilter !== 'all') {
-      if (sourceFilter === 'Outros') {
+      if (sourceFilter === 'WhatsApp') {
+        // Leads sem origem ou com origem fora do padrão são tratados como WhatsApp
         result = result.filter(
-          (l) => !l.lead_source || !LEAD_SOURCES.includes(l.lead_source as any)
+          (l) =>
+            l.lead_source === 'WhatsApp' ||
+            !l.lead_source ||
+            !LEAD_SOURCES.includes(l.lead_source as any)
         );
       } else {
         result = result.filter((l) => l.lead_source === sourceFilter);
@@ -152,18 +155,16 @@ export default function Dashboard() {
   const sourcesData = useMemo(() => {
     const counts: Record<string, number> = {};
     LEAD_SOURCES.forEach((s) => (counts[s] = 0));
-    let othersCount = 0;
     filteredLeads.forEach((l) => {
       const src = l.lead_source;
       if (src && LEAD_SOURCES.includes(src as any)) {
         counts[src] += 1;
       } else {
-        othersCount += 1;
+        // Leads sem origem ou com origem não padronizada são contabilizados como WhatsApp
+        counts['WhatsApp'] += 1;
       }
     });
-    const data = LEAD_SOURCES.map((s) => ({ name: s, value: counts[s] }));
-    if (othersCount > 0) data.push({ name: 'Outros', value: othersCount });
-    return data;
+    return LEAD_SOURCES.map((s) => ({ name: s, value: counts[s] }));
   }, [filteredLeads]);
 
   return (
@@ -199,7 +200,6 @@ export default function Dashboard() {
                   {LEAD_SOURCES.map((s) => (
                     <SelectItem key={s} value={s}>{s}</SelectItem>
                   ))}
-                  <SelectItem value="Outros">Outros</SelectItem>
                 </SelectContent>
               </Select>
             </div>

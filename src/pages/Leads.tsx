@@ -72,6 +72,10 @@ export default function Leads() {
     const filterParam = searchParams.get('filter');
     setOverdueFilter(filterParam === 'overdue');
     setTodayFilter(filterParam === 'today');
+    const statusParam = searchParams.get('status');
+    if (statusParam) {
+      setStatusFilter(statusParam);
+    }
   }, [searchParams]);
 
   const clearFilter = () => {

@@ -1,29 +1,38 @@
-## Plano: Reclassificar "Outros" como "WhatsApp" no Dashboard
+## Plano: Substituir card "Taxa de Fechamento" por "Propostas Enviadas"
 
 ### Contexto
-Hoje o gráfico **Origem dos Leads** mostra uma barra grande em "Outros" (~530 leads). Esses leads são registros antigos cujo `lead_source` está vazio ou não corresponde a nenhuma das 5 origens padronizadas (Tráfego, WhatsApp, Instagram, PaP, Cold Call). Como o usuário confirma que essa origem foi de fato **WhatsApp**, vamos consolidá-los nessa categoria.
+No Dashboard há dois lugares mostrando "Taxa de Fechamento":
+1. **Card KPI no topo** (grid de 4 cards) — este será substituído
+2. **Bloco "Taxas de Conversão"** (com barra de progresso) — este NÃO será alterado
 
-### Decisão
-Tratar todo lead com `lead_source` vazio/nulo OU fora da lista padronizada como **WhatsApp** em todo o Dashboard (gráfico, filtros e métricas de conversão).
+### Alteração
 
-### Alterações em `src/pages/Dashboard.tsx`
+**Arquivo único: `src/pages/Dashboard.tsx`**
 
-1. **Cálculo do gráfico "Origem dos Leads"** (~linha 154-165)
-   - Remover a contagem separada de `othersCount` e a barra "Outros".
-   - Para cada lead: se `lead_source` não estiver entre os 5 padrões, somar em `WhatsApp`.
-   - Resultado: gráfico exibe apenas as 5 barras padronizadas.
+No grid de StatsCards (4 cards do topo), substituir o card atual:
 
-2. **Filtro de Origem** (~linha 94-99 e 194-203)
-   - Remover a opção `"Outros"` do `<Select>`.
-   - Quando o filtro for `"WhatsApp"`, incluir também leads sem origem ou com origem não padronizada (mesma regra do gráfico).
+```tsx
+<StatsCard title="Taxa de Fechamento" value={`${closeRate.toFixed(1)}%`} icon={TrendingUp} variant="default" />
+```
 
-3. **Mapa de cores** (~linha 37)
-   - Remover entrada `'Outros'` do objeto de cores (não será mais usada).
+Por um novo card que conta leads com status `proposta_enviada`:
 
-### Resultado esperado
-- A barra "Outros" desaparece do gráfico.
-- A barra "WhatsApp" passa a refletir o volume real (~530+ leads anteriormente em "Outros").
-- Filtrar por "WhatsApp" também exibirá esses leads na base das taxas de conversão.
+```tsx
+<StatsCard title="Propostas Enviadas" value={proposalsSent} icon={FileText} variant="default" />
+```
 
-### Observação
-Esta mudança é apenas de **exibição/agrupamento** — o campo `lead_source` no banco de dados permanece intacto. Novos leads continuarão sendo cadastrados com a origem escolhida no formulário.
+### Nova métrica
+Adicionar o cálculo junto aos outros KPIs:
+```tsx
+const proposalsSent = filteredLeads.filter((l) => l.status === 'proposta_enviada').length;
+```
+
+### Ícone
+Trocar `TrendingUp` por `FileText` (já presente no `lucide-react`) — mais semântico para "proposta".
+
+### O que permanece intacto
+- Bloco "Taxas de Conversão" com as 3 barras (Taxa de Resposta, Taxa de Reuniões, Taxa de Fechamento)
+- Demais filtros e gráfico "Origem dos Leads"
+- Os 3 outros cards KPI: Total de Leads, Reuniões Realizadas, Follow-ups do Dia
+
+O card responde a todos os filtros já existentes (período, origem, status, segmento, respondeu).

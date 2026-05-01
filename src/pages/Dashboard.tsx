@@ -45,6 +45,14 @@ const MEETING_STATUSES: LeadStatus[] = [
   'lead_perdido',
 ];
 
+// Cumulativo: todo lead que passou pela etapa de proposta (mantém paridade com o Funil)
+const PROPOSAL_OR_BEYOND: LeadStatus[] = [
+  'proposta_enviada',
+  'em_negociacao',
+  'fechado',
+  'lead_perdido',
+];
+
 export default function Dashboard() {
   const { profile } = useAuth();
   const navigate = useNavigate();
@@ -141,7 +149,9 @@ export default function Dashboard() {
   const closedLeads = filteredLeads.filter((l) => l.status === 'fechado').length;
   const meetingsHeld = filteredLeads.filter((l) => MEETING_STATUSES.includes(l.status as LeadStatus)).length;
   const respondedLeads = filteredLeads.filter((l) => l.responded === true).length;
-  const proposalsSent = filteredLeads.filter((l) => l.status === 'proposta_enviada').length;
+  const proposalsSent = filteredLeads.filter((l) =>
+    PROPOSAL_OR_BEYOND.includes(l.status as LeadStatus)
+  ).length;
 
   const todayFollowUps = leads.filter((lead) => {
     if (lead.status === 'lead_perdido' || lead.status === 'sem_interesse') return false;

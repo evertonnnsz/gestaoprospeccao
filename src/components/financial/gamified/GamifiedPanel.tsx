@@ -6,6 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Lead, LeadStatus, Client } from '@/types/crm';
 import { cn } from '@/lib/utils';
+import { splitClientsRevenue } from '@/lib/utils/clientRevenue';
 
 type Goals = {
   desired_revenue: number;
@@ -240,12 +241,11 @@ export function GamifiedPanel({ leads, clients, companyName }: GamifiedPanelProp
     setGoals((prev) => ({ ...prev, [key]: value }));
 
   // ===== Métricas reais =====
-  const operationRevenue = useMemo(
-    () => clients.reduce((sum, c) => sum + (Number(c.project_value) || 0), 0),
-    [clients],
-  );
+  const revenueBreakdown = useMemo(() => splitClientsRevenue(clients), [clients]);
+  const operationRevenue = revenueBreakdown.received; // só pagamentos confirmados
+  const forecastRevenue = revenueBreakdown.total; // contratos previstos (base do ticket)
   const activeClients = clients.length;
-  const baseTicket = activeClients > 0 ? operationRevenue / activeClients : 0;
+  const baseTicket = activeClients > 0 ? forecastRevenue / activeClients : 0;
 
   const totalLeads = leads.length;
   const respondedLeads = leads.filter((l) => l.responded === true).length;

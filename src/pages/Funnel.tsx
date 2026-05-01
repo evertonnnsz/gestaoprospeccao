@@ -225,15 +225,35 @@ export default function Funnel() {
               </div>
             ) : (
               <div className="space-y-1">
-                {stageCounts.map((item, idx) => {
-                  const prev = idx > 0 ? stageCounts[idx - 1].count : null;
-                  const conv = prev && prev > 0 ? (item.count / prev) * 100 : null;
-                  const widthPct =
-                    topCount > 0 ? Math.max((item.count / topCount) * 100, item.count > 0 ? 10 : 4) : 4;
-                  const sharePct = topCount > 0 ? (item.count / topCount) * 100 : 0;
-                  const color = STAGE_COLORS[item.stage];
+                {(() => {
+                  // Escala de larguras que GARANTE formato de funil (monotonicamente decrescente).
+                  const total = stageCounts.length;
+                  const MAX_W = 100;
+                  const MIN_W = 14;
+                  const widths: number[] = [];
+                  for (let i = 0; i < total; i++) {
+                    const item = stageCounts[i];
+                    const proportional = topCount > 0 ? (item.count / topCount) * 100 : 0;
+                    const positional =
+                      total > 1 ? MAX_W - ((MAX_W - MIN_W) * i) / (total - 1) : MAX_W;
+                    let w = proportional * 0.6 + positional * 0.4;
+                    if (i > 0) w = Math.min(w, widths[i - 1] - 2);
+                    w = Math.max(MIN_W, Math.min(MAX_W, w));
+                    if (item.count === 0) w = MIN_W;
+                    widths.push(w);
+                  }
+                  return stageCounts.map((item, idx) => {
+                    const prev = idx > 0 ? stageCounts[idx - 1].count : null;
+                    const conv = prev && prev > 0 ? (item.count / prev) * 100 : null;
+                    const widthPct = widths[idx];
+                    const sharePct = topCount > 0 ? (item.count / topCount) * 100 : 0;
+                    const color = STAGE_COLORS[item.stage];
+                    const label =
+                      item.stage === 'responderam'
+                        ? 'Leads que Responderam'
+                        : STATUS_LABELS[item.stage as LeadStatus];
 
-                  return (
+                    return (
                     <div key={item.stage}>
                       {idx > 0 && (
                         <div className="flex items-center justify-center py-1.5">
@@ -255,23 +275,23 @@ export default function Funnel() {
                       )}
 
                       <div className="flex items-center gap-3">
-                        {/* Barra do funil centralizada */}
-                        <div className="flex-1 flex justify-center">
+                        {/* Barra do funil centralizada — sem minWidth para preservar formato */}
+                        <div className="flex-1 flex justify-center items-center gap-3">
                           <div
-                            className="rounded-md flex items-center justify-between px-4 py-3 shadow-sm transition-all"
+                            className="rounded-md flex items-center justify-center px-3 py-3 shadow-sm transition-all"
                             style={{
                               width: `${widthPct}%`,
-                              minWidth: '180px',
                               backgroundColor: color,
                             }}
+                            title={`${label}: ${item.count}`}
                           >
-                            <span className="text-sm font-semibold text-white drop-shadow truncate">
-                              {item.stage === 'responderam' ? 'Leads que Responderam' : STATUS_LABELS[item.stage as LeadStatus]}
-                            </span>
-                            <span className="text-sm font-bold text-white ml-2">
-                              {item.count}
+                            <span className="text-xs sm:text-sm font-semibold text-white drop-shadow truncate text-center">
+                              {label}
                             </span>
                           </div>
+                          <span className="text-sm font-bold tabular-nums w-12 text-left">
+                            {item.count}
+                          </span>
                         </div>
 
                         {/* % do topo */}

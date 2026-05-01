@@ -39,6 +39,14 @@ export interface Lead {
 
 export type MonthlyPaymentStatus = 'paid' | 'overdue' | 'pending';
 
+export type ClientStatus = 'active' | 'paused' | 'churn';
+
+export const CLIENT_STATUS_LABELS: Record<ClientStatus, string> = {
+  active: 'Ativo',
+  paused: 'Pausado',
+  churn: 'Churn',
+};
+
 export interface Client {
   id: string;
   user_id: string;
@@ -51,6 +59,9 @@ export interface Client {
   contract_duration_months: number | null;
   notes: string | null;
   monthly_payment_status: MonthlyPaymentStatus | null;
+  status: ClientStatus;
+  churn_date: string | null;
+  churn_reason: string | null;
   created_at: string;
   updated_at: string;
   lead?: Lead;

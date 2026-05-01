@@ -200,17 +200,6 @@ export default function Funnel() {
         <KpiCard icon={Trophy} label="Fechados" value={closedCount} accent="text-success" />
       </div>
 
-      {/* Card "Leads que Responderam" compacto */}
-      <Card className="border-success/30 bg-success/5">
-        <CardContent className="p-4 flex items-center justify-between">
-          <div className="flex items-center gap-2 text-success">
-            <MessageCircle className="w-4 h-4" />
-            <span className="font-medium text-sm">Leads que Responderam</span>
-          </div>
-          <span className="text-xl font-bold text-success">{respondedLeads}</span>
-        </CardContent>
-      </Card>
-
       {/* Funil + Desqualificados */}
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6">
         {/* Funil principal */}

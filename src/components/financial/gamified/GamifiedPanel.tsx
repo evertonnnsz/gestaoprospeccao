@@ -335,8 +335,11 @@ export function GamifiedPanel({ leads, clients, companyName }: GamifiedPanelProp
             <h3 className="font-extrabold text-sm uppercase tracking-wide text-sidebar mb-4 flex items-center gap-2">
               <span>📊</span> Sua Operação Atual
             </h3>
-            <Row label="Faturamento Mensal Atual">
+            <Row label="Faturamento Mensal (Recebido)">
               <HighlightValue>{fmtBRL(operationRevenue)}</HighlightValue>
+            </Row>
+            <Row label="A Receber (Pend./Atras.)">
+              <MutedValue>{fmtBRL(revenueBreakdown.receivable)}</MutedValue>
             </Row>
             <Row label="Número de Clientes Ativos">
               <HighlightValue>{activeClients}</HighlightValue>

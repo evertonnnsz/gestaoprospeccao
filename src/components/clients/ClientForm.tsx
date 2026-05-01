@@ -400,6 +400,53 @@ export function ClientForm({ open, onOpenChange, client, lead, onSuccess }: Clie
           </div>
 
           <div className="space-y-2">
+            <Label htmlFor="client_status">Status do Cliente</Label>
+            <Select
+              value={formData.status}
+              onValueChange={(value: ClientStatus) =>
+                setFormData((prev) => ({ ...prev, status: value }))
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione o status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="active">Ativo</SelectItem>
+                <SelectItem value="paused">Pausado</SelectItem>
+                <SelectItem value="churn">Churn (saída)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {formData.status === 'churn' && (
+            <div className="grid grid-cols-2 gap-4 p-3 rounded-lg border border-destructive/30 bg-destructive/5">
+              <div className="space-y-2">
+                <Label htmlFor="churn_date">Data do Churn</Label>
+                <Input
+                  id="churn_date"
+                  type="date"
+                  value={formData.churn_date}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, churn_date: e.target.value }))
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="churn_reason">Motivo</Label>
+                <Input
+                  id="churn_reason"
+                  type="text"
+                  placeholder="Motivo da saída"
+                  value={formData.churn_reason}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, churn_reason: e.target.value }))
+                  }
+                />
+              </div>
+            </div>
+          )}
+
+          <div className="space-y-2">
             <Label htmlFor="notes">Observações</Label>
             <Textarea
               id="notes"

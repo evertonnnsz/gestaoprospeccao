@@ -362,6 +362,16 @@ export default function Dashboard() {
               color="text-primary"
               barColor="bg-primary"
             />
+            <RateRow
+              icon={UserMinus}
+              label="Taxa de Churn"
+              rate={churn.rate}
+              count={churn.churned}
+              total={churn.total}
+              color="text-destructive"
+              barColor="bg-destructive"
+              unit="clientes"
+            />
           </CardContent>
         </Card>
       </div>
@@ -377,6 +387,7 @@ function RateRow({
   total,
   color,
   barColor,
+  unit = 'leads',
 }: {
   icon: any;
   label: string;
@@ -385,6 +396,7 @@ function RateRow({
   total: number;
   color: string;
   barColor: string;
+  unit?: string;
 }) {
   return (
     <div className="space-y-2">
@@ -396,7 +408,7 @@ function RateRow({
         <div className="text-right">
           <span className={`text-2xl font-bold ${color}`}>{rate.toFixed(1)}%</span>
           <p className="text-xs text-muted-foreground">
-            {count} de {total} leads
+            {count} de {total} {unit}
           </p>
         </div>
       </div>

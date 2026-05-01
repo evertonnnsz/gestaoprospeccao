@@ -1,56 +1,67 @@
+
 ## Problema
 
-O filtro de período da aba **Financeiro** só está afetando a tabela de transações e os totais de receita/despesa de lançamentos manuais. Tudo o mais ignora o filtro:
+Hoje o "faturamento de clientes" é calculado somando o `project_value` de **todos** os contratos, ignorando o `monthly_payment_status`. Quando você marca um cliente como **Pendente** ou **Atrasado** no cadastro, o número de faturamento não muda — o que esconde a realidade do que efetivamente entrou no caixa.
 
-- **Receita de Clientes / A Receber** (cards de resumo) somam todos os clientes, independente do período.
-- **Central de Prospecção Gamificada** (leads, clientes, KPIs do topo, funil) usa sempre os dados completos.
-- **Gráfico Receitas vs Despesas** mostra fixo os últimos 6 meses, ignorando o filtro.
-- **Gráfico Despesas por Categoria** está OK (já usa `filteredTransactions`).
+A aba **Clientes** ainda não tem nenhum bloco de faturamento; só os cards individuais. Os cards de faturamento ficam no **Financeiro** ("Receita de Clientes") e na **Central Gamificada** ("Faturamento Mensal Atual").
 
-Resultado: ao escolher "Hoje", "Esta Semana" etc., grande parte dos números não muda.
+## Decisão
 
-## Solução
+1. Adicionar um **resumo de faturamento do mês no topo da aba Clientes**, refletindo o status de pagamento.
+2. **Atualizar** os cards já existentes no Financeiro e na Central Gamificada para usar a mesma lógica baseada em status — assim o número fica consistente em todo o app.
 
-Aplicar o mesmo período/intervalo escolhido no `PeriodFilter` em **todas** as fontes de dados da página Financeiro.
+Critério: um cliente só conta no "Faturamento Recebido" do mês quando está com status **Pago**. Pendente e Atrasado entram em "A Receber".
 
-### 1. Helper único de intervalo de datas
-Criar `src/lib/utils/periodRange.ts` com `getPeriodRange(period, dateRange)` retornando `{ start: Date | null, end: Date | null }` (null = sem limite, caso `all`). Centraliza a regra hoje duplicada dentro de `filterByPeriod`.
+## Mudanças
 
-### 2. Filtragem genérica por data arbitrária
-Adicionar em `PeriodFilter.tsx` um helper `filterByPeriodGeneric<T>(items, period, dateRange, getDate)` que recebe um extrator de data, para reutilizar nas três entidades (transações, clientes, leads) sem depender do campo `approach_date`.
+### 1. Aba Clientes — novo bloco de resumo (`src/pages/Clients.tsx`)
 
-### 3. Aplicar o filtro em `Financial.tsx`
+Adicionar 3 cards compactos acima da busca:
 
-- **Transações**: continuam usando `transaction_date` (já funciona).
-- **Clientes**: filtrar por `project_start_date` (data de início do contrato) — campo já existente no schema.
-  - `splitClientsRevenue(filteredClients)` passa a alimentar `FinancialSummaryCards` e `GamifiedPanel`.
-- **Leads**: filtrar por `approach_date` (com fallback em `created_at`) antes de passar para `GamifiedPanel`.
-- O `GamifiedPanel` recebe leads/clients já filtrados — sem mudanças internas.
+| Card | Cálculo | Cor |
+|---|---|---|
+| Faturamento Previsto | soma de `project_value` de todos clientes | neutro |
+| Recebido no Mês | soma de `project_value` onde `monthly_payment_status = 'paid'` | verde |
+| A Receber | soma onde status é `pending` ou `overdue` | amarelo / destaque |
 
-### 4. Gráfico Receitas vs Despesas respeitando o período
+Reutilizar `Card` / `CardContent` do shadcn. Mostrar também a contagem de clientes em cada bucket (ex.: "3 clientes pagos").
 
-Em `Financial.tsx`, derivar `monthlyData` do intervalo selecionado:
+### 2. Financeiro — `FinancialSummaryCards` (`src/components/financial/FinancialSummaryCards.tsx` + `src/pages/Financial.tsx`)
 
-- Se `period = today/week/month`: agrupar por dia dentro do intervalo.
-- Se `period = year`: 12 meses do ano corrente.
-- Se `period = all`: comportamento atual (últimos 6 meses).
-- Se `period = custom`: usa `dateRange.from`/`to`, agrupando por dia se ≤ 60 dias, senão por mês.
+- Trocar o card "Receita de Clientes" por **"Recebido (Clientes)"** = soma de `project_value` apenas dos `paid`.
+- Atualizar o card "Receita Total" e "Saldo" para usar esse novo valor (recebido), em vez do total bruto. Saldo passa a refletir caixa real.
 
-Incluir também a "Receita de Clientes pagos" do período no income do mês/dia correspondente (usando `project_start_date` ou `payment_due_date` — usar `project_start_date` para manter consistência com a filtragem). Assim o gráfico passa a refletir o mesmo conceito dos cards.
+### 3. Central Gamificada — `GamifiedPanel.tsx`
 
-### 5. Pequenos ajustes visuais
+- "Faturamento Mensal Atual" passa a somar apenas clientes com `monthly_payment_status = 'paid'`.
+- "Número de Clientes Ativos" continua contando todos os contratos (para não distorcer ticket médio).
+- "Ticket Médio Base" continua sendo `faturamento previsto / clientes` (base do simulador), com tooltip explicando.
 
-- Atualizar legendas dos cards (`FinancialSummaryCards`) para indicar "Período selecionado" também em "Recebido (Clientes)".
-- Manter o `GamifiedPanel` mostrando o escopo do período (ex.: "Faturamento Mensal (Recebido)" continua, mas agora reflete o filtro — adicionar pequena legenda "no período selecionado").
+### 4. Memória
 
-## Arquivos afetados
+Atualizar `mem://features/client-management/core-logic` registrando que faturamento agregado considera `monthly_payment_status` (`paid` = recebido, `pending`/`overdue` = a receber).
 
-- **Criar**: `src/lib/utils/periodRange.ts`
-- **Editar**: `src/components/filters/PeriodFilter.tsx` (export do helper genérico)
-- **Editar**: `src/pages/Financial.tsx` (filtragem de clients/leads + monthlyData dinâmico)
-- **Editar**: `src/components/financial/FinancialSummaryCards.tsx` (legenda)
-- **Editar**: `src/components/financial/gamified/GamifiedPanel.tsx` (legenda do bloco "Operação Atual")
+## Detalhes técnicos
 
-## Observação
+- Helper utilitário em `src/lib/utils/clientRevenue.ts`:
+  ```ts
+  export function splitClientsRevenue(clients: Client[]) {
+    const sum = (list: Client[]) => list.reduce((s, c) => s + (Number(c.project_value) || 0), 0);
+    const paid = clients.filter(c => c.monthly_payment_status === 'paid');
+    const pending = clients.filter(c => c.monthly_payment_status === 'pending' || c.monthly_payment_status === 'overdue');
+    return {
+      total: sum(clients),
+      received: sum(paid),
+      receivable: sum(pending),
+      paidCount: paid.length,
+      receivableCount: pending.length,
+    };
+  }
+  ```
+- Importar e usar em `Clients.tsx`, `Financial.tsx` e `GamifiedPanel.tsx`.
+- Não mexer em RLS nem em schema (campo `monthly_payment_status` já existe na tabela `clients`).
 
-Não é necessário tocar no banco de dados — `project_start_date`, `approach_date`, `created_at` e `transaction_date` já existem nas tabelas correspondentes.
+## Fora do escopo
+
+- Não estamos criando histórico mensal de pagamento (hoje há um único status por cliente).
+- Não vamos criar lançamento automático em `financial_transactions` ao marcar pago — fica como possível próximo passo.

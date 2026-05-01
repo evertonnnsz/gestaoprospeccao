@@ -71,8 +71,8 @@ export function FinancialSummaryCards({ totalIncome, totalExpenses, clientsReven
           <div className="text-2xl font-bold text-emerald-600">{formatCurrency(clientsRevenue)}</div>
           <p className="text-xs text-muted-foreground mt-1">
             {clientsReceivable > 0
-              ? `${formatCurrency(clientsReceivable)} a receber · período selecionado`
-              : 'Pagamentos confirmados · período selecionado'}
+              ? `${formatCurrency(clientsReceivable)} a receber`
+              : 'Apenas pagamentos confirmados'}
           </p>
         </CardContent>
       </Card>

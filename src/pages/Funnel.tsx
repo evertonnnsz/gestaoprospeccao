@@ -49,6 +49,23 @@ const closedStatuses: LeadStatus[] = ['fechado', 'lead_perdido'];
 // Lógica cumulativa preservada do funil original
 function cumulativeCount(leads: Lead[], status: StageKey): number {
   switch (status) {
+    case 'lead_coletado':
+      // Topo do funil: todos os leads que entraram no sistema
+      return leads.length;
+    case 'contato_iniciado':
+      // Todos exceto os que ficaram apenas como 'lead_coletado' sem qualquer ação
+      return leads.filter(
+        (l) =>
+          l.status === status ||
+          l.status === 'visualizou_nao_respondeu' ||
+          l.status === 'interesse_demonstrado' ||
+          l.status === 'agendou_reuniao' ||
+          l.status === 'reuniao_realizada' ||
+          l.status === 'proposta_enviada' ||
+          l.status === 'em_negociacao' ||
+          l.status === 'sem_interesse' ||
+          closedStatuses.includes(l.status as LeadStatus)
+      ).length;
     case 'interesse_demonstrado':
       return leads.filter(
         (l) =>

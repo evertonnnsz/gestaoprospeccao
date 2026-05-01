@@ -2,7 +2,6 @@ import {
   LayoutDashboard, 
   Users, 
   Target, 
-  BarChart3, 
   Settings, 
   LogOut,
   UserCheck,
@@ -28,7 +27,6 @@ const navItems = [
   { title: 'Clientes', url: '/clients', icon: Briefcase },
   { title: 'Financeiro', url: '/financial', icon: DollarSign },
   { title: 'Funil', url: '/funnel', icon: Target },
-  { title: 'Métricas', url: '/metrics', icon: BarChart3 },
   { title: 'Sucesso do Cliente', url: '/customer-success', icon: HeartHandshake },
   { title: 'Onboarding', url: '/onboarding', icon: ClipboardCheck },
 ];

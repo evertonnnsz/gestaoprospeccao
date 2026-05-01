@@ -12,7 +12,6 @@ import Prospecting from "./pages/Prospecting";
 import Clients from "./pages/Clients";
 import Financial from "./pages/Financial";
 import Funnel from "./pages/Funnel";
-import Metrics from "./pages/Metrics";
 import Approvals from "./pages/Approvals";
 import Users from "./pages/Users";
 import Settings from "./pages/Settings";
@@ -39,7 +38,6 @@ const App = () => (
               <Route path="/clients" element={<Clients />} />
               <Route path="/financial" element={<Financial />} />
               <Route path="/funnel" element={<Funnel />} />
-              <Route path="/metrics" element={<Metrics />} />
               <Route path="/customer-success" element={<CustomerSuccess />} />
               <Route path="/onboarding" element={<Onboarding />} />
               <Route path="/approvals" element={<Approvals />} />

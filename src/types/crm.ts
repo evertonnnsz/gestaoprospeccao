@@ -102,6 +102,17 @@ export const STATUS_ORDER: LeadStatus[] = [
   'lead_perdido',
 ];
 
+// Origens de leads padronizadas para metrificação
+export const LEAD_SOURCES = [
+  'Tráfego',
+  'WhatsApp',
+  'Instagram',
+  'PaP',
+  'Cold Call',
+] as const;
+
+export type LeadSource = typeof LEAD_SOURCES[number];
+
 // Staging Lead types
 export interface StagingLead {
   id: string;

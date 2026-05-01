@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Lead, LeadStatus, STATUS_LABELS, STATUS_ORDER } from '@/types/crm';
+import { LEAD_SOURCES } from '@/types/crm';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -271,12 +272,21 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
             {/* Lead Source */}
             <div className="space-y-2">
               <Label htmlFor="lead_source">Origem do Lead</Label>
-              <Input
-                id="lead_source"
-                placeholder="Ex: LinkedIn, Indicação, Site"
-                value={formData.lead_source}
-                onChange={(e) => setFormData({ ...formData, lead_source: e.target.value })}
-              />
+              <Select
+                value={formData.lead_source || undefined}
+                onValueChange={(value) => setFormData({ ...formData, lead_source: value })}
+              >
+                <SelectTrigger id="lead_source">
+                  <SelectValue placeholder="Selecione a origem" />
+                </SelectTrigger>
+                <SelectContent>
+                  {LEAD_SOURCES.map((source) => (
+                    <SelectItem key={source} value={source}>
+                      {source}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             {/* Segment */}

@@ -17,11 +17,11 @@ import {
   Ban,
 } from 'lucide-react';
 
-type StageKey = LeadStatus;
+type StageKey = LeadStatus | 'responderam';
 
 const FUNNEL_STAGES: StageKey[] = [
   'lead_coletado',
-  'contato_iniciado',
+  'responderam',
   'interesse_demonstrado',
   'agendou_reuniao',
   'reuniao_realizada',
@@ -33,6 +33,7 @@ const FUNNEL_STAGES: StageKey[] = [
 const STAGE_COLORS: Record<StageKey, string> = {
   lead_coletado: 'hsl(var(--muted-foreground))',
   contato_iniciado: 'hsl(var(--primary))',
+  responderam: 'hsl(var(--primary))',
   visualizou_nao_respondeu: 'hsl(var(--warning))',
   interesse_demonstrado: 'hsl(var(--success))',
   agendou_reuniao: 'hsl(var(--chart-4))',
@@ -52,20 +53,9 @@ function cumulativeCount(leads: Lead[], status: StageKey): number {
     case 'lead_coletado':
       // Topo do funil: todos os leads que entraram no sistema
       return leads.length;
-    case 'contato_iniciado':
-      // Todos exceto os que ficaram apenas como 'lead_coletado' sem qualquer ação
-      return leads.filter(
-        (l) =>
-          l.status === status ||
-          l.status === 'visualizou_nao_respondeu' ||
-          l.status === 'interesse_demonstrado' ||
-          l.status === 'agendou_reuniao' ||
-          l.status === 'reuniao_realizada' ||
-          l.status === 'proposta_enviada' ||
-          l.status === 'em_negociacao' ||
-          l.status === 'sem_interesse' ||
-          closedStatuses.includes(l.status as LeadStatus)
-      ).length;
+    case 'responderam':
+      // Leads que efetivamente responderam à abordagem
+      return leads.filter((l) => l.responded === true).length;
     case 'interesse_demonstrado':
       return leads.filter(
         (l) =>
@@ -276,7 +266,7 @@ export default function Funnel() {
                             }}
                           >
                             <span className="text-sm font-semibold text-white drop-shadow truncate">
-                              {STATUS_LABELS[item.stage]}
+                              {item.stage === 'responderam' ? 'Leads que Responderam' : STATUS_LABELS[item.stage as LeadStatus]}
                             </span>
                             <span className="text-sm font-bold text-white ml-2">
                               {item.count}

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { Client, Lead } from '@/types/crm';
+import { Client, ClientStatus, Lead } from '@/types/crm';
 import { ClientCard } from '@/components/clients/ClientCard';
 import { ClientForm } from '@/components/clients/ClientForm';
 import { Input } from '@/components/ui/input';
@@ -10,7 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2, Search, Users, Plus } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { splitClientsRevenue } from '@/lib/utils/clientRevenue';
-import { TrendingUp, CheckCircle2, Clock } from 'lucide-react';
+import { TrendingUp, CheckCircle2, Clock, UserMinus, PauseCircle, PlayCircle } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -37,6 +37,7 @@ export default function Clients() {
   const [closedLeads, setClosedLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | ClientStatus>('active');
   
   const [formOpen, setFormOpen] = useState(false);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
@@ -103,6 +104,8 @@ export default function Clients() {
   }, [user]);
 
   const filteredClients = clients.filter(client => {
+    const cStatus = (client.status as ClientStatus) || 'active';
+    if (statusFilter !== 'all' && cStatus !== statusFilter) return false;
     const companyName = client.lead?.company_name?.toLowerCase() || '';
     const contactName = client.lead?.contact_name?.toLowerCase() || '';
     const services = client.services?.toLowerCase() || '';
@@ -112,6 +115,11 @@ export default function Clients() {
   });
 
   const revenue = splitClientsRevenue(clients);
+  const statusCounts = {
+    active: clients.filter((c) => ((c.status as ClientStatus) || 'active') === 'active').length,
+    paused: clients.filter((c) => c.status === 'paused').length,
+    churn: clients.filter((c) => c.status === 'churn').length,
+  };
   const fmtBRL = (v: number) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
 
@@ -272,6 +280,46 @@ export default function Clients() {
             className="pl-10"
           />
         </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button
+            type="button"
+            variant={statusFilter === 'active' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setStatusFilter('active')}
+            className="gap-1"
+          >
+            <PlayCircle className="w-4 h-4" />
+            Ativos ({statusCounts.active})
+          </Button>
+          <Button
+            type="button"
+            variant={statusFilter === 'paused' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setStatusFilter('paused')}
+            className="gap-1"
+          >
+            <PauseCircle className="w-4 h-4" />
+            Pausados ({statusCounts.paused})
+          </Button>
+          <Button
+            type="button"
+            variant={statusFilter === 'churn' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setStatusFilter('churn')}
+            className="gap-1"
+          >
+            <UserMinus className="w-4 h-4" />
+            Churn ({statusCounts.churn})
+          </Button>
+          <Button
+            type="button"
+            variant={statusFilter === 'all' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setStatusFilter('all')}
+          >
+            Todos
+          </Button>
+        </div>
       </div>
 
       {loading ? (
@@ -296,6 +344,7 @@ export default function Clients() {
               client={client}
               onEdit={handleEdit}
               onDelete={handleDelete}
+              onChange={fetchData}
             />
           ))}
         </div>

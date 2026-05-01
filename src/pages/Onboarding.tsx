@@ -43,7 +43,7 @@ export default function Onboarding() {
         .eq('user_id', user?.id || '')
         .order('created_at', { ascending: false });
       if (error) throw error;
-      return data as (Client & { lead: { company_name: string; contact_name: string | null } })[];
+      return data as unknown as (Client & { lead: { company_name: string; contact_name: string | null } })[];
     },
     enabled: !!user?.id,
   });

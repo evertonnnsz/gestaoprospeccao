@@ -34,7 +34,7 @@
          .order('created_at', { ascending: false });
  
        if (error) throw error;
-      return data as (Client & { lead: { company_name: string; contact_name: string | null; whatsapp: string | null } })[];
+      return data as unknown as (Client & { lead: { company_name: string; contact_name: string | null; whatsapp: string | null } })[];
      },
      enabled: !!user?.id,
    });

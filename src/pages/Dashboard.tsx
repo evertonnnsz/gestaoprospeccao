@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { Lead, LeadStatus, STATUS_LABELS, STATUS_ORDER, LEAD_SOURCES } from '@/types/crm';
+import { Client, Lead, LeadStatus, STATUS_LABELS, STATUS_ORDER, LEAD_SOURCES } from '@/types/crm';
+import { calculateChurnRate } from '@/lib/utils/clientRevenue';
 import { StatsCard } from '@/components/dashboard/StatsCard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -18,6 +19,7 @@ import {
   Trophy,
   X,
   FileText,
+  UserMinus,
 } from 'lucide-react';
 import { parseISO, startOfDay, format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -57,6 +59,7 @@ export default function Dashboard() {
   const { profile } = useAuth();
   const navigate = useNavigate();
   const [leads, setLeads] = useState<Lead[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
   const [, setLoading] = useState(true);
 
   // Filters
@@ -76,6 +79,11 @@ export default function Dashboard() {
           .order('created_at', { ascending: false });
         if (error) throw error;
         setLeads((data as Lead[]) || []);
+        const { data: clientsData, error: clientsError } = await supabase
+          .from('clients')
+          .select('*');
+        if (clientsError) throw clientsError;
+        setClients(((clientsData as unknown) as Client[]) || []);
       } catch (error) {
         console.error('Error fetching leads:', error);
       } finally {
@@ -162,6 +170,7 @@ export default function Dashboard() {
   const closeRate = totalLeads > 0 ? (closedLeads / totalLeads) * 100 : 0;
   const meetingRate = totalLeads > 0 ? (meetingsHeld / totalLeads) * 100 : 0;
   const responseRate = totalLeads > 0 ? (respondedLeads / totalLeads) * 100 : 0;
+  const churn = calculateChurnRate(clients);
 
   // Sources chart data
   const sourcesData = useMemo(() => {
@@ -353,6 +362,16 @@ export default function Dashboard() {
               color="text-primary"
               barColor="bg-primary"
             />
+            <RateRow
+              icon={UserMinus}
+              label="Taxa de Churn"
+              rate={churn.rate}
+              count={churn.churned}
+              total={churn.total}
+              color="text-destructive"
+              barColor="bg-destructive"
+              unit="clientes"
+            />
           </CardContent>
         </Card>
       </div>
@@ -368,6 +387,7 @@ function RateRow({
   total,
   color,
   barColor,
+  unit = 'leads',
 }: {
   icon: any;
   label: string;
@@ -376,6 +396,7 @@ function RateRow({
   total: number;
   color: string;
   barColor: string;
+  unit?: string;
 }) {
   return (
     <div className="space-y-2">
@@ -387,7 +408,7 @@ function RateRow({
         <div className="text-right">
           <span className={`text-2xl font-bold ${color}`}>{rate.toFixed(1)}%</span>
           <p className="text-xs text-muted-foreground">
-            {count} de {total} leads
+            {count} de {total} {unit}
           </p>
         </div>
       </div>

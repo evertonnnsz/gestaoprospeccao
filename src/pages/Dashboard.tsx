@@ -17,6 +17,7 @@ import {
   CalendarCheck,
   Trophy,
   X,
+  FileText,
 } from 'lucide-react';
 import { parseISO, startOfDay, format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -140,6 +141,7 @@ export default function Dashboard() {
   const closedLeads = filteredLeads.filter((l) => l.status === 'fechado').length;
   const meetingsHeld = filteredLeads.filter((l) => MEETING_STATUSES.includes(l.status as LeadStatus)).length;
   const respondedLeads = filteredLeads.filter((l) => l.responded === true).length;
+  const proposalsSent = filteredLeads.filter((l) => l.status === 'proposta_enviada').length;
 
   const todayFollowUps = leads.filter((lead) => {
     if (lead.status === 'lead_perdido' || lead.status === 'sem_interesse') return false;
@@ -256,7 +258,7 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatsCard title="Total de Leads" value={totalLeads} icon={Users} variant="primary" />
         <StatsCard title="Reuniões Realizadas" value={meetingsHeld} icon={Calendar} variant="success" />
-        <StatsCard title="Taxa de Fechamento" value={`${closeRate.toFixed(1)}%`} icon={TrendingUp} variant="default" />
+        <StatsCard title="Propostas Enviadas" value={proposalsSent} icon={FileText} variant="default" />
         <StatsCard
           title="Follow-ups do Dia"
           value={todayFollowUps}

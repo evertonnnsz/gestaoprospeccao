@@ -137,7 +137,7 @@ export default function Dashboard() {
 
   // KPIs
   const totalLeads = filteredLeads.length;
-  const closedLeads = filteredLeads.filter((l) => l.status === 'fechado').length;
+  const proposalsSent = filteredLeads.filter((l) => l.status === 'proposta_enviada').length;
   const meetingsHeld = filteredLeads.filter((l) => MEETING_STATUSES.includes(l.status as LeadStatus)).length;
   const respondedLeads = filteredLeads.filter((l) => l.responded === true).length;
 
@@ -147,7 +147,7 @@ export default function Dashboard() {
     return followUps.some((date) => date && isSameDay(date));
   }).length;
 
-  const closeRate = totalLeads > 0 ? (closedLeads / totalLeads) * 100 : 0;
+  const proposalRate = totalLeads > 0 ? (proposalsSent / totalLeads) * 100 : 0;
   const meetingRate = totalLeads > 0 ? (meetingsHeld / totalLeads) * 100 : 0;
   const responseRate = totalLeads > 0 ? (respondedLeads / totalLeads) * 100 : 0;
 
@@ -256,7 +256,7 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatsCard title="Total de Leads" value={totalLeads} icon={Users} variant="primary" />
         <StatsCard title="Reuniões Realizadas" value={meetingsHeld} icon={Calendar} variant="success" />
-        <StatsCard title="Taxa de Fechamento" value={`${closeRate.toFixed(1)}%`} icon={TrendingUp} variant="default" />
+        <StatsCard title="Taxa de Proposta Enviada" value={`${proposalRate.toFixed(1)}%`} icon={TrendingUp} variant="default" />
         <StatsCard
           title="Follow-ups do Dia"
           value={todayFollowUps}
@@ -334,9 +334,9 @@ export default function Dashboard() {
             />
             <RateRow
               icon={Trophy}
-              label="Taxa de Fechamento"
-              rate={closeRate}
-              count={closedLeads}
+              label="Taxa de Proposta Enviada"
+              rate={proposalRate}
+              count={proposalsSent}
               total={totalLeads}
               color="text-primary"
               barColor="bg-primary"

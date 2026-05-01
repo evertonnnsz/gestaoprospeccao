@@ -12,10 +12,11 @@ import { TransactionsTable } from '@/components/financial/TransactionsTable';
 import { TransactionForm } from '@/components/financial/TransactionForm';
 import { GamifiedPanel } from '@/components/financial/gamified/GamifiedPanel';
 import { splitClientsRevenue } from '@/lib/utils/clientRevenue';
+import { getPeriodRange, filterByRange } from '@/lib/utils/periodRange';
 
-import { PeriodFilter, PeriodType, DateRange, filterByPeriod } from '@/components/filters/PeriodFilter';
+import { PeriodFilter, PeriodType, DateRange } from '@/components/filters/PeriodFilter';
 import { Loader2 } from 'lucide-react';
-import { format, startOfMonth, endOfMonth, subMonths, parseISO } from 'date-fns';
+import { format, subMonths, parseISO, eachDayOfInterval, eachMonthOfInterval, differenceInDays, startOfMonth, endOfMonth, startOfYear, endOfYear } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 export default function Financial() {
@@ -29,6 +30,8 @@ export default function Financial() {
   const [editingTransaction, setEditingTransaction] = useState<FinancialTransaction | null>(null);
   const [period, setPeriod] = useState<PeriodType>('month');
   const [dateRange, setDateRange] = useState<DateRange>({ from: undefined, to: undefined });
+
+  const periodRange = useMemo(() => getPeriodRange(period, dateRange), [period, dateRange]);
 
   const fetchData = async () => {
     if (!user) return;
@@ -78,17 +81,23 @@ export default function Financial() {
     fetchData();
   }, [user]);
 
-  // Filter transactions by period
-  const filteredTransactions = useMemo(() => {
-    return filterByPeriod(
-      transactions.map(t => ({ ...t, approach_date: t.transaction_date })),
-      period,
-      dateRange
-    ).map(t => {
-      const { approach_date, ...rest } = t as any;
-      return rest as FinancialTransaction;
-    });
-  }, [transactions, period, dateRange]);
+  // Filter transactions by period (uses transaction_date)
+  const filteredTransactions = useMemo(
+    () => filterByRange(transactions, periodRange, (t) => t.transaction_date),
+    [transactions, periodRange],
+  );
+
+  // Filter clients by project_start_date (with fallback to created_at)
+  const filteredClients = useMemo(
+    () => filterByRange(clients, periodRange, (c) => c.project_start_date || c.created_at),
+    [clients, periodRange],
+  );
+
+  // Filter leads by approach_date (with fallback to created_at)
+  const filteredLeads = useMemo(
+    () => filterByRange(leads, periodRange, (l) => l.approach_date || l.created_at),
+    [leads, periodRange],
+  );
 
   // Calculate totals
   const totals = useMemo(() => {
@@ -103,8 +112,8 @@ export default function Financial() {
     return { income, expenses };
   }, [filteredTransactions]);
 
-  // Calculate clients revenue split by payment status
-  const clientsRevenueBreakdown = useMemo(() => splitClientsRevenue(clients), [clients]);
+  // Calculate clients revenue split by payment status (filtered)
+  const clientsRevenueBreakdown = useMemo(() => splitClientsRevenue(filteredClients), [filteredClients]);
 
   // Calculate expenses by category
   const expensesByCategory = useMemo(() => {
@@ -126,36 +135,74 @@ export default function Financial() {
     return categories;
   }, [filteredTransactions]);
 
-  // Calculate monthly data for chart
+  // Calculate chart data for the selected period
   const monthlyData = useMemo(() => {
-    const months: Record<string, { income: number; expenses: number }> = {};
     const now = new Date();
+    let rangeStart: Date;
+    let rangeEnd: Date;
+    let granularity: 'day' | 'month';
 
-    // Initialize last 6 months
-    for (let i = 5; i >= 0; i--) {
-      const date = subMonths(now, i);
-      const key = format(date, 'MMM/yy', { locale: ptBR });
-      months[key] = { income: 0, expenses: 0 };
+    if (period === 'all') {
+      rangeEnd = now;
+      rangeStart = subMonths(now, 5);
+      granularity = 'month';
+    } else if (period === 'today' || period === 'week') {
+      rangeStart = periodRange.start ?? now;
+      rangeEnd = periodRange.end ?? now;
+      granularity = 'day';
+    } else if (period === 'month') {
+      rangeStart = startOfMonth(now);
+      rangeEnd = endOfMonth(now);
+      granularity = 'day';
+    } else if (period === 'year') {
+      rangeStart = startOfYear(now);
+      rangeEnd = endOfYear(now);
+      granularity = 'month';
+    } else {
+      // custom
+      rangeStart = periodRange.start ?? subMonths(now, 1);
+      rangeEnd = periodRange.end ?? now;
+      granularity = differenceInDays(rangeEnd, rangeStart) <= 60 ? 'day' : 'month';
     }
 
-    // Fill with data
-    transactions.forEach(t => {
-      const date = parseISO(t.transaction_date);
-      const key = format(date, 'MMM/yy', { locale: ptBR });
-      if (months[key]) {
-        if (t.type === 'income') {
-          months[key].income += Number(t.amount);
-        } else {
-          months[key].expenses += Number(t.amount);
-        }
-      }
+    const fmtKey = granularity === 'day' ? 'dd/MM' : 'MMM/yy';
+    const buckets: Record<string, { income: number; expenses: number; order: number }> = {};
+
+    const points =
+      granularity === 'day'
+        ? eachDayOfInterval({ start: rangeStart, end: rangeEnd })
+        : eachMonthOfInterval({ start: rangeStart, end: rangeEnd });
+
+    points.forEach((d, i) => {
+      const key = format(d, fmtKey, { locale: ptBR });
+      buckets[key] = { income: 0, expenses: 0, order: i };
     });
 
-    return Object.entries(months).map(([month, data]) => ({
-      month,
-      ...data,
-    }));
-  }, [transactions]);
+    const accumulate = (dateStr: string, type: 'income' | 'expenses', amount: number) => {
+      const d = dateStr.length === 10 ? new Date(dateStr + 'T00:00:00') : parseISO(dateStr);
+      if (isNaN(d.getTime())) return;
+      if (d < rangeStart || d > rangeEnd) return;
+      const key = format(d, fmtKey, { locale: ptBR });
+      if (!buckets[key]) return;
+      buckets[key][type] += amount;
+    };
+
+    transactions.forEach((t) => {
+      accumulate(t.transaction_date, t.type === 'income' ? 'income' : 'expenses', Number(t.amount));
+    });
+
+    // Include paid client revenue in the chart income
+    clients
+      .filter((c) => c.monthly_payment_status === 'paid')
+      .forEach((c) => {
+        const baseDate = c.project_start_date || c.created_at;
+        if (baseDate) accumulate(baseDate, 'income', Number(c.project_value) || 0);
+      });
+
+    return Object.entries(buckets)
+      .sort((a, b) => a[1].order - b[1].order)
+      .map(([month, data]) => ({ month, income: data.income, expenses: data.expenses }));
+  }, [transactions, clients, period, periodRange]);
 
 
   const handleEdit = (transaction: FinancialTransaction) => {
@@ -230,7 +277,7 @@ export default function Financial() {
       </div>
 
       {/* Central de Prospecção Gamificada */}
-      <GamifiedPanel leads={leads} clients={clients} companyName={companyName} />
+      <GamifiedPanel leads={filteredLeads} clients={filteredClients} companyName={companyName} />
 
       {/* Summary Cards */}
       <FinancialSummaryCards

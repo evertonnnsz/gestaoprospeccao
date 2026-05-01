@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Client, Lead, MonthlyPaymentStatus } from '@/types/crm';
+import { Client, ClientStatus, Lead, MonthlyPaymentStatus } from '@/types/crm';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
@@ -62,6 +62,9 @@ export function ClientForm({ open, onOpenChange, client, lead, onSuccess }: Clie
     contract_duration_months: '',
     notes: '',
     monthly_payment_status: 'pending' as 'paid' | 'overdue' | 'pending',
+    status: 'active' as ClientStatus,
+    churn_date: '',
+    churn_reason: '',
   });
   
   const [whatsapp, setWhatsapp] = useState('');
@@ -77,6 +80,9 @@ export function ClientForm({ open, onOpenChange, client, lead, onSuccess }: Clie
         contract_duration_months: client.contract_duration_months?.toString() || '',
         notes: client.notes || '',
         monthly_payment_status: (client.monthly_payment_status as 'paid' | 'overdue' | 'pending') || 'pending',
+        status: (client.status as ClientStatus) || 'active',
+        churn_date: client.churn_date || '',
+        churn_reason: client.churn_reason || '',
       });
       // Carrega o WhatsApp do lead associado
       setWhatsapp(lead?.whatsapp || '');
@@ -90,6 +96,9 @@ export function ClientForm({ open, onOpenChange, client, lead, onSuccess }: Clie
         contract_duration_months: '',
         notes: '',
         monthly_payment_status: 'pending',
+        status: 'active',
+        churn_date: '',
+        churn_reason: '',
       });
       setWhatsapp(lead?.whatsapp || '');
     }
@@ -191,6 +200,12 @@ export function ClientForm({ open, onOpenChange, client, lead, onSuccess }: Clie
         contract_duration_months: formData.contract_duration_months ? parseInt(formData.contract_duration_months) : null,
         notes: formData.notes || null,
         monthly_payment_status: formData.monthly_payment_status,
+        status: formData.status,
+        churn_date:
+          formData.status === 'churn'
+            ? formData.churn_date || new Date().toISOString().split('T')[0]
+            : null,
+        churn_reason: formData.status === 'churn' ? formData.churn_reason || null : null,
       };
 
       if (client) {

@@ -4,12 +4,13 @@ import { Plus, Download, DollarSign } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { FinancialTransaction, ExpenseCategory } from '@/types/financial';
-import { Client } from '@/types/crm';
+import { Client, Lead } from '@/types/crm';
 import { FinancialSummaryCards } from '@/components/financial/FinancialSummaryCards';
 import { ExpensesByCategoryChart } from '@/components/financial/ExpensesByCategoryChart';
 import { IncomeVsExpensesChart } from '@/components/financial/IncomeVsExpensesChart';
 import { TransactionsTable } from '@/components/financial/TransactionsTable';
 import { TransactionForm } from '@/components/financial/TransactionForm';
+import { GamifiedPanel } from '@/components/financial/gamified/GamifiedPanel';
 
 import { PeriodFilter, PeriodType, DateRange, filterByPeriod } from '@/components/filters/PeriodFilter';
 import { Loader2 } from 'lucide-react';
@@ -20,6 +21,8 @@ export default function Financial() {
   const { user } = useAuth();
   const [transactions, setTransactions] = useState<FinancialTransaction[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
+  const [leads, setLeads] = useState<Lead[]>([]);
+  const [companyName, setCompanyName] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [formOpen, setFormOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<FinancialTransaction | null>(null);
@@ -46,8 +49,23 @@ export default function Financial() {
 
       if (clientsError) throw clientsError;
 
+      // Fetch all leads for gamified panel metrics
+      const { data: leadsData, error: leadsError } = await supabase
+        .from('leads')
+        .select('*');
+      if (leadsError) throw leadsError;
+
+      // Fetch profile for company name
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('company_name')
+        .eq('id', user.id)
+        .maybeSingle();
+
       setTransactions((transactionsData || []) as FinancialTransaction[]);
       setClients((clientsData || []) as Client[]);
+      setLeads((leadsData || []) as Lead[]);
+      setCompanyName(profileData?.company_name ?? null);
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
@@ -211,6 +229,9 @@ export default function Financial() {
           </Button>
         </div>
       </div>
+
+      {/* Central de Prospecção Gamificada */}
+      <GamifiedPanel leads={leads} clients={clients} companyName={companyName} />
 
       {/* Summary Cards */}
       <FinancialSummaryCards

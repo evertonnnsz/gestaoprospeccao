@@ -355,6 +355,39 @@ export type Database = {
         }
         Relationships: []
       }
+      prospecting_goals: {
+        Row: {
+          created_at: string
+          deadline_months: number
+          desired_revenue: number
+          id: string
+          launch_ticket: number
+          planned_conversion_rate: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          deadline_months?: number
+          desired_revenue?: number
+          id?: string
+          launch_ticket?: number
+          planned_conversion_rate?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          deadline_months?: number
+          desired_revenue?: number
+          id?: string
+          launch_ticket?: number
+          planned_conversion_rate?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       staging_leads: {
         Row: {
           cnpj: string | null

@@ -1,94 +1,170 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { Lead, LeadStatus, STATUS_LABELS } from '@/types/crm';
+import { Lead, LeadStatus, STATUS_LABELS, STATUS_ORDER, LEAD_SOURCES } from '@/types/crm';
 import { StatsCard } from '@/components/dashboard/StatsCard';
-import { LeadStatusBadge } from '@/components/leads/LeadStatusBadge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PeriodFilter, PeriodType, DateRange, filterByPeriod } from '@/components/filters/PeriodFilter';
-import { 
-  Users, 
-  Target, 
-  Calendar, 
+import {
+  Users,
+  Target,
+  Calendar,
   TrendingUp,
-  AlertTriangle,
-  Clock,
-  CheckCircle2,
+  MessageCircle,
+  CalendarCheck,
+  Trophy,
+  X,
 } from 'lucide-react';
 import { parseISO, startOfDay, format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
-// Helper function to compare dates without timezone issues
 const isSameDay = (dateStr: string): boolean => {
   const date = parseISO(dateStr);
   const today = startOfDay(new Date());
   return startOfDay(date).getTime() === today.getTime();
 };
 
-const COLORS = ['hsl(217, 91%, 60%)', 'hsl(142, 76%, 36%)', 'hsl(38, 92%, 50%)', 'hsl(280, 65%, 60%)', 'hsl(0, 84%, 60%)'];
+const SOURCE_COLORS: Record<string, string> = {
+  'Tráfego': 'hsl(217, 91%, 60%)',
+  'WhatsApp': 'hsl(142, 76%, 36%)',
+  'Instagram': 'hsl(322, 75%, 55%)',
+  'PaP': 'hsl(38, 92%, 50%)',
+  'Cold Call': 'hsl(280, 65%, 60%)',
+  'Outros': 'hsl(0, 0%, 60%)',
+};
+
+const MEETING_STATUSES: LeadStatus[] = [
+  'reuniao_realizada',
+  'proposta_enviada',
+  'em_negociacao',
+  'fechado',
+  'lead_perdido',
+];
 
 export default function Dashboard() {
   const { profile } = useAuth();
   const navigate = useNavigate();
   const [leads, setLeads] = useState<Lead[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [, setLoading] = useState(true);
+
+  // Filters
   const [period, setPeriod] = useState<PeriodType>('all');
   const [dateRange, setDateRange] = useState<DateRange>({ from: undefined, to: undefined });
+  const [sourceFilter, setSourceFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [segmentFilter, setSegmentFilter] = useState<string>('all');
+  const [respondedFilter, setRespondedFilter] = useState<string>('all');
 
   useEffect(() => {
+    const fetchLeads = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('leads')
+          .select('*')
+          .order('created_at', { ascending: false });
+        if (error) throw error;
+        setLeads((data as Lead[]) || []);
+      } catch (error) {
+        console.error('Error fetching leads:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
     fetchLeads();
   }, []);
 
-  const fetchLeads = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('leads')
-        .select('*')
-        .order('created_at', { ascending: false });
-      
-      if (error) throw error;
-      setLeads((data as Lead[]) || []);
-    } catch (error) {
-      console.error('Error fetching leads:', error);
-    } finally {
-      setLoading(false);
+  // Available segments for filter dropdown
+  const segmentOptions = useMemo(() => {
+    const set = new Set<string>();
+    leads.forEach((l) => {
+      if (l.segment && l.segment.trim()) set.add(l.segment.trim());
+    });
+    return Array.from(set).sort();
+  }, [leads]);
+
+  // Apply all filters
+  const filteredLeads = useMemo(() => {
+    let result = filterByPeriod(leads, period, dateRange);
+
+    if (sourceFilter !== 'all') {
+      if (sourceFilter === 'Outros') {
+        result = result.filter(
+          (l) => !l.lead_source || !LEAD_SOURCES.includes(l.lead_source as any)
+        );
+      } else {
+        result = result.filter((l) => l.lead_source === sourceFilter);
+      }
     }
+
+    if (statusFilter !== 'all') {
+      result = result.filter((l) => l.status === statusFilter);
+    }
+
+    if (segmentFilter !== 'all') {
+      result = result.filter((l) => l.segment === segmentFilter);
+    }
+
+    if (respondedFilter !== 'all') {
+      const want = respondedFilter === 'yes';
+      result = result.filter((l) => Boolean(l.responded) === want);
+    }
+
+    return result;
+  }, [leads, period, dateRange, sourceFilter, statusFilter, segmentFilter, respondedFilter]);
+
+  const hasActiveFilters =
+    sourceFilter !== 'all' ||
+    statusFilter !== 'all' ||
+    segmentFilter !== 'all' ||
+    respondedFilter !== 'all' ||
+    period !== 'all';
+
+  const clearFilters = () => {
+    setPeriod('all');
+    setDateRange({ from: undefined, to: undefined });
+    setSourceFilter('all');
+    setStatusFilter('all');
+    setSegmentFilter('all');
+    setRespondedFilter('all');
   };
 
-  const filteredLeads = filterByPeriod(leads, period, dateRange);
-
-  // Calculate stats
+  // KPIs
   const totalLeads = filteredLeads.length;
-  const closedLeads = filteredLeads.filter(l => l.status === 'fechado').length;
-  const meetingsHeld = filteredLeads.filter(l => ['reuniao_realizada', 'proposta_enviada', 'em_negociacao', 'fechado', 'lead_perdido'].includes(l.status || '')).length;
-  
-  const todayFollowUps = leads.filter(lead => {
-    // Don't count for lost leads or those without interest
-    if (lead.status === 'lead_perdido' || lead.status === 'sem_interesse') {
-      return false;
-    }
-    
+  const closedLeads = filteredLeads.filter((l) => l.status === 'fechado').length;
+  const meetingsHeld = filteredLeads.filter((l) => MEETING_STATUSES.includes(l.status as LeadStatus)).length;
+  const respondedLeads = filteredLeads.filter((l) => l.responded === true).length;
+
+  const todayFollowUps = leads.filter((lead) => {
+    if (lead.status === 'lead_perdido' || lead.status === 'sem_interesse') return false;
     const followUps = [lead.follow_up_1, lead.follow_up_2, lead.follow_up_3].filter(Boolean);
-    return followUps.some(date => date && isSameDay(date));
+    return followUps.some((date) => date && isSameDay(date));
   }).length;
 
-  const closeRate = totalLeads > 0 ? ((closedLeads / totalLeads) * 100).toFixed(1) : 0;
+  const closeRate = totalLeads > 0 ? (closedLeads / totalLeads) * 100 : 0;
+  const meetingRate = totalLeads > 0 ? (meetingsHeld / totalLeads) * 100 : 0;
+  const responseRate = totalLeads > 0 ? (respondedLeads / totalLeads) * 100 : 0;
 
-  // Status distribution for chart
-  const statusData = Object.entries(
-    filteredLeads.reduce((acc, lead) => {
-      if (lead.status) acc[lead.status] = (acc[lead.status] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>)
-  ).map(([status, count]) => ({
-    name: STATUS_LABELS[status as LeadStatus],
-    value: count,
-  }));
-
-  // Recent leads
-  const recentLeads = filteredLeads.slice(0, 5);
+  // Sources chart data
+  const sourcesData = useMemo(() => {
+    const counts: Record<string, number> = {};
+    LEAD_SOURCES.forEach((s) => (counts[s] = 0));
+    let othersCount = 0;
+    filteredLeads.forEach((l) => {
+      const src = l.lead_source;
+      if (src && LEAD_SOURCES.includes(src as any)) {
+        counts[src] += 1;
+      } else {
+        othersCount += 1;
+      }
+    });
+    const data = LEAD_SOURCES.map((s) => ({ name: s, value: counts[s] }));
+    if (othersCount > 0) data.push({ name: 'Outros', value: othersCount });
+    return data;
+  }, [filteredLeads]);
 
   return (
     <div className="p-6 space-y-6">
@@ -102,34 +178,85 @@ export default function Dashboard() {
             {format(new Date(), "EEEE, dd 'de' MMMM", { locale: ptBR })}
           </p>
         </div>
-        <PeriodFilter 
-          value={period} 
-          onChange={setPeriod} 
+        <PeriodFilter
+          value={period}
+          onChange={setPeriod}
           dateRange={dateRange}
           onDateRangeChange={setDateRange}
         />
       </div>
 
+      {/* Smart Filters */}
+      <Card className="shadow-sm">
+        <CardContent className="p-4">
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="flex-1 min-w-[160px] space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">Origem</label>
+              <Select value={sourceFilter} onValueChange={setSourceFilter}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas as origens</SelectItem>
+                  {LEAD_SOURCES.map((s) => (
+                    <SelectItem key={s} value={s}>{s}</SelectItem>
+                  ))}
+                  <SelectItem value="Outros">Outros</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex-1 min-w-[160px] space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">Status</label>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os status</SelectItem>
+                  {STATUS_ORDER.map((s) => (
+                    <SelectItem key={s} value={s}>{STATUS_LABELS[s]}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex-1 min-w-[160px] space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">Segmento</label>
+              <Select value={segmentFilter} onValueChange={setSegmentFilter}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os segmentos</SelectItem>
+                  {segmentOptions.map((s) => (
+                    <SelectItem key={s} value={s}>{s}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex-1 min-w-[160px] space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">Respondeu?</label>
+              <Select value={respondedFilter} onValueChange={setRespondedFilter}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  <SelectItem value="yes">Sim</SelectItem>
+                  <SelectItem value="no">Não</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {hasActiveFilters && (
+              <Button variant="ghost" size="sm" onClick={clearFilters} className="gap-1">
+                <X className="w-4 h-4" />
+                Limpar
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatsCard
-          title="Total de Leads"
-          value={totalLeads}
-          icon={Users}
-          variant="primary"
-        />
-        <StatsCard
-          title="Reuniões Realizadas"
-          value={meetingsHeld}
-          icon={Calendar}
-          variant="success"
-        />
-        <StatsCard
-          title="Taxa de Fechamento"
-          value={`${closeRate}%`}
-          icon={TrendingUp}
-          variant="default"
-        />
+        <StatsCard title="Total de Leads" value={totalLeads} icon={Users} variant="primary" />
+        <StatsCard title="Reuniões Realizadas" value={meetingsHeld} icon={Calendar} variant="success" />
+        <StatsCard title="Taxa de Fechamento" value={`${closeRate.toFixed(1)}%`} icon={TrendingUp} variant="default" />
         <StatsCard
           title="Follow-ups do Dia"
           value={todayFollowUps}
@@ -139,77 +266,124 @@ export default function Dashboard() {
         />
       </div>
 
-      {/* Charts Row */}
+      {/* Sources chart + Conversion rates */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Status Distribution */}
+        {/* Origem dos Leads */}
         <Card className="shadow-sm">
           <CardHeader>
             <CardTitle className="text-lg font-semibold flex items-center gap-2">
               <Target className="w-5 h-5 text-primary" />
-              Distribuição por Status
+              Origem dos Leads
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {statusData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={250}>
-                <PieChart>
-                  <Pie
-                    data={statusData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={100}
-                    paddingAngle={2}
-                    dataKey="value"
-                  >
-                    {statusData.map((_, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+            {totalLeads > 0 ? (
+              <ResponsiveContainer width="100%" height={280}>
+                <BarChart data={sourcesData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                  <YAxis allowDecimals={false} stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: 'hsl(var(--card))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '8px',
+                    }}
+                  />
+                  <Bar dataKey="value" radius={[6, 6, 0, 0]}>
+                    {sourcesData.map((entry) => (
+                      <Cell key={entry.name} fill={SOURCE_COLORS[entry.name] || 'hsl(var(--primary))'} />
                     ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
+                  </Bar>
+                </BarChart>
               </ResponsiveContainer>
             ) : (
-              <div className="h-[250px] flex items-center justify-center text-muted-foreground">
-                Nenhum lead cadastrado
+              <div className="h-[280px] flex items-center justify-center text-muted-foreground">
+                Nenhum lead no período/filtro selecionado
               </div>
             )}
           </CardContent>
         </Card>
 
-        {/* Recent Leads */}
+        {/* Taxas de Conversão */}
         <Card className="shadow-sm">
           <CardHeader>
             <CardTitle className="text-lg font-semibold flex items-center gap-2">
-              <Clock className="w-5 h-5 text-primary" />
-              Leads Recentes
+              <TrendingUp className="w-5 h-5 text-primary" />
+              Taxas de Conversão
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            {recentLeads.length > 0 ? (
-              <div className="space-y-3">
-                {recentLeads.map((lead) => (
-                  <div 
-                    key={lead.id} 
-                    className="flex items-center justify-between p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
-                  >
-                    <div className="min-w-0">
-                      <p className="font-medium truncate">{lead.company_name}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {format(new Date(lead.created_at), "dd/MM/yyyy", { locale: ptBR })}
-                      </p>
-                    </div>
-                    <LeadStatusBadge status={lead.status} size="sm" />
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="h-[200px] flex items-center justify-center text-muted-foreground">
-                Nenhum lead cadastrado
-              </div>
-            )}
+          <CardContent className="space-y-4">
+            <RateRow
+              icon={MessageCircle}
+              label="Taxa de Resposta"
+              rate={responseRate}
+              count={respondedLeads}
+              total={totalLeads}
+              color="text-success"
+              barColor="bg-success"
+            />
+            <RateRow
+              icon={CalendarCheck}
+              label="Taxa de Reuniões"
+              rate={meetingRate}
+              count={meetingsHeld}
+              total={totalLeads}
+              color="text-warning"
+              barColor="bg-warning"
+            />
+            <RateRow
+              icon={Trophy}
+              label="Taxa de Fechamento"
+              rate={closeRate}
+              count={closedLeads}
+              total={totalLeads}
+              color="text-primary"
+              barColor="bg-primary"
+            />
           </CardContent>
-      </Card>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+function RateRow({
+  icon: Icon,
+  label,
+  rate,
+  count,
+  total,
+  color,
+  barColor,
+}: {
+  icon: any;
+  label: string;
+  rate: number;
+  count: number;
+  total: number;
+  color: string;
+  barColor: string;
+}) {
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Icon className={`w-5 h-5 ${color}`} />
+          <span className="font-medium">{label}</span>
+        </div>
+        <div className="text-right">
+          <span className={`text-2xl font-bold ${color}`}>{rate.toFixed(1)}%</span>
+          <p className="text-xs text-muted-foreground">
+            {count} de {total} leads
+          </p>
+        </div>
+      </div>
+      <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+        <div
+          className={`h-full ${barColor} transition-all`}
+          style={{ width: `${Math.min(rate, 100)}%` }}
+        />
       </div>
     </div>
   );

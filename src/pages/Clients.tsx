@@ -280,6 +280,46 @@ export default function Clients() {
             className="pl-10"
           />
         </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button
+            type="button"
+            variant={statusFilter === 'active' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setStatusFilter('active')}
+            className="gap-1"
+          >
+            <PlayCircle className="w-4 h-4" />
+            Ativos ({statusCounts.active})
+          </Button>
+          <Button
+            type="button"
+            variant={statusFilter === 'paused' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setStatusFilter('paused')}
+            className="gap-1"
+          >
+            <PauseCircle className="w-4 h-4" />
+            Pausados ({statusCounts.paused})
+          </Button>
+          <Button
+            type="button"
+            variant={statusFilter === 'churn' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setStatusFilter('churn')}
+            className="gap-1"
+          >
+            <UserMinus className="w-4 h-4" />
+            Churn ({statusCounts.churn})
+          </Button>
+          <Button
+            type="button"
+            variant={statusFilter === 'all' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setStatusFilter('all')}
+          >
+            Todos
+          </Button>
+        </div>
       </div>
 
       {loading ? (
@@ -304,6 +344,7 @@ export default function Clients() {
               client={client}
               onEdit={handleEdit}
               onDelete={handleDelete}
+              onChange={fetchData}
             />
           ))}
         </div>

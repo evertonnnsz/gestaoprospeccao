@@ -8,6 +8,9 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Search, Users, Plus } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { splitClientsRevenue } from '@/lib/utils/clientRevenue';
+import { TrendingUp, CheckCircle2, Clock } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -108,6 +111,10 @@ export default function Clients() {
     return companyName.includes(query) || contactName.includes(query) || services.includes(query);
   });
 
+  const revenue = splitClientsRevenue(clients);
+  const fmtBRL = (v: number) =>
+    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
+
   const handleEdit = (client: Client) => {
     setSelectedClient(client);
     setSelectedLead(client.lead || null);
@@ -197,6 +204,63 @@ export default function Clients() {
           </div>
         )}
       </div>
+
+      {/* Resumo de faturamento */}
+      {clients.length > 0 && (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <Card>
+            <CardContent className="p-4 flex items-center justify-between">
+              <div>
+                <p className="text-xs uppercase tracking-wide text-muted-foreground font-medium">
+                  Faturamento Previsto
+                </p>
+                <p className="text-2xl font-bold mt-1">{fmtBRL(revenue.total)}</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {revenue.totalCount} {revenue.totalCount === 1 ? 'cliente' : 'clientes'}
+                </p>
+              </div>
+              <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
+                <TrendingUp className="w-5 h-5 text-muted-foreground" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-success/30 bg-success/5">
+            <CardContent className="p-4 flex items-center justify-between">
+              <div>
+                <p className="text-xs uppercase tracking-wide text-success font-medium">
+                  Recebido no Mês
+                </p>
+                <p className="text-2xl font-bold text-success mt-1">{fmtBRL(revenue.received)}</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {revenue.paidCount} {revenue.paidCount === 1 ? 'cliente pago' : 'clientes pagos'}
+                </p>
+              </div>
+              <div className="w-10 h-10 rounded-lg bg-success/15 flex items-center justify-center">
+                <CheckCircle2 className="w-5 h-5 text-success" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-warning/30 bg-warning/5">
+            <CardContent className="p-4 flex items-center justify-between">
+              <div>
+                <p className="text-xs uppercase tracking-wide text-warning font-medium">
+                  A Receber
+                </p>
+                <p className="text-2xl font-bold text-warning mt-1">{fmtBRL(revenue.receivable)}</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {revenue.receivableCount}{' '}
+                  {revenue.receivableCount === 1 ? 'pendente/atrasado' : 'pendentes/atrasados'}
+                </p>
+              </div>
+              <div className="w-10 h-10 rounded-lg bg-warning/15 flex items-center justify-center">
+                <Clock className="w-5 h-5 text-warning" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       <div className="flex items-center gap-4">
         <div className="relative flex-1 max-w-md">

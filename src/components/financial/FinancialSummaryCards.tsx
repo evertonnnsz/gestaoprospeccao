@@ -5,9 +5,10 @@ interface FinancialSummaryCardsProps {
   totalIncome: number;
   totalExpenses: number;
   clientsRevenue: number;
+  clientsReceivable?: number;
 }
 
-export function FinancialSummaryCards({ totalIncome, totalExpenses, clientsRevenue }: FinancialSummaryCardsProps) {
+export function FinancialSummaryCards({ totalIncome, totalExpenses, clientsRevenue, clientsReceivable = 0 }: FinancialSummaryCardsProps) {
   const combinedIncome = totalIncome + clientsRevenue;
   const balance = combinedIncome - totalExpenses;
   
@@ -28,7 +29,7 @@ export function FinancialSummaryCards({ totalIncome, totalExpenses, clientsReven
         <CardContent>
           <div className="text-2xl font-bold text-emerald-600">{formatCurrency(combinedIncome)}</div>
           <p className="text-xs text-muted-foreground mt-1">
-            Lançamentos + Clientes
+            Lançamentos + Clientes pagos
           </p>
         </CardContent>
       </Card>
@@ -63,13 +64,15 @@ export function FinancialSummaryCards({ totalIncome, totalExpenses, clientsReven
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Receita de Clientes</CardTitle>
+          <CardTitle className="text-sm font-medium">Recebido (Clientes)</CardTitle>
           <DollarSign className="h-4 w-4 text-emerald-500" />
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold text-emerald-600">{formatCurrency(clientsRevenue)}</div>
           <p className="text-xs text-muted-foreground mt-1">
-            Contratos ativos
+            {clientsReceivable > 0
+              ? `${formatCurrency(clientsReceivable)} a receber`
+              : 'Apenas pagamentos confirmados'}
           </p>
         </CardContent>
       </Card>

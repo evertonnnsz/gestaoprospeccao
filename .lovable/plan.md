@@ -1,67 +1,101 @@
+## Objetivo
 
-## Problema
+Permitir mudar o status do cliente entre **Ativo / Pausado / Churn** na aba Clientes e exibir a **Taxa de Churn** dentro do card "Taxas de Conversão" no Dashboard.
 
-Hoje o "faturamento de clientes" é calculado somando o `project_value` de **todos** os contratos, ignorando o `monthly_payment_status`. Quando você marca um cliente como **Pendente** ou **Atrasado** no cadastro, o número de faturamento não muda — o que esconde a realidade do que efetivamente entrou no caixa.
+## Decisões
 
-A aba **Clientes** ainda não tem nenhum bloco de faturamento; só os cards individuais. Os cards de faturamento ficam no **Financeiro** ("Receita de Clientes") e na **Central Gamificada** ("Faturamento Mensal Atual").
-
-## Decisão
-
-1. Adicionar um **resumo de faturamento do mês no topo da aba Clientes**, refletindo o status de pagamento.
-2. **Atualizar** os cards já existentes no Financeiro e na Central Gamificada para usar a mesma lógica baseada em status — assim o número fica consistente em todo o app.
-
-Critério: um cliente só conta no "Faturamento Recebido" do mês quando está com status **Pago**. Pendente e Atrasado entram em "A Receber".
+- **Status do cliente** (novo campo, separado de `monthly_payment_status`):
+  - `active` — em operação normal
+  - `paused` — temporariamente pausado (não conta como churn, mas sai dos KPIs ativos)
+  - `churn` — saída definitiva
+- **Onde alterar**: botão/Select de status no `ClientCard` (mudança rápida) e também no `ClientForm` (edição completa, com data e motivo).
+- **Cálculo da taxa de churn**: `churn / (active + paused + churn)` — total de clientes que existiram vs. os que saíram. Mostrado como nova linha no card "Taxas de Conversão" do Dashboard, no mesmo padrão visual das outras taxas (ícone, %, contagem, barra).
+- **Impacto financeiro**: clientes em `paused` ou `churn` saem dos cálculos de Faturamento Previsto / Recebido / A Receber (Clientes, Financeiro e Central Gamificada). Continuam no banco para histórico.
 
 ## Mudanças
 
-### 1. Aba Clientes — novo bloco de resumo (`src/pages/Clients.tsx`)
+### 1. Banco de dados (migration)
 
-Adicionar 3 cards compactos acima da busca:
+Adicionar à tabela `clients`:
+- `status text not null default 'active'` — valores aceitos: `'active'` | `'paused'` | `'churn'`
+- `churn_date date null`
+- `churn_reason text null`
 
-| Card | Cálculo | Cor |
-|---|---|---|
-| Faturamento Previsto | soma de `project_value` de todos clientes | neutro |
-| Recebido no Mês | soma de `project_value` onde `monthly_payment_status = 'paid'` | verde |
-| A Receber | soma onde status é `pending` ou `overdue` | amarelo / destaque |
+### 2. Tipos (`src/types/crm.ts`)
 
-Reutilizar `Card` / `CardContent` do shadcn. Mostrar também a contagem de clientes em cada bucket (ex.: "3 clientes pagos").
+```ts
+export type ClientStatus = 'active' | 'paused' | 'churn';
 
-### 2. Financeiro — `FinancialSummaryCards` (`src/components/financial/FinancialSummaryCards.tsx` + `src/pages/Financial.tsx`)
+export interface Client {
+  // ...campos atuais
+  status: ClientStatus;
+  churn_date: string | null;
+  churn_reason: string | null;
+}
 
-- Trocar o card "Receita de Clientes" por **"Recebido (Clientes)"** = soma de `project_value` apenas dos `paid`.
-- Atualizar o card "Receita Total" e "Saldo" para usar esse novo valor (recebido), em vez do total bruto. Saldo passa a refletir caixa real.
+export const CLIENT_STATUS_LABELS: Record<ClientStatus, string> = {
+  active: 'Ativo',
+  paused: 'Pausado',
+  churn: 'Churn',
+};
+```
 
-### 3. Central Gamificada — `GamifiedPanel.tsx`
+### 3. `ClientCard.tsx`
 
-- "Faturamento Mensal Atual" passa a somar apenas clientes com `monthly_payment_status = 'paid'`.
-- "Número de Clientes Ativos" continua contando todos os contratos (para não distorcer ticket médio).
-- "Ticket Médio Base" continua sendo `faturamento previsto / clientes` (base do simulador), com tooltip explicando.
+- Badge colorido com o status atual (Ativo = verde, Pausado = âmbar, Churn = vermelho).
+- Botão dropdown "Mudar Status" no header do card com as 3 opções; ao escolher Churn, abre confirmação rápida (preenche `churn_date = hoje` e pede `churn_reason` opcional).
+- Card com opacidade reduzida quando `status !== 'active'`.
 
-### 4. Memória
+### 4. `ClientForm.tsx`
 
-Atualizar `mem://features/client-management/core-logic` registrando que faturamento agregado considera `monthly_payment_status` (`paid` = recebido, `pending`/`overdue` = a receber).
+- Novo Select **Status do Cliente** (Ativo / Pausado / Churn).
+- Quando "Churn" selecionado: campos opcionais **Data do Churn** (default hoje) e **Motivo**.
+- Salvar no insert/update.
 
-## Detalhes técnicos
+### 5. `src/pages/Clients.tsx`
 
-- Helper utilitário em `src/lib/utils/clientRevenue.ts`:
-  ```ts
-  export function splitClientsRevenue(clients: Client[]) {
-    const sum = (list: Client[]) => list.reduce((s, c) => s + (Number(c.project_value) || 0), 0);
-    const paid = clients.filter(c => c.monthly_payment_status === 'paid');
-    const pending = clients.filter(c => c.monthly_payment_status === 'pending' || c.monthly_payment_status === 'overdue');
-    return {
-      total: sum(clients),
-      received: sum(paid),
-      receivable: sum(pending),
-      paidCount: paid.length,
-      receivableCount: pending.length,
-    };
-  }
-  ```
-- Importar e usar em `Clients.tsx`, `Financial.tsx` e `GamifiedPanel.tsx`.
-- Não mexer em RLS nem em schema (campo `monthly_payment_status` já existe na tabela `clients`).
+- Toggle/abas: **Ativos | Pausados | Churn | Todos** (default Ativos).
+- Atualizar `splitClientsRevenue` para considerar somente `active` no cálculo de Faturamento (Previsto/Recebido/A Receber).
+- Mini-contador exibindo: "X ativos • Y pausados • Z churn".
+
+### 6. `src/lib/utils/clientRevenue.ts`
+
+- Filtrar internamente `status === 'active'` antes das somas.
+- Adicionar:
+
+```ts
+export function calculateChurnRate(clients: Client[]) {
+  const total = clients.length;
+  const churned = clients.filter(c => c.status === 'churn').length;
+  return {
+    rate: total > 0 ? (churned / total) * 100 : 0,
+    churned,
+    total,
+  };
+}
+```
+
+### 7. `src/pages/Dashboard.tsx`
+
+- Buscar `clients` no `useEffect` (além de `leads`).
+- Calcular `calculateChurnRate(clients)`.
+- Adicionar nova `RateRow` ao final do card **Taxas de Conversão**:
+  - Ícone: `UserMinus` (lucide)
+  - Label: "Taxa de Churn"
+  - Cor: `text-destructive` / `bg-destructive`
+  - Subtexto: `{churned} de {total} clientes`
+
+### 8. Consistência em outras telas
+
+- `GamifiedPanel.tsx` e `FinancialSummaryCards.tsx`: passam a refletir só clientes `active` automaticamente via `splitClientsRevenue`.
+- `Funnel.tsx` e demais telas de leads: não impactados.
+
+### 9. Memória
+
+Atualizar `mem://features/client-management/core-logic` com o novo campo `status` (active/paused/churn) e a regra de exclusão de pausados/churn dos cálculos financeiros. Adicionar nota em `mem://features/metrics/core-logic` sobre a nova taxa de churn no Dashboard.
 
 ## Fora do escopo
 
-- Não estamos criando histórico mensal de pagamento (hoje há um único status por cliente).
-- Não vamos criar lançamento automático em `financial_transactions` ao marcar pago — fica como possível próximo passo.
+- Histórico mensal de churn (cohort/evolução mês a mês).
+- Lançamento automático em `financial_transactions` ao marcar churn.
+- Reativação automatizada de cliente pausado (basta voltar o status manualmente).

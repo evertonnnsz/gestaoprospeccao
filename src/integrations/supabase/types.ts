@@ -137,6 +137,8 @@ export type Database = {
       }
       clients: {
         Row: {
+          churn_date: string | null
+          churn_reason: string | null
           contract_duration_months: number | null
           contract_url: string | null
           created_at: string
@@ -148,10 +150,13 @@ export type Database = {
           project_start_date: string | null
           project_value: number | null
           services: string | null
+          status: string
           updated_at: string
           user_id: string
         }
         Insert: {
+          churn_date?: string | null
+          churn_reason?: string | null
           contract_duration_months?: number | null
           contract_url?: string | null
           created_at?: string
@@ -163,10 +168,13 @@ export type Database = {
           project_start_date?: string | null
           project_value?: number | null
           services?: string | null
+          status?: string
           updated_at?: string
           user_id: string
         }
         Update: {
+          churn_date?: string | null
+          churn_reason?: string | null
           contract_duration_months?: number | null
           contract_url?: string | null
           created_at?: string
@@ -178,6 +186,7 @@ export type Database = {
           project_start_date?: string | null
           project_value?: number | null
           services?: string | null
+          status?: string
           updated_at?: string
           user_id?: string
         }

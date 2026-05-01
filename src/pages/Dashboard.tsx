@@ -257,8 +257,8 @@ export default function Dashboard() {
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatsCard title="Total de Leads" value={totalLeads} icon={Users} variant="primary" />
-        <StatsCard title="Reuniões Realizadas" value={meetingsHeld} icon={Calendar} variant="success" />
-        <StatsCard title="Propostas Enviadas" value={proposalsSent} icon={FileText} variant="default" />
+        <StatsCard title="Reuniões Realizadas" value={meetingsHeld} icon={Calendar} variant="success" onClick={meetingsHeld > 0 ? () => navigate('/leads?status=reuniao_realizada') : undefined} />
+        <StatsCard title="Propostas Enviadas" value={proposalsSent} icon={FileText} variant="default" onClick={proposalsSent > 0 ? () => navigate('/leads?status=proposta_enviada') : undefined} />
         <StatsCard
           title="Follow-ups do Dia"
           value={todayFollowUps}

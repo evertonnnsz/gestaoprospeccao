@@ -142,25 +142,27 @@ export default function Funnel() {
     [periodFilteredLeads, respondedFilter]
   );
 
-  // Helper: conta leads cujo histórico contém o status (preserva passagens anteriores)
-  const countByHistory = (leadsList: Lead[], status: LeadStatus): number =>
-    leadsList.filter((l) => {
+  // Combina lógica cumulativa original COM histórico (união).
+  // Um lead conta na etapa se: (a) cumulativo original já o incluía, OU (b) histórico registra passagem por essa etapa.
+  const countStage = (leadsList: Lead[], stage: StageKey): number => {
+    if (stage === 'lead_coletado') return leadsList.length;
+    if (stage === 'responderam')
+      return leadsList.filter((l) => l.responded === true).length;
+    return leadsList.filter((l) => {
+      // (a) cumulativo original
+      const cumulativeMatch = cumulativeCount([l], stage) > 0;
+      if (cumulativeMatch) return true;
+      // (b) histórico
       const set = historyByLead.get(l.id);
-      if (set && set.has(status)) return true;
-      // Fallback: lead sem histórico registrado ainda — usa status atual
-      return !set && l.status === status;
+      return !!(set && set.has(stage as LeadStatus));
     }).length;
+  };
 
   const stageCounts = useMemo(() => {
-    return FUNNEL_STAGES.map((stage) => {
-      if (stage === 'lead_coletado') {
-        return { stage, count: filteredLeads.length };
-      }
-      if (stage === 'responderam') {
-        return { stage, count: filteredLeads.filter((l) => l.responded === true).length };
-      }
-      return { stage, count: countByHistory(filteredLeads, stage as LeadStatus) };
-    });
+    return FUNNEL_STAGES.map((stage) => ({
+      stage,
+      count: countStage(filteredLeads, stage),
+    }));
   }, [filteredLeads, historyByLead]);
 
   const topCount = stageCounts[0]?.count ?? 0;
@@ -169,15 +171,15 @@ export default function Funnel() {
 
   const respondedLeads = periodFilteredLeads.filter((l) => l.responded === true).length;
 
-  // Desqualificados — também consideram histórico
-  const visualizouCount = countByHistory(filteredLeads, 'visualizou_nao_respondeu');
-  const semInteresseCount = countByHistory(filteredLeads, 'sem_interesse');
-  const perdidoCount = countByHistory(filteredLeads, 'lead_perdido');
+  // Desqualificados — cumulativo OR histórico
+  const visualizouCount = countStage(filteredLeads, 'visualizou_nao_respondeu');
+  const semInteresseCount = countStage(filteredLeads, 'sem_interesse');
+  const perdidoCount = countStage(filteredLeads, 'lead_perdido');
   const desqualificadoTotal = visualizouCount + semInteresseCount + perdidoCount;
 
   // KPIs
-  const engajadosCount = countByHistory(filteredLeads, 'interesse_demonstrado');
-  const reunioesCount = countByHistory(filteredLeads, 'reuniao_realizada');
+  const engajadosCount = countStage(filteredLeads, 'interesse_demonstrado');
+  const reunioesCount = countStage(filteredLeads, 'reuniao_realizada');
 
   if (loading) {
     return (

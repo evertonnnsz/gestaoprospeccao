@@ -101,6 +101,7 @@ function cumulativeCount(leads: Lead[], status: StageKey): number {
 
 export default function Funnel() {
   const [leads, setLeads] = useState<Lead[]>([]);
+  const [historyByLead, setHistoryByLead] = useState<Map<string, Set<LeadStatus>>>(new Map());
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState<PeriodType>('all');
   const [dateRange, setDateRange] = useState<DateRange>({ from: undefined, to: undefined });
@@ -110,6 +111,16 @@ export default function Funnel() {
     const fetchLeads = async () => {
       const { data } = await supabase.from('leads').select('*');
       setLeads((data as Lead[]) || []);
+      const { data: history } = await supabase
+        .from('lead_status_history')
+        .select('lead_id, status');
+      const map = new Map<string, Set<LeadStatus>>();
+      (history || []).forEach((h: any) => {
+        if (!h.lead_id || !h.status) return;
+        if (!map.has(h.lead_id)) map.set(h.lead_id, new Set());
+        map.get(h.lead_id)!.add(h.status as LeadStatus);
+      });
+      setHistoryByLead(map);
       setLoading(false);
     };
     fetchLeads();
@@ -131,12 +142,26 @@ export default function Funnel() {
     [periodFilteredLeads, respondedFilter]
   );
 
+  // Helper: conta leads cujo histórico contém o status (preserva passagens anteriores)
+  const countByHistory = (leadsList: Lead[], status: LeadStatus): number =>
+    leadsList.filter((l) => {
+      const set = historyByLead.get(l.id);
+      if (set && set.has(status)) return true;
+      // Fallback: lead sem histórico registrado ainda — usa status atual
+      return !set && l.status === status;
+    }).length;
+
   const stageCounts = useMemo(() => {
-    return FUNNEL_STAGES.map((stage) => ({
-      stage,
-      count: cumulativeCount(filteredLeads, stage),
-    }));
-  }, [filteredLeads]);
+    return FUNNEL_STAGES.map((stage) => {
+      if (stage === 'lead_coletado') {
+        return { stage, count: filteredLeads.length };
+      }
+      if (stage === 'responderam') {
+        return { stage, count: filteredLeads.filter((l) => l.responded === true).length };
+      }
+      return { stage, count: countByHistory(filteredLeads, stage as LeadStatus) };
+    });
+  }, [filteredLeads, historyByLead]);
 
   const topCount = stageCounts[0]?.count ?? 0;
   const closedCount = stageCounts[stageCounts.length - 1]?.count ?? 0;
@@ -144,15 +169,15 @@ export default function Funnel() {
 
   const respondedLeads = periodFilteredLeads.filter((l) => l.responded === true).length;
 
-  // Desqualificados (não cumulativo)
-  const visualizouCount = filteredLeads.filter((l) => l.status === 'visualizou_nao_respondeu').length;
-  const semInteresseCount = filteredLeads.filter((l) => l.status === 'sem_interesse').length;
-  const perdidoCount = filteredLeads.filter((l) => l.status === 'lead_perdido').length;
+  // Desqualificados — também consideram histórico
+  const visualizouCount = countByHistory(filteredLeads, 'visualizou_nao_respondeu');
+  const semInteresseCount = countByHistory(filteredLeads, 'sem_interesse');
+  const perdidoCount = countByHistory(filteredLeads, 'lead_perdido');
   const desqualificadoTotal = visualizouCount + semInteresseCount + perdidoCount;
 
   // KPIs
-  const engajadosCount = cumulativeCount(filteredLeads, 'interesse_demonstrado');
-  const reunioesCount = cumulativeCount(filteredLeads, 'reuniao_realizada');
+  const engajadosCount = countByHistory(filteredLeads, 'interesse_demonstrado');
+  const reunioesCount = countByHistory(filteredLeads, 'reuniao_realizada');
 
   if (loading) {
     return (

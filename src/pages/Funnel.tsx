@@ -47,72 +47,40 @@ const STAGE_COLORS: Record<StageKey, string> = {
 
 const closedStatuses: LeadStatus[] = ['fechado', 'lead_perdido'];
 
-// Lógica cumulativa preservada do funil original
-function cumulativeCount(leads: Lead[], status: StageKey): number {
-  switch (status) {
-    case 'lead_coletado':
-      // Topo do funil: todos os leads que entraram no sistema
-      return leads.length;
-    case 'responderam':
-      // Leads que efetivamente responderam à abordagem
-      return leads.filter((l) => l.responded === true).length;
-    case 'interesse_demonstrado':
-      return leads.filter(
-        (l) =>
-          l.status === status ||
-          l.status === 'agendou_reuniao' ||
-          l.status === 'reuniao_realizada' ||
-          l.status === 'proposta_enviada' ||
-          l.status === 'em_negociacao' ||
-          closedStatuses.includes(l.status as LeadStatus)
-      ).length;
-    case 'agendou_reuniao':
-      return leads.filter(
-        (l) =>
-          l.status === status ||
-          l.status === 'reuniao_realizada' ||
-          l.status === 'proposta_enviada' ||
-          l.status === 'em_negociacao' ||
-          closedStatuses.includes(l.status as LeadStatus)
-      ).length;
-    case 'reuniao_realizada':
-      return leads.filter(
-        (l) =>
-          l.status === status ||
-          l.status === 'proposta_enviada' ||
-          l.status === 'em_negociacao' ||
-          closedStatuses.includes(l.status as LeadStatus)
-      ).length;
-    case 'proposta_enviada':
-      return leads.filter(
-        (l) =>
-          l.status === status ||
-          l.status === 'em_negociacao' ||
-          closedStatuses.includes(l.status as LeadStatus)
-      ).length;
-    case 'em_negociacao':
-      return leads.filter(
-        (l) => l.status === status || closedStatuses.includes(l.status as LeadStatus)
-      ).length;
-    default:
-      return leads.filter((l) => l.status === status).length;
+interface StatusHistoryEntry {
+  lead_id: string;
+  status: LeadStatus;
+  changed_at: string;
+}
+
+// Conta leads distintos que JÁ passaram pelo status informado (com base no histórico).
+function countByHistory(history: StatusHistoryEntry[], status: LeadStatus): number {
+  const ids = new Set<string>();
+  for (const h of history) {
+    if (h.status === status) ids.add(h.lead_id);
   }
+  return ids.size;
 }
 
 export default function Funnel() {
   const [leads, setLeads] = useState<Lead[]>([]);
+  const [history, setHistory] = useState<StatusHistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState<PeriodType>('all');
   const [dateRange, setDateRange] = useState<DateRange>({ from: undefined, to: undefined });
   const [respondedFilter, setRespondedFilter] = useState<string>('all');
 
   useEffect(() => {
-    const fetchLeads = async () => {
-      const { data } = await supabase.from('leads').select('*');
-      setLeads((data as Lead[]) || []);
+    const fetchAll = async () => {
+      const [{ data: leadsData }, { data: historyData }] = await Promise.all([
+        supabase.from('leads').select('*'),
+        (supabase as any).from('lead_status_history').select('lead_id, status, changed_at'),
+      ]);
+      setLeads((leadsData as Lead[]) || []);
+      setHistory((historyData as StatusHistoryEntry[]) || []);
       setLoading(false);
     };
-    fetchLeads();
+    fetchAll();
   }, []);
 
   const periodFilteredLeads = useMemo(
@@ -131,12 +99,25 @@ export default function Funnel() {
     [periodFilteredLeads, respondedFilter]
   );
 
+  // Histórico restrito aos leads visíveis no período/filtros atuais.
+  const filteredHistory = useMemo(() => {
+    const allowedIds = new Set(filteredLeads.map((l) => l.id));
+    return history.filter((h) => allowedIds.has(h.lead_id));
+  }, [history, filteredLeads]);
+
   const stageCounts = useMemo(() => {
-    return FUNNEL_STAGES.map((stage) => ({
-      stage,
-      count: cumulativeCount(filteredLeads, stage),
-    }));
-  }, [filteredLeads]);
+    return FUNNEL_STAGES.map((stage) => {
+      let count: number;
+      if (stage === 'lead_coletado') {
+        count = filteredLeads.length;
+      } else if (stage === 'responderam') {
+        count = filteredLeads.filter((l) => l.responded === true).length;
+      } else {
+        count = countByHistory(filteredHistory, stage as LeadStatus);
+      }
+      return { stage, count };
+    });
+  }, [filteredLeads, filteredHistory]);
 
   const topCount = stageCounts[0]?.count ?? 0;
   const closedCount = stageCounts[stageCounts.length - 1]?.count ?? 0;
@@ -144,15 +125,15 @@ export default function Funnel() {
 
   const respondedLeads = periodFilteredLeads.filter((l) => l.responded === true).length;
 
-  // Desqualificados (não cumulativo)
-  const visualizouCount = filteredLeads.filter((l) => l.status === 'visualizou_nao_respondeu').length;
-  const semInteresseCount = filteredLeads.filter((l) => l.status === 'sem_interesse').length;
-  const perdidoCount = filteredLeads.filter((l) => l.status === 'lead_perdido').length;
+  // Desqualificados via histórico (mantém o evento mesmo se status mudar depois)
+  const visualizouCount = countByHistory(filteredHistory, 'visualizou_nao_respondeu');
+  const semInteresseCount = countByHistory(filteredHistory, 'sem_interesse');
+  const perdidoCount = countByHistory(filteredHistory, 'lead_perdido');
   const desqualificadoTotal = visualizouCount + semInteresseCount + perdidoCount;
 
   // KPIs
-  const engajadosCount = cumulativeCount(filteredLeads, 'interesse_demonstrado');
-  const reunioesCount = cumulativeCount(filteredLeads, 'reuniao_realizada');
+  const engajadosCount = countByHistory(filteredHistory, 'interesse_demonstrado');
+  const reunioesCount = countByHistory(filteredHistory, 'reuniao_realizada');
 
   if (loading) {
     return (

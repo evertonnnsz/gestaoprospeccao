@@ -1,101 +1,61 @@
-## Objetivo
+## Problema
 
-Permitir mudar o status do cliente entre **Ativo / Pausado / Churn** na aba Clientes e exibir a **Taxa de Churn** dentro do card "Taxas de Conversão" no Dashboard.
+Hoje o Funil conta cada lead pelo **status atual**. Quando um lead passa de "Reunião Realizada" → "Proposta Enviada", ele some da contagem de "Reunião Realizada", distorcendo o histórico real (você viu 42 reuniões caírem ao avançar leads).
 
-## Decisões
+A lógica cumulativa atual já tenta resolver isso assumindo que estágios posteriores "passaram pelos anteriores", mas isso só funciona no caminho linear. Se um lead pula etapas, volta atrás, ou é marcado como "Sem Interesse" / "Lead Perdido" depois de uma reunião, o histórico se perde.
 
-- **Status do cliente** (novo campo, separado de `monthly_payment_status`):
-  - `active` — em operação normal
-  - `paused` — temporariamente pausado (não conta como churn, mas sai dos KPIs ativos)
-  - `churn` — saída definitiva
-- **Onde alterar**: botão/Select de status no `ClientCard` (mudança rápida) e também no `ClientForm` (edição completa, com data e motivo).
-- **Cálculo da taxa de churn**: `churn / (active + paused + churn)` — total de clientes que existiram vs. os que saíram. Mostrado como nova linha no card "Taxas de Conversão" do Dashboard, no mesmo padrão visual das outras taxas (ícone, %, contagem, barra).
-- **Impacto financeiro**: clientes em `paused` ou `churn` saem dos cálculos de Faturamento Previsto / Recebido / A Receber (Clientes, Financeiro e Central Gamificada). Continuam no banco para histórico.
+## Solução
+
+Registrar **todo histórico de status** de cada lead numa tabela separada e usar esse histórico (não o status atual) para alimentar o Funil.
 
 ## Mudanças
 
-### 1. Banco de dados (migration)
+### 1. Banco — nova tabela `lead_status_history`
 
-Adicionar à tabela `clients`:
-- `status text not null default 'active'` — valores aceitos: `'active'` | `'paused'` | `'churn'`
-- `churn_date date null`
-- `churn_reason text null`
-
-### 2. Tipos (`src/types/crm.ts`)
-
-```ts
-export type ClientStatus = 'active' | 'paused' | 'churn';
-
-export interface Client {
-  // ...campos atuais
-  status: ClientStatus;
-  churn_date: string | null;
-  churn_reason: string | null;
-}
-
-export const CLIENT_STATUS_LABELS: Record<ClientStatus, string> = {
-  active: 'Ativo',
-  paused: 'Pausado',
-  churn: 'Churn',
-};
+```
+id          uuid pk
+lead_id     uuid (referência lógica a leads.id)
+user_id     uuid (para RLS)
+status      lead_status
+changed_at  timestamptz default now()
 ```
 
-### 3. `ClientCard.tsx`
+- RLS: usuário só vê/insere as próprias linhas (`auth.uid() = user_id`).
+- Índice em `(lead_id, status)` e `(user_id, changed_at)`.
 
-- Badge colorido com o status atual (Ativo = verde, Pausado = âmbar, Churn = vermelho).
-- Botão dropdown "Mudar Status" no header do card com as 3 opções; ao escolher Churn, abre confirmação rápida (preenche `churn_date = hoje` e pede `churn_reason` opcional).
-- Card com opacidade reduzida quando `status !== 'active'`.
+### 2. Trigger no Supabase
 
-### 4. `ClientForm.tsx`
+- **AFTER INSERT em `leads`**: grava 1 linha com o status inicial.
+- **AFTER UPDATE em `leads`** (quando `OLD.status IS DISTINCT FROM NEW.status`): grava nova linha.
 
-- Novo Select **Status do Cliente** (Ativo / Pausado / Churn).
-- Quando "Churn" selecionado: campos opcionais **Data do Churn** (default hoje) e **Motivo**.
-- Salvar no insert/update.
+Assim qualquer mudança de status — pelo card, pelo form, em massa — é registrada automaticamente, sem alterar código de UI.
 
-### 5. `src/pages/Clients.tsx`
+### 3. Backfill (uma vez)
 
-- Toggle/abas: **Ativos | Pausados | Churn | Todos** (default Ativos).
-- Atualizar `splitClientsRevenue` para considerar somente `active` no cálculo de Faturamento (Previsto/Recebido/A Receber).
-- Mini-contador exibindo: "X ativos • Y pausados • Z churn".
+Migration popula `lead_status_history` com o status atual de todos os leads existentes (usando `created_at`), garantindo que o funil já mostre o passado.
 
-### 6. `src/lib/utils/clientRevenue.ts`
+### 4. `Funnel.tsx` — passar a usar o histórico
 
-- Filtrar internamente `status === 'active'` antes das somas.
-- Adicionar:
+- Buscar `lead_status_history` (com filtro de período aplicado em `changed_at`) além de `leads`.
+- Para cada estágio do funil, contar **leads distintos que JÁ passaram por aquele status** (`COUNT(DISTINCT lead_id) WHERE status = X`).
+- A regra "cumulativa" simplifica: não precisa mais inferir que "quem está em proposta_enviada também passou por reunião_realizada", pois cada um terá sua própria linha no histórico.
+- Estágios especiais:
+  - `lead_coletado`: total de leads no período (continua igual).
+  - `responderam`: continua usando `leads.responded = true` (não é estágio).
+  - `fechado` / `lead_perdido` / `sem_interesse` / `visualizou_nao_respondeu`: contar via histórico.
 
-```ts
-export function calculateChurnRate(clients: Client[]) {
-  const total = clients.length;
-  const churned = clients.filter(c => c.status === 'churn').length;
-  return {
-    rate: total > 0 ? (churned / total) * 100 : 0,
-    churned,
-    total,
-  };
-}
-```
+Resultado: marcar um lead como "Proposta Enviada" não remove a reunião realizada anterior do funil.
 
-### 7. `src/pages/Dashboard.tsx`
+### 5. Filtro de período no Funil
 
-- Buscar `clients` no `useEffect` (além de `leads`).
-- Calcular `calculateChurnRate(clients)`.
-- Adicionar nova `RateRow` ao final do card **Taxas de Conversão**:
-  - Ícone: `UserMinus` (lucide)
-  - Label: "Taxa de Churn"
-  - Cor: `text-destructive` / `bg-destructive`
-  - Subtexto: `{churned} de {total} clientes`
+- Continua aplicando ao lead (data de abordagem) para o universo, mas a contagem por estágio passa a olhar `changed_at` do histórico dentro do mesmo período. Mantém comportamento esperado: "no mês X, quantas reuniões aconteceram".
 
-### 8. Consistência em outras telas
+### 6. Sem impacto em outras telas
 
-- `GamifiedPanel.tsx` e `FinancialSummaryCards.tsx`: passam a refletir só clientes `active` automaticamente via `splitClientsRevenue`.
-- `Funnel.tsx` e demais telas de leads: não impactados.
-
-### 9. Memória
-
-Atualizar `mem://features/client-management/core-logic` com o novo campo `status` (active/paused/churn) e a regra de exclusão de pausados/churn dos cálculos financeiros. Adicionar nota em `mem://features/metrics/core-logic` sobre a nova taxa de churn no Dashboard.
+- `Dashboard`, `Clients`, métricas e financeiro continuam baseados no status atual — nada muda lá.
+- `LeadCard`/`LeadForm` não precisam mudar; o trigger cuida do registro.
 
 ## Fora do escopo
 
-- Histórico mensal de churn (cohort/evolução mês a mês).
-- Lançamento automático em `financial_transactions` ao marcar churn.
-- Reativação automatizada de cliente pausado (basta voltar o status manualmente).
+- UI mostrando o histórico completo de um lead (timeline). Pode ser feito depois — a base de dados já vai existir.
+- Edição/remoção manual de eventos do histórico.

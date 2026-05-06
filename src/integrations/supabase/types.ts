@@ -250,6 +250,30 @@ export type Database = {
           },
         ]
       }
+      lead_status_history: {
+        Row: {
+          changed_at: string
+          id: string
+          lead_id: string
+          status: Database["public"]["Enums"]["lead_status"]
+          user_id: string
+        }
+        Insert: {
+          changed_at?: string
+          id?: string
+          lead_id: string
+          status: Database["public"]["Enums"]["lead_status"]
+          user_id: string
+        }
+        Update: {
+          changed_at?: string
+          id?: string
+          lead_id?: string
+          status?: Database["public"]["Enums"]["lead_status"]
+          user_id?: string
+        }
+        Relationships: []
+      }
       leads: {
         Row: {
           approach_date: string | null

@@ -1,61 +1,51 @@
 ## Problema
 
-Hoje o Funil conta cada lead pelo **status atual**. Quando um lead passa de "Reunião Realizada" → "Proposta Enviada", ele some da contagem de "Reunião Realizada", distorcendo o histórico real (você viu 42 reuniões caírem ao avançar leads).
+Dashboard e Funil divergem porque usam fontes diferentes:
 
-A lógica cumulativa atual já tenta resolver isso assumindo que estágios posteriores "passaram pelos anteriores", mas isso só funciona no caminho linear. Se um lead pula etapas, volta atrás, ou é marcado como "Sem Interesse" / "Lead Perdido" depois de uma reunião, o histórico se perde.
+- **Funil** (atualizado recentemente): conta via `lead_status_history` — qualquer lead que JÁ passou pela etapa entra na contagem, mesmo se o status atual avançou.
+- **Dashboard**: ainda conta pelo `status` **atual** do lead:
+  - "Reuniões Realizadas" = leads cujo status atual está em `reuniao_realizada` ou posterior
+  - "Propostas Enviadas" = leads cujo status atual está em `proposta_enviada` ou posterior
+  - "Taxa de Fechamento" = leads cujo status atual é `fechado`
+
+Resultado: assim que um lead avança (ex.: `reuniao_realizada` → `proposta_enviada`), o Dashboard tira ele da reunião realizada — exatamente o problema que motivou a criação do histórico no Funil. Os números deixam de bater.
 
 ## Solução
 
-Registrar **todo histórico de status** de cada lead numa tabela separada e usar esse histórico (não o status atual) para alimentar o Funil.
+Migrar o Dashboard para a mesma fonte de verdade do Funil: `lead_status_history`. Assim, contagens de etapas viram **eventos históricos** e batem 1:1 com o Funil para o mesmo período/filtros.
 
-## Mudanças
+## Mudanças em `src/pages/Dashboard.tsx`
 
-### 1. Banco — nova tabela `lead_status_history`
+1. **Buscar histórico** junto com `leads` e `clients`:
+   - `supabase.from('lead_status_history').select('lead_id, status, changed_at')`
+   - Guardar em estado `history`.
 
-```
-id          uuid pk
-lead_id     uuid (referência lógica a leads.id)
-user_id     uuid (para RLS)
-status      lead_status
-changed_at  timestamptz default now()
-```
+2. **Restringir histórico aos leads filtrados** (mesmo padrão do Funil):
+   - `filteredHistory` = entradas cujo `lead_id` está em `filteredLeads`.
 
-- RLS: usuário só vê/insere as próprias linhas (`auth.uid() = user_id`).
-- Índice em `(lead_id, status)` e `(user_id, changed_at)`.
+3. **Recalcular KPIs de etapa via histórico** (helper `countByHistory` igual ao do Funil — contar `lead_id` distinto por status):
+   - `meetingsHeld` = `countByHistory(filteredHistory, 'reuniao_realizada')`
+   - `proposalsSent` = `countByHistory(filteredHistory, 'proposta_enviada')`
+   - `closedLeads` = `countByHistory(filteredHistory, 'fechado')`
+   - Remover `MEETING_STATUSES` e `PROPOSAL_OR_BEYOND` (não são mais necessários).
 
-### 2. Trigger no Supabase
+4. **Manter inalterados**:
+   - `totalLeads` (universo do período).
+   - `respondedLeads` / `responseRate` (baseado no flag `responded`).
+   - `todayFollowUps` (baseado em datas do lead).
+   - Churn (baseado em `clients`).
+   - Gráfico "Origem dos Leads" (baseado nos leads filtrados).
 
-- **AFTER INSERT em `leads`**: grava 1 linha com o status inicial.
-- **AFTER UPDATE em `leads`** (quando `OLD.status IS DISTINCT FROM NEW.status`): grava nova linha.
+5. **Taxas de conversão** continuam dividindo pelo `totalLeads`, agora consistente com o Funil:
+   - `meetingRate = meetingsHeld / totalLeads`
+   - `closeRate = closedLeads / totalLeads`
 
-Assim qualquer mudança de status — pelo card, pelo form, em massa — é registrada automaticamente, sem alterar código de UI.
+## Resultado esperado
 
-### 3. Backfill (uma vez)
-
-Migration popula `lead_status_history` com o status atual de todos os leads existentes (usando `created_at`), garantindo que o funil já mostre o passado.
-
-### 4. `Funnel.tsx` — passar a usar o histórico
-
-- Buscar `lead_status_history` (com filtro de período aplicado em `changed_at`) além de `leads`.
-- Para cada estágio do funil, contar **leads distintos que JÁ passaram por aquele status** (`COUNT(DISTINCT lead_id) WHERE status = X`).
-- A regra "cumulativa" simplifica: não precisa mais inferir que "quem está em proposta_enviada também passou por reunião_realizada", pois cada um terá sua própria linha no histórico.
-- Estágios especiais:
-  - `lead_coletado`: total de leads no período (continua igual).
-  - `responderam`: continua usando `leads.responded = true` (não é estágio).
-  - `fechado` / `lead_perdido` / `sem_interesse` / `visualizou_nao_respondeu`: contar via histórico.
-
-Resultado: marcar um lead como "Proposta Enviada" não remove a reunião realizada anterior do funil.
-
-### 5. Filtro de período no Funil
-
-- Continua aplicando ao lead (data de abordagem) para o universo, mas a contagem por estágio passa a olhar `changed_at` do histórico dentro do mesmo período. Mantém comportamento esperado: "no mês X, quantas reuniões aconteceram".
-
-### 6. Sem impacto em outras telas
-
-- `Dashboard`, `Clients`, métricas e financeiro continuam baseados no status atual — nada muda lá.
-- `LeadCard`/`LeadForm` não precisam mudar; o trigger cuida do registro.
+- Cards "Reuniões Realizadas", "Propostas Enviadas" e a "Taxa de Fechamento" no Dashboard passarão a refletir os mesmos números das respectivas etapas no Funil, para o mesmo período.
+- Avançar um lead de etapa não diminuirá mais nenhuma contagem anterior no Dashboard.
 
 ## Fora do escopo
 
-- UI mostrando o histórico completo de um lead (timeline). Pode ser feito depois — a base de dados já vai existir.
-- Edição/remoção manual de eventos do histórico.
+- Mudanças no Funil, Clients, Financeiro ou Customer Success.
+- Novos filtros ou UI — apenas troca da fonte de dados das métricas afetadas.

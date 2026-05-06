@@ -39,27 +39,27 @@ const SOURCE_COLORS: Record<string, string> = {
   'Cold Call': 'hsl(280, 65%, 60%)',
 };
 
-const MEETING_STATUSES: LeadStatus[] = [
-  'reuniao_realizada',
-  'proposta_enviada',
-  'em_negociacao',
-  'fechado',
-  'lead_perdido',
-];
+interface StatusHistoryEntry {
+  lead_id: string;
+  status: LeadStatus;
+  changed_at: string;
+}
 
-// Cumulativo: todo lead que passou pela etapa de proposta (mantém paridade com o Funil)
-const PROPOSAL_OR_BEYOND: LeadStatus[] = [
-  'proposta_enviada',
-  'em_negociacao',
-  'fechado',
-  'lead_perdido',
-];
+// Conta leads distintos que JÁ passaram pelo status informado.
+function countByHistory(history: StatusHistoryEntry[], status: LeadStatus): number {
+  const ids = new Set<string>();
+  for (const h of history) {
+    if (h.status === status) ids.add(h.lead_id);
+  }
+  return ids.size;
+}
 
 export default function Dashboard() {
   const { profile } = useAuth();
   const navigate = useNavigate();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
+  const [history, setHistory] = useState<StatusHistoryEntry[]>([]);
   const [, setLoading] = useState(true);
 
   // Filters
@@ -73,17 +73,17 @@ export default function Dashboard() {
   useEffect(() => {
     const fetchLeads = async () => {
       try {
-        const { data, error } = await supabase
-          .from('leads')
-          .select('*')
-          .order('created_at', { ascending: false });
+        const [{ data, error }, { data: clientsData, error: clientsError }, { data: historyData }] =
+          await Promise.all([
+            supabase.from('leads').select('*').order('created_at', { ascending: false }),
+            supabase.from('clients').select('*'),
+            (supabase as any).from('lead_status_history').select('lead_id, status, changed_at'),
+          ]);
         if (error) throw error;
-        setLeads((data as Lead[]) || []);
-        const { data: clientsData, error: clientsError } = await supabase
-          .from('clients')
-          .select('*');
         if (clientsError) throw clientsError;
+        setLeads((data as Lead[]) || []);
         setClients(((clientsData as unknown) as Client[]) || []);
+        setHistory((historyData as StatusHistoryEntry[]) || []);
       } catch (error) {
         console.error('Error fetching leads:', error);
       } finally {
@@ -154,12 +154,17 @@ export default function Dashboard() {
 
   // KPIs
   const totalLeads = filteredLeads.length;
-  const closedLeads = filteredLeads.filter((l) => l.status === 'fechado').length;
-  const meetingsHeld = filteredLeads.filter((l) => MEETING_STATUSES.includes(l.status as LeadStatus)).length;
   const respondedLeads = filteredLeads.filter((l) => l.responded === true).length;
-  const proposalsSent = filteredLeads.filter((l) =>
-    PROPOSAL_OR_BEYOND.includes(l.status as LeadStatus)
-  ).length;
+
+  // Histórico restrito aos leads filtrados (mesma lógica do Funil)
+  const filteredHistory = useMemo(() => {
+    const allowedIds = new Set(filteredLeads.map((l) => l.id));
+    return history.filter((h) => allowedIds.has(h.lead_id));
+  }, [history, filteredLeads]);
+
+  const meetingsHeld = countByHistory(filteredHistory, 'reuniao_realizada');
+  const proposalsSent = countByHistory(filteredHistory, 'proposta_enviada');
+  const closedLeads = countByHistory(filteredHistory, 'fechado');
 
   const todayFollowUps = leads.filter((lead) => {
     if (lead.status === 'lead_perdido' || lead.status === 'sem_interesse') return false;

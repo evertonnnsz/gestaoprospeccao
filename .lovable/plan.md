@@ -1,43 +1,39 @@
-## Problema
+## Entendimento
 
-Hoje o Funil (`src/pages/Funnel.tsx`) usa `cumulativeCount` baseado **apenas no status atual** do lead. Quando um lead avança de "Reunião Realizada" → "Proposta Enviada", a lógica cumulativa só funciona para etapas anteriores (proposta enviada conta para reunião realizada). Mas se o lead pula etapas, vai para `sem_interesse`, ou se a contagem precisa refletir todos que **já passaram** por cada estágio, o histórico se perde.
+Você está certo: na última mudança, eu **substituí** a lógica cumulativa original do funil por uma contagem baseada apenas em histórico. Isso alterou o comportamento do funil (leads que pulam etapas deixaram de aparecer em estágios intermediários, e a lógica original de cumulatividade foi perdida).
 
-A boa notícia: o banco já registra cada mudança via a tabela `lead_status_history` (alimentada pelo trigger `log_lead_status_change`). Basta passar a usar esse histórico.
+O que você pediu era apenas **somar** ao funil atual a permanência de status anteriores — não trocar a lógica.
 
-## Solução
+## Correção
 
-Refatorar o cálculo do funil para que cada etapa conte **leads distintos que já passaram por aquele status alguma vez**, usando `lead_status_history`.
+Restaurar a lógica cumulativa original e usar o histórico apenas como **complemento aditivo** (união, OR lógico).
 
-### Mudanças
+### Regra única
 
-**1. `src/pages/Funnel.tsx`**
-- Carregar também `lead_status_history` (filtrado pelo usuário via RLS) junto com os leads.
-- Construir um `Map<lead_id, Set<LeadStatus>>` com todos os status pelos quais cada lead passou.
-- Substituir `cumulativeCount` por uma função que conta leads cujo histórico contém o status da etapa (ou que satisfazem a condição "responderam" pelo flag `responded`).
-- Filtro de período continua aplicado sobre os leads (por `created_at`); o histórico é cruzado apenas para os leads visíveis.
-- KPIs ("Engajados", "Reuniões", "Fechados") passam automaticamente a refletir o histórico.
-- Painel "Desqualificados" (Visualizou / Sem Interesse / Lead Perdido) também passa a contar pelo histórico, mantendo a presença mesmo se o lead foi posteriormente movido.
+Um lead conta numa etapa se **qualquer uma** destas for verdadeira:
+1. A lógica cumulativa original já o incluía (status atual = etapa, ou está em etapa posterior dentro do fluxo principal); **OU**
+2. O `lead_status_history` registra que ele já passou por aquela etapa em algum momento.
 
-**2. Garantir histórico retroativo (migration)**
-O trigger só registra a partir de agora. Para que o funil já mostre dados consistentes desde já, rodar uma migration única que insere em `lead_status_history` o status atual de todos os leads que ainda não têm registro. Isso garante que cada lead existente apareça pelo menos no estágio em que está hoje.
+Assim:
+- Comportamento atual do funil (cumulativo) fica **intacto**.
+- Quando você move um lead de "Reunião Realizada" → "Proposta Enviada" → "Em Negociação", ele continua contando em todas as etapas (já contava pela cumulatividade).
+- Quando você move um lead **para trás** (ex: "Proposta Enviada" → "Sem Interesse"), o "+1" em "Proposta Enviada" **persiste** via histórico — que é exatamente o ganho que você pediu.
+- Idem se um lead for movido para `sem_interesse` / `lead_perdido` depois de ter passado por reuniões: o histórico mantém a presença dele nessas etapas.
 
-```sql
-INSERT INTO public.lead_status_history (lead_id, user_id, status, changed_at)
-SELECT l.id, l.user_id, l.status, COALESCE(l.updated_at, l.created_at, now())
-FROM public.leads l
-WHERE l.status IS NOT NULL
-  AND NOT EXISTS (
-    SELECT 1 FROM public.lead_status_history h WHERE h.lead_id = l.id
-  );
-```
+### Mudanças técnicas
 
-(Não toca em leads que já têm histórico; idempotente.)
+**`src/pages/Funnel.tsx`**
+- Restaurar a função `cumulativeCount` original (do funil antigo).
+- Manter o carregamento de `lead_status_history` e o `historyByLead` Map.
+- Criar `countStage(stage)` que faz: `cumulativo OR histórico` — contando leads distintos (sem duplicar).
+- KPIs ("Engajados", "Reuniões", "Fechados") e painel "Desqualificados" voltam a usar a mesma regra combinada.
+- Conversões entre etapas, larguras de barra, cores, filtros — **nada disso muda**.
 
-### O que NÃO muda
-- Status atual continua sendo o que aparece no card do lead, na aba Leads, no Dashboard, etc.
-- Trigger `log_lead_status_change` já existente continua sendo a única fonte de novos registros.
-- RLS do `lead_status_history` já garante isolamento por usuário.
-- Lógica de "Conversão Topo → Fechado", larguras das barras e cores permanecem iguais.
+### O que não muda
+- Nenhuma migration nova. O backfill de histórico já feito permanece.
+- Trigger `log_lead_status_change` continua igual.
+- Status atual no card, Leads, Dashboard — sem alteração.
+- Visual do funil — idêntico ao original.
 
-### Resultado esperado
-Mover um lead de "Reunião Realizada" para "Proposta Enviada" mantém o "+1" em Reunião Realizada no funil — porque o lead aparece no histórico de ambos os estágios. O mesmo vale para qualquer transição futura.
+### Resultado
+Funil volta a se comportar exatamente como antes, com o único acréscimo de **nunca perder** a passagem de um lead por uma etapa, mesmo que ele seja movido para fora do fluxo principal depois.

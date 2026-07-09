@@ -76,6 +76,28 @@
    }
  
    try {
+     const authHeader = req.headers.get('Authorization');
+     if (!authHeader?.startsWith('Bearer ')) {
+       return new Response(
+         JSON.stringify({ success: false, error: 'Unauthorized' }),
+         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+       );
+     }
+     {
+       const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
+       const authClient = createClient(
+         Deno.env.get('SUPABASE_URL')!,
+         Deno.env.get('SUPABASE_ANON_KEY')!
+       );
+       const { data, error: authError } = await authClient.auth.getClaims(authHeader.replace('Bearer ', ''));
+       if (authError || !data?.claims) {
+         return new Response(
+           JSON.stringify({ success: false, error: 'Unauthorized' }),
+           { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+         );
+       }
+     }
+
      const { niche, state, city, limit = 50, startOffset = 0 } = await req.json();
  
     if (!niche) {

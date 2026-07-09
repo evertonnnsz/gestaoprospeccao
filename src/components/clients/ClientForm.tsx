@@ -152,11 +152,14 @@ export function ClientForm({ open, onOpenChange, client, lead, onSuccess }: Clie
 
       if (uploadError) throw uploadError;
 
-      const { data: { publicUrl } } = supabase.storage
+      // Bucket is private — generate a long-lived signed URL (1 year)
+      const { data: signed, error: signErr } = await supabase.storage
         .from('contracts')
-        .getPublicUrl(fileName);
+        .createSignedUrl(fileName, 60 * 60 * 24 * 365);
 
-      setFormData(prev => ({ ...prev, contract_url: publicUrl }));
+      if (signErr) throw signErr;
+
+      setFormData(prev => ({ ...prev, contract_url: signed.signedUrl }));
       
       toast({
         title: 'Sucesso',

@@ -13,6 +13,7 @@ import {
   Sparkles,
   HeartHandshake,
   ClipboardCheck,
+  MessageCircle,
 } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -34,6 +35,7 @@ const navItems = [
 const adminItems = [
   { title: 'Aprovações', url: '/approvals', icon: UserCheck },
   { title: 'Usuários', url: '/users', icon: UsersRound },
+  { title: 'Follow-ups WhatsApp', url: '/whatsapp-follow-ups', icon: MessageCircle },
 ];
 
 const bottomItems = [

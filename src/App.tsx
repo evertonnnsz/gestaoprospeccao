@@ -18,6 +18,7 @@ import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 import CustomerSuccess from "./pages/CustomerSuccess";
 import Onboarding from "./pages/Onboarding";
+import WhatsAppFollowUps from "./pages/WhatsAppFollowUps";
 
 const queryClient = new QueryClient();
 
@@ -38,6 +39,7 @@ const App = () => (
               <Route path="/clients" element={<Clients />} />
               <Route path="/financial" element={<Financial />} />
               <Route path="/funnel" element={<Funnel />} />
+              <Route path="/whatsapp-follow-ups" element={<WhatsAppFollowUps />} />
               <Route path="/customer-success" element={<CustomerSuccess />} />
               <Route path="/onboarding" element={<Onboarding />} />
               <Route path="/approvals" element={<Approvals />} />

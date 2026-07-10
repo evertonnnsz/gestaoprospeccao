@@ -9,6 +9,7 @@ import { LeadStatusBadge } from '@/components/leads/LeadStatusBadge';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
@@ -45,6 +46,7 @@ export default function WhatsAppFollowUps() {
   const [messageDrafts, setMessageDrafts] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [sendingLeadId, setSendingLeadId] = useState<string | null>(null);
+  const [activeLeadId, setActiveLeadId] = useState<string | null>(null);
 
   const dueLeads = useMemo(
     () => leads.filter((lead) => isLeadEligibleForWhatsAppFollowUp(lead)),
@@ -59,6 +61,11 @@ export default function WhatsAppFollowUps() {
         .map((log) => log.lead_id)
     );
   }, [logs]);
+
+  const activeLead = useMemo(
+    () => dueLeads.find((lead) => lead.id === activeLeadId) || null,
+    [activeLeadId, dueLeads]
+  );
 
   useEffect(() => {
     if (user && isAdmin) {
@@ -257,7 +264,7 @@ export default function WhatsAppFollowUps() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         <Card className="p-4">
           <p className="text-sm text-muted-foreground">Pendentes agora</p>
           <p className="text-2xl font-bold">{dueLeads.length}</p>
@@ -285,82 +292,134 @@ export default function WhatsAppFollowUps() {
           </p>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+        <Card className="overflow-hidden">
+          <div className="grid grid-cols-[1.5fr_160px_160px_140px] gap-4 px-4 py-3 text-xs font-medium text-muted-foreground border-b bg-muted/40">
+            <span>Lead</span>
+            <span>Etapa</span>
+            <span>WhatsApp</span>
+            <span className="text-right">Ação</span>
+          </div>
           {dueLeads.map((lead) => {
             const step = getDueFollowUpStep(lead);
-            const selectedTemplate = templates.find((template) => template.id === selectedTemplateIds[lead.id]);
             const alreadySentToday = sentTodayLeadIds.has(lead.id);
 
             return (
-              <Card key={lead.id} className="p-4 space-y-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h2 className="font-semibold">{lead.company_name}</h2>
-                      <LeadStatusBadge status={lead.status} size="sm" />
-                      {alreadySentToday && <Badge variant="secondary">Enviado hoje</Badge>}
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <MessageCircle className="w-4 h-4" />
-                      <span>{lead.whatsapp}</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Bot className="w-4 h-4" />
-                      <span>{STEP_LABELS[step]}</span>
-                    </div>
+              <div
+                key={lead.id}
+                className="grid grid-cols-1 lg:grid-cols-[1.5fr_160px_160px_140px] gap-3 lg:gap-4 px-4 py-3 border-b last:border-b-0 items-center hover:bg-muted/30"
+              >
+                <div className="min-w-0 space-y-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h2 className="font-semibold truncate">{lead.company_name}</h2>
+                    <LeadStatusBadge status={lead.status} size="sm" />
+                    {alreadySentToday && <Badge variant="secondary">Enviado hoje</Badge>}
                   </div>
-                  <Badge variant="outline">
-                    {format(new Date(), "dd/MM", { locale: ptBR })}
-                  </Badge>
+                  <p className="text-sm text-muted-foreground truncate">
+                    {messageDrafts[lead.id] || 'Mensagem ainda não preparada'}
+                  </p>
                 </div>
 
-                <div className="space-y-2">
-                  <Select
-                    value={selectedTemplate?.id || ''}
-                    onValueChange={(templateId) => handleTemplateChange(lead, templateId)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione um modelo" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {templates
-                        .filter((template) => template.is_active)
-                        .map((template) => (
-                          <SelectItem key={template.id} value={template.id}>
-                            {template.name}
-                          </SelectItem>
-                        ))}
-                    </SelectContent>
-                  </Select>
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Bot className="w-4 h-4" />
+                  <span>{STEP_LABELS[step]}</span>
+                </div>
 
-                  <Textarea
-                    value={messageDrafts[lead.id] || ''}
-                    onChange={(event) =>
-                      setMessageDrafts((current) => ({ ...current, [lead.id]: event.target.value }))
-                    }
-                    rows={5}
-                  />
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <MessageCircle className="w-4 h-4" />
+                  <span>{lead.whatsapp}</span>
                 </div>
 
                 <div className="flex justify-end">
                   <Button
-                    onClick={() => handleSend(lead)}
+                    variant="outline"
+                    onClick={() => setActiveLeadId(lead.id)}
                     disabled={sendingLeadId === lead.id}
-                    className="gap-2"
+                    className="gap-2 w-full lg:w-auto"
                   >
-                    {sendingLeadId === lead.id ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <Send className="w-4 h-4" />
-                    )}
-                    Abrir WhatsApp e registrar
+                    <Send className="w-4 h-4" />
+                    Preparar
                   </Button>
                 </div>
-              </Card>
+              </div>
             );
           })}
-        </div>
+        </Card>
       )}
+
+      <Dialog open={!!activeLead} onOpenChange={(open) => !open && setActiveLeadId(null)}>
+        <DialogContent className="max-w-2xl">
+          {activeLead && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2 flex-wrap">
+                  {activeLead.company_name}
+                  <LeadStatusBadge status={activeLead.status} size="sm" />
+                  <Badge variant="outline">
+                    {format(new Date(), "dd/MM", { locale: ptBR })}
+                  </Badge>
+                </DialogTitle>
+              </DialogHeader>
+
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                  <div className="rounded-md border p-3">
+                    <p className="text-muted-foreground">WhatsApp</p>
+                    <p className="font-medium">{activeLead.whatsapp}</p>
+                  </div>
+                  <div className="rounded-md border p-3">
+                    <p className="text-muted-foreground">Etapa</p>
+                    <p className="font-medium">{STEP_LABELS[getDueFollowUpStep(activeLead)]}</p>
+                  </div>
+                </div>
+
+                <Select
+                  value={selectedTemplateIds[activeLead.id] || ''}
+                  onValueChange={(templateId) => handleTemplateChange(activeLead, templateId)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione um modelo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {templates
+                      .filter((template) => template.is_active)
+                      .map((template) => (
+                        <SelectItem key={template.id} value={template.id}>
+                          {template.name}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+
+                <Textarea
+                  value={messageDrafts[activeLead.id] || ''}
+                  onChange={(event) =>
+                    setMessageDrafts((current) => ({ ...current, [activeLead.id]: event.target.value }))
+                  }
+                  rows={7}
+                />
+              </div>
+
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setActiveLeadId(null)}>
+                  Cancelar
+                </Button>
+                <Button
+                  onClick={() => handleSend(activeLead)}
+                  disabled={sendingLeadId === activeLead.id}
+                  className="gap-2"
+                >
+                  {sendingLeadId === activeLead.id ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Send className="w-4 h-4" />
+                  )}
+                  Abrir WhatsApp e registrar
+                </Button>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

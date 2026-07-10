@@ -97,9 +97,9 @@ export function getWhatsAppUrl(phone: string, message: string): string {
 export function getDueFollowUpStep(lead: Lead, today = new Date()): WhatsAppFollowUpStep {
   const todayStr = today.toISOString().split('T')[0];
 
-  if (lead.follow_up_1 && lead.follow_up_1 <= todayStr) return 'follow_up_1';
-  if (lead.follow_up_2 && lead.follow_up_2 <= todayStr) return 'follow_up_2';
-  if (lead.follow_up_3 && lead.follow_up_3 <= todayStr) return 'follow_up_3';
+  if (lead.follow_up_1 === todayStr) return 'follow_up_1';
+  if (lead.follow_up_2 === todayStr) return 'follow_up_2';
+  if (lead.follow_up_3 === todayStr) return 'follow_up_3';
 
   return 'initial';
 }
@@ -110,5 +110,5 @@ export function isLeadEligibleForWhatsAppFollowUp(lead: Lead, today = new Date()
   if (['fechado', 'sem_interesse', 'lead_perdido'].includes(lead.status)) return false;
 
   const todayStr = today.toISOString().split('T')[0];
-  return [lead.follow_up_1, lead.follow_up_2, lead.follow_up_3].some((date) => date && date <= todayStr);
+  return [lead.follow_up_1, lead.follow_up_2, lead.follow_up_3].some((date) => date === todayStr);
 }

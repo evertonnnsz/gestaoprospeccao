@@ -255,7 +255,7 @@ export default function WhatsAppFollowUps() {
         <div>
           <h1 className="text-2xl font-bold">Follow-ups WhatsApp</h1>
           <p className="text-muted-foreground">
-            Leads com follow-up vencido ou programado para hoje.
+            Fila diária com leads que têm follow-up programado para hoje.
           </p>
         </div>
         <Button variant="outline" onClick={fetchData} className="gap-2">
@@ -266,7 +266,7 @@ export default function WhatsAppFollowUps() {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         <Card className="p-4">
-          <p className="text-sm text-muted-foreground">Pendentes agora</p>
+          <p className="text-sm text-muted-foreground">Follow-ups do dia</p>
           <p className="text-2xl font-bold">{dueLeads.length}</p>
         </Card>
         <Card className="p-4">
@@ -288,7 +288,7 @@ export default function WhatsAppFollowUps() {
           <CheckCircle2 className="w-10 h-10 mx-auto text-success mb-3" />
           <h2 className="font-semibold">Nenhum follow-up pendente</h2>
           <p className="text-sm text-muted-foreground mt-1">
-            Quando houver leads com data vencida ou de hoje, eles aparecem aqui.
+            Quando houver leads com follow-up marcado para hoje, eles aparecem aqui.
           </p>
         </Card>
       ) : (

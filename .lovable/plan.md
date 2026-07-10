@@ -1,39 +1,34 @@
-## Entendimento
+# Migration: WhatsApp Follow-up Automation
 
-Você está certo: na última mudança, eu **substituí** a lógica cumulativa original do funil por uma contagem baseada apenas em histórico. Isso alterou o comportamento do funil (leads que pulam etapas deixaram de aparecer em estágios intermediários, e a lógica original de cumulatividade foi perdida).
+Vou aplicar a migration em `supabase/migrations/20260705120000_whatsapp_followup_automation.sql` no banco, com um ajuste obrigatório: adicionar `GRANT`s nas duas novas tabelas do schema `public` (sem isso o PostgREST bloqueia acesso, mesmo com RLS correta).
 
-O que você pediu era apenas **somar** ao funil atual a permanência de status anteriores — não trocar a lógica.
+## O que será criado
 
-## Correção
+- **Enums**
+  - `public.whatsapp_message_status`: `draft`, `sent`, `failed`
+  - `public.whatsapp_follow_up_step`: `initial`, `follow_up_1`, `follow_up_2`, `follow_up_3`, `custom`
+- **Tabela `public.whatsapp_message_templates`** — modelos de mensagem por usuário (nome, etapa, corpo, ativo)
+- **Tabela `public.whatsapp_message_logs`** — histórico de envios, ligada a `public.leads(id)` e opcionalmente a um template
+- **RLS**: cada usuário só vê/edita seus próprios templates e logs (`auth.uid() = user_id`)
+- **Trigger** `update_updated_at_column` em templates
+- **Índices** por `(user_id, follow_up_step, is_active)`, `(user_id, lead_id, created_at)` e `(user_id, status, created_at)`
 
-Restaurar a lógica cumulativa original e usar o histórico apenas como **complemento aditivo** (união, OR lógico).
+## Ajuste técnico (obrigatório)
 
-### Regra única
+Adicionar após cada `CREATE TABLE`:
 
-Um lead conta numa etapa se **qualquer uma** destas for verdadeira:
-1. A lógica cumulativa original já o incluía (status atual = etapa, ou está em etapa posterior dentro do fluxo principal); **OU**
-2. O `lead_status_history` registra que ele já passou por aquela etapa em algum momento.
+```sql
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.whatsapp_message_templates TO authenticated;
+GRANT ALL ON public.whatsapp_message_templates TO service_role;
 
-Assim:
-- Comportamento atual do funil (cumulativo) fica **intacto**.
-- Quando você move um lead de "Reunião Realizada" → "Proposta Enviada" → "Em Negociação", ele continua contando em todas as etapas (já contava pela cumulatividade).
-- Quando você move um lead **para trás** (ex: "Proposta Enviada" → "Sem Interesse"), o "+1" em "Proposta Enviada" **persiste** via histórico — que é exatamente o ganho que você pediu.
-- Idem se um lead for movido para `sem_interesse` / `lead_perdido` depois de ter passado por reuniões: o histórico mantém a presença dele nessas etapas.
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.whatsapp_message_logs TO authenticated;
+GRANT ALL ON public.whatsapp_message_logs TO service_role;
+```
 
-### Mudanças técnicas
+Sem `anon` — todo acesso é escopado por `auth.uid()`.
 
-**`src/pages/Funnel.tsx`**
-- Restaurar a função `cumulativeCount` original (do funil antigo).
-- Manter o carregamento de `lead_status_history` e o `historyByLead` Map.
-- Criar `countStage(stage)` que faz: `cumulativo OR histórico` — contando leads distintos (sem duplicar).
-- KPIs ("Engajados", "Reuniões", "Fechados") e painel "Desqualificados" voltam a usar a mesma regra combinada.
-- Conversões entre etapas, larguras de barra, cores, filtros — **nada disso muda**.
+## Observações
 
-### O que não muda
-- Nenhuma migration nova. O backfill de histórico já feito permanece.
-- Trigger `log_lead_status_change` continua igual.
-- Status atual no card, Leads, Dashboard — sem alteração.
-- Visual do funil — idêntico ao original.
-
-### Resultado
-Funil volta a se comportar exatamente como antes, com o único acréscimo de **nunca perder** a passagem de um lead por uma etapa, mesmo que ele seja movido para fora do fluxo principal depois.
+- Nenhuma tabela existente é alterada; `public.leads` é apenas referenciada por FK.
+- A migration é aplicada via ferramenta de migration do Lovable Cloud (aparece para sua aprovação antes de rodar).
+- Nenhum código de frontend será tocado neste passo — só o banco.

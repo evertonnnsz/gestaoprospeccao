@@ -510,6 +510,102 @@ export type Database = {
         }
         Relationships: []
       }
+      whatsapp_message_logs: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          follow_up_step: Database["public"]["Enums"]["whatsapp_follow_up_step"]
+          id: string
+          lead_id: string
+          message: string
+          phone: string
+          provider: string | null
+          provider_message_id: string | null
+          sent_at: string | null
+          status: Database["public"]["Enums"]["whatsapp_message_status"]
+          template_id: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          follow_up_step?: Database["public"]["Enums"]["whatsapp_follow_up_step"]
+          id?: string
+          lead_id: string
+          message: string
+          phone: string
+          provider?: string | null
+          provider_message_id?: string | null
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["whatsapp_message_status"]
+          template_id?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          follow_up_step?: Database["public"]["Enums"]["whatsapp_follow_up_step"]
+          id?: string
+          lead_id?: string
+          message?: string
+          phone?: string
+          provider?: string | null
+          provider_message_id?: string | null
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["whatsapp_message_status"]
+          template_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_message_logs_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_message_logs_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_message_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      whatsapp_message_templates: {
+        Row: {
+          body: string
+          created_at: string
+          follow_up_step: Database["public"]["Enums"]["whatsapp_follow_up_step"]
+          id: string
+          is_active: boolean
+          name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          follow_up_step?: Database["public"]["Enums"]["whatsapp_follow_up_step"]
+          id?: string
+          is_active?: boolean
+          name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          follow_up_step?: Database["public"]["Enums"]["whatsapp_follow_up_step"]
+          id?: string
+          is_active?: boolean
+          name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -547,6 +643,13 @@ export type Database = {
         | "lead_perdido"
       onboarding_platform: "geral" | "google_ads" | "meta_ads" | "site"
       transaction_type: "income" | "expense"
+      whatsapp_follow_up_step:
+        | "initial"
+        | "follow_up_1"
+        | "follow_up_2"
+        | "follow_up_3"
+        | "custom"
+      whatsapp_message_status: "draft" | "sent" | "failed"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -699,6 +802,14 @@ export const Constants = {
       ],
       onboarding_platform: ["geral", "google_ads", "meta_ads", "site"],
       transaction_type: ["income", "expense"],
+      whatsapp_follow_up_step: [
+        "initial",
+        "follow_up_1",
+        "follow_up_2",
+        "follow_up_3",
+        "custom",
+      ],
+      whatsapp_message_status: ["draft", "sent", "failed"],
     },
   },
 } as const

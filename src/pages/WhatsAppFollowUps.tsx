@@ -24,7 +24,7 @@ import {
   normalizeWhatsAppPhone,
   renderWhatsAppTemplate,
 } from '@/lib/utils/whatsapp';
-import { generateNextFollowUpFromContact } from '@/lib/utils/followUpDates';
+import { generateFollowUpDates, generateNextFollowUpFromContact } from '@/lib/utils/followUpDates';
 
 const STEP_LABELS: Record<WhatsAppFollowUpStep, string> = {
   initial: 'Primeira abordagem',
@@ -46,10 +46,28 @@ export default function WhatsAppFollowUps() {
   const [messageDrafts, setMessageDrafts] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [sendingLeadId, setSendingLeadId] = useState<string | null>(null);
+  const [renewingAll, setRenewingAll] = useState(false);
   const [activeLeadId, setActiveLeadId] = useState<string | null>(null);
 
   const dueLeads = useMemo(
     () => leads.filter((lead) => isLeadEligibleForWhatsAppFollowUp(lead)),
+    [leads]
+  );
+
+  const isRenewableLead = (lead: Lead) => {
+    if (['fechado', 'sem_interesse', 'lead_perdido'].includes(lead.status)) return false;
+
+    const todayStr = new Date().toISOString().split('T')[0];
+    const followUps = [lead.follow_up_1, lead.follow_up_2, lead.follow_up_3];
+    const allEmpty = followUps.every((date) => !date);
+    const filledFollowUps = followUps.filter(Boolean) as string[];
+    const allPast = filledFollowUps.length > 0 && filledFollowUps.every((date) => date < todayStr);
+
+    return allEmpty || allPast;
+  };
+
+  const renewableLeads = useMemo(
+    () => leads.filter((lead) => isRenewableLead(lead)),
     [leads]
   );
 
@@ -228,6 +246,36 @@ export default function WhatsAppFollowUps() {
     }
   };
 
+  const handleRenewAll = async () => {
+    if (!user || !isAdmin || renewableLeads.length === 0) return;
+
+    setRenewingAll(true);
+    try {
+      const dates = generateFollowUpDates();
+      const { error } = await supabase
+        .from('leads')
+        .update(dates)
+        .in('id', renewableLeads.map((lead) => lead.id));
+
+      if (error) throw error;
+
+      toast({
+        title: 'Follow-ups renovados',
+        description: `${renewableLeads.length} leads receberam uma nova sequencia de 3 follow-ups.`,
+      });
+
+      fetchData();
+    } catch (error: any) {
+      toast({
+        title: 'Erro ao renovar follow-ups',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setRenewingAll(false);
+    }
+  };
+
   if (authLoading) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -255,7 +303,7 @@ export default function WhatsAppFollowUps() {
         <div>
           <h1 className="text-2xl font-bold">Follow-ups WhatsApp</h1>
           <p className="text-muted-foreground">
-            Fila diária com leads que têm follow-up programado para hoje.
+            Mesma fila do Dashboard para os follow-ups programados para hoje.
           </p>
         </div>
         <Button variant="outline" onClick={fetchData} className="gap-2">
@@ -264,7 +312,7 @@ export default function WhatsAppFollowUps() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
         <Card className="p-4">
           <p className="text-sm text-muted-foreground">Follow-ups do dia</p>
           <p className="text-2xl font-bold">{dueLeads.length}</p>
@@ -276,6 +324,26 @@ export default function WhatsAppFollowUps() {
         <Card className="p-4">
           <p className="text-sm text-muted-foreground">Modelos ativos</p>
           <p className="text-2xl font-bold">{templates.filter((template) => template.is_active).length}</p>
+        </Card>
+        <Card className="p-4 flex items-center justify-between gap-3">
+          <div>
+            <p className="text-sm text-muted-foreground">Para renovar</p>
+            <p className="text-2xl font-bold">{renewableLeads.length}</p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRenewAll}
+            disabled={renewingAll || renewableLeads.length === 0}
+            className="gap-2"
+          >
+            {renewingAll ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <RefreshCw className="w-4 h-4" />
+            )}
+            Renovar
+          </Button>
         </Card>
       </div>
 
@@ -302,6 +370,7 @@ export default function WhatsAppFollowUps() {
           {dueLeads.map((lead) => {
             const step = getDueFollowUpStep(lead);
             const alreadySentToday = sentTodayLeadIds.has(lead.id);
+            const phone = normalizeWhatsAppPhone(lead.whatsapp);
 
             return (
               <div
@@ -312,6 +381,7 @@ export default function WhatsAppFollowUps() {
                   <div className="flex items-center gap-2 flex-wrap">
                     <h2 className="font-semibold truncate">{lead.company_name}</h2>
                     <LeadStatusBadge status={lead.status} size="sm" />
+                    {lead.responded && <Badge variant="outline">Respondeu</Badge>}
                     {alreadySentToday && <Badge variant="secondary">Enviado hoje</Badge>}
                   </div>
                   <p className="text-sm text-muted-foreground truncate">
@@ -326,18 +396,18 @@ export default function WhatsAppFollowUps() {
 
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <MessageCircle className="w-4 h-4" />
-                  <span>{lead.whatsapp}</span>
+                  <span>{phone ? lead.whatsapp : 'Sem WhatsApp'}</span>
                 </div>
 
                 <div className="flex justify-end">
                   <Button
                     variant="outline"
                     onClick={() => setActiveLeadId(lead.id)}
-                    disabled={sendingLeadId === lead.id}
+                    disabled={sendingLeadId === lead.id || !phone}
                     className="gap-2 w-full lg:w-auto"
                   >
                     <Send className="w-4 h-4" />
-                    Preparar
+                    {phone ? 'Preparar' : 'Sem numero'}
                   </Button>
                 </div>
               </div>

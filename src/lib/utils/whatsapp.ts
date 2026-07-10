@@ -105,9 +105,7 @@ export function getDueFollowUpStep(lead: Lead, today = new Date()): WhatsAppFoll
 }
 
 export function isLeadEligibleForWhatsAppFollowUp(lead: Lead, today = new Date()): boolean {
-  if (!normalizeWhatsAppPhone(lead.whatsapp)) return false;
-  if (lead.responded) return false;
-  if (['fechado', 'sem_interesse', 'lead_perdido'].includes(lead.status)) return false;
+  if (['sem_interesse', 'lead_perdido'].includes(lead.status)) return false;
 
   const todayStr = today.toISOString().split('T')[0];
   return [lead.follow_up_1, lead.follow_up_2, lead.follow_up_3].some((date) => date === todayStr);

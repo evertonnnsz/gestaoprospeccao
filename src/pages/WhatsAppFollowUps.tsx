@@ -47,6 +47,7 @@ export default function WhatsAppFollowUps() {
   const [loading, setLoading] = useState(true);
   const [sendingLeadId, setSendingLeadId] = useState<string | null>(null);
   const [renewingAll, setRenewingAll] = useState(false);
+  const [renewingLeadId, setRenewingLeadId] = useState<string | null>(null);
   const [activeLeadId, setActiveLeadId] = useState<string | null>(null);
 
   const dueLeads = useMemo(
@@ -66,11 +67,6 @@ export default function WhatsAppFollowUps() {
     return allEmpty || allPast;
   };
 
-  const renewableLeads = useMemo(
-    () => leads.filter((lead) => isRenewableLead(lead)),
-    [leads]
-  );
-
   const sentTodayLeadIds = useMemo(() => {
     const today = new Date().toISOString().split('T')[0];
     return new Set(
@@ -79,6 +75,15 @@ export default function WhatsAppFollowUps() {
         .map((log) => log.lead_id)
     );
   }, [logs]);
+
+  const todayRenewableLeads = useMemo(() => {
+    const today = new Date().toISOString().split('T')[0];
+
+    return leads.filter((lead) => {
+      if (!isRenewableLead(lead)) return false;
+      return sentTodayLeadIds.has(lead.id) || lead.last_contact === today;
+    });
+  }, [leads, sentTodayLeadIds]);
 
   const activeLead = useMemo(
     () => dueLeads.find((lead) => lead.id === activeLeadId) || null,
@@ -247,8 +252,38 @@ export default function WhatsAppFollowUps() {
     }
   };
 
-  const handleRenewAll = async () => {
-    if (!user || !isAdmin || renewableLeads.length === 0) return;
+  const renewLeadFollowUps = async (lead: Lead) => {
+    if (!user || !isAdmin || !isRenewableLead(lead)) return;
+
+    setRenewingLeadId(lead.id);
+    try {
+      const dates = generateFollowUpDates();
+      const { error } = await supabase
+        .from('leads')
+        .update(dates)
+        .eq('id', lead.id);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Follow-up renovado',
+        description: `${lead.company_name} recebeu uma nova sequencia de 3 follow-ups.`,
+      });
+
+      fetchData();
+    } catch (error: any) {
+      toast({
+        title: 'Erro ao renovar follow-up',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setRenewingLeadId(null);
+    }
+  };
+
+  const handleRenewAllToday = async () => {
+    if (!user || !isAdmin || todayRenewableLeads.length === 0) return;
 
     setRenewingAll(true);
     try {
@@ -256,13 +291,13 @@ export default function WhatsAppFollowUps() {
       const { error } = await supabase
         .from('leads')
         .update(dates)
-        .in('id', renewableLeads.map((lead) => lead.id));
+        .in('id', todayRenewableLeads.map((lead) => lead.id));
 
       if (error) throw error;
 
       toast({
         title: 'Follow-ups renovados',
-        description: `${renewableLeads.length} leads receberam uma nova sequencia de 3 follow-ups.`,
+        description: `${todayRenewableLeads.length} leads do dia receberam uma nova sequencia de 3 follow-ups.`,
       });
 
       fetchData();
@@ -328,14 +363,14 @@ export default function WhatsAppFollowUps() {
         </Card>
         <Card className="p-4 flex items-center justify-between gap-3">
           <div>
-            <p className="text-sm text-muted-foreground">Para renovar</p>
-            <p className="text-2xl font-bold">{renewableLeads.length}</p>
+            <p className="text-sm text-muted-foreground">Renovar hoje</p>
+            <p className="text-2xl font-bold">{todayRenewableLeads.length}</p>
           </div>
           <Button
             variant="outline"
             size="sm"
-            onClick={handleRenewAll}
-            disabled={renewingAll || renewableLeads.length === 0}
+            onClick={handleRenewAllToday}
+            disabled={renewingAll || todayRenewableLeads.length === 0}
             className="gap-2"
           >
             {renewingAll ? (
@@ -343,10 +378,75 @@ export default function WhatsAppFollowUps() {
             ) : (
               <RefreshCw className="w-4 h-4" />
             )}
-            Renovar
+            Renovar dia
           </Button>
         </Card>
       </div>
+
+      {todayRenewableLeads.length > 0 && (
+        <Card className="overflow-hidden">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 py-3 border-b bg-muted/40">
+            <div>
+              <h2 className="font-semibold">Renovacao de follow-ups do dia</h2>
+              <p className="text-sm text-muted-foreground">
+                Contatos finalizados hoje que podem receber uma nova sequencia.
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRenewAllToday}
+              disabled={renewingAll}
+              className="gap-2"
+            >
+              {renewingAll ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <RefreshCw className="w-4 h-4" />
+              )}
+              Renovar todos do dia
+            </Button>
+          </div>
+          {todayRenewableLeads.map((lead) => (
+            <div
+              key={lead.id}
+              className="grid grid-cols-1 lg:grid-cols-[1.5fr_180px_160px] gap-3 lg:gap-4 px-4 py-3 border-b last:border-b-0 items-center"
+            >
+              <div className="min-w-0 space-y-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="font-semibold truncate">{lead.company_name}</h3>
+                  <LeadStatusBadge status={lead.status} size="sm" />
+                </div>
+                <p className="text-sm text-muted-foreground truncate">
+                  Sequencia anterior finalizada hoje.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <MessageCircle className="w-4 h-4" />
+                <span>{lead.whatsapp || 'Sem WhatsApp'}</span>
+              </div>
+
+              <div className="flex justify-end">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => renewLeadFollowUps(lead)}
+                  disabled={renewingLeadId === lead.id || renewingAll}
+                  className="gap-2 w-full lg:w-auto"
+                >
+                  {renewingLeadId === lead.id ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="w-4 h-4" />
+                  )}
+                  Renovar contato
+                </Button>
+              </div>
+            </div>
+          ))}
+        </Card>
+      )}
 
       {loading ? (
         <div className="flex items-center justify-center py-12">

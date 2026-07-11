@@ -61,6 +61,65 @@ export const DEFAULT_WHATSAPP_TEMPLATES: Array<Pick<WhatsAppTemplate, 'name' | '
   },
 ];
 
+const STATUS_AWARE_MESSAGES: Partial<Record<Lead['status'], Partial<Record<WhatsAppFollowUpStep, string>>>> = {
+  lead_coletado: {
+    follow_up_1:
+      'Oi {{contact_name}}, passando para retomar meu contato com a {{company_name}}. Faz sentido eu te mostrar uma ideia simples para atrair mais clientes?',
+    follow_up_2:
+      'Oi {{contact_name}}, tentei falar com voce antes. Se captar mais oportunidades for prioridade na {{company_name}}, posso te explicar em poucos minutos.',
+    follow_up_3:
+      'Oi {{contact_name}}, vou encerrar meus contatos por aqui para nao insistir demais. Se quiser ver uma estrategia para a {{company_name}}, fico a disposicao.',
+  },
+  contato_iniciado: {
+    follow_up_1:
+      'Oi {{contact_name}}, queria dar continuidade ao nosso contato sobre a {{company_name}}. Posso te mostrar rapidamente como podemos gerar mais oportunidades?',
+    follow_up_2:
+      'Oi {{contact_name}}, passando para nao deixar nossa conversa esfriar. Faz sentido avancarmos com uma conversa rapida sobre a {{company_name}}?',
+    follow_up_3:
+      'Oi {{contact_name}}, ultimo retorno meu por enquanto. Se ainda fizer sentido falar sobre crescimento comercial da {{company_name}}, me chama por aqui.',
+  },
+  visualizou_nao_respondeu: {
+    follow_up_1:
+      'Oi {{contact_name}}, vi que minha mensagem pode ter passado em meio a correria. Posso te explicar em poucos minutos uma ideia para a {{company_name}}?',
+    follow_up_2:
+      'Oi {{contact_name}}, passando de novo porque acredito que a {{company_name}} pode aproveitar melhor novos contatos comerciais. Podemos falar rapidamente?',
+    follow_up_3:
+      'Oi {{contact_name}}, vou evitar insistir. Se quiser retomar depois uma ideia para captar mais clientes para a {{company_name}}, fico a disposicao.',
+  },
+  interesse_demonstrado: {
+    follow_up_1:
+      'Oi {{contact_name}}, como voce demonstrou interesse, queria dar o proximo passo e agendar uma conversa rapida sobre a {{company_name}}. Qual horario fica melhor?',
+    follow_up_2:
+      'Oi {{contact_name}}, passando para seguirmos com aquilo que conversamos sobre a {{company_name}}. Podemos marcar uma reuniao curta para eu te mostrar o plano?',
+    follow_up_3:
+      'Oi {{contact_name}}, ultimo toque meu para tentarmos evoluir esse interesse da {{company_name}}. Faz sentido agendarmos uma conversa ainda esta semana?',
+  },
+  reuniao_realizada: {
+    follow_up_1:
+      'Oi {{contact_name}}, obrigado pela reuniao sobre a {{company_name}}. Quer que eu organize os proximos passos para avancarmos com a proposta?',
+    follow_up_2:
+      'Oi {{contact_name}}, passando para saber se ficou alguma duvida depois da nossa conversa sobre a {{company_name}} e se podemos seguir para a proxima etapa.',
+    follow_up_3:
+      'Oi {{contact_name}}, fechando meu acompanhamento da reuniao por aqui. Se fizer sentido seguir com a {{company_name}}, me avisa que eu preparo o proximo passo.',
+  },
+  proposta_enviada: {
+    follow_up_1:
+      'Oi {{contact_name}}, passando para saber se conseguiu avaliar a proposta que enviei para a {{company_name}}. Ficou alguma duvida que eu possa esclarecer?',
+    follow_up_2:
+      'Oi {{contact_name}}, queria retomar a proposta da {{company_name}}. Faz sentido conversarmos rapidamente para ajustar algum ponto e seguir?',
+    follow_up_3:
+      'Oi {{contact_name}}, ultimo retorno meu sobre a proposta da {{company_name}} por enquanto. Se ainda fizer sentido avancar, posso te ajudar com os proximos passos.',
+  },
+  em_negociacao: {
+    follow_up_1:
+      'Oi {{contact_name}}, passando para seguirmos com a negociacao da {{company_name}}. Tem algum ponto que voce queira ajustar para avancarmos?',
+    follow_up_2:
+      'Oi {{contact_name}}, queria destravar a proxima etapa da negociacao com a {{company_name}}. Podemos alinhar rapidamente o que falta?',
+    follow_up_3:
+      'Oi {{contact_name}}, vou deixar meu ultimo retorno sobre a negociacao da {{company_name}} por aqui. Se quiser seguir, consigo te apoiar nos proximos passos.',
+  },
+};
+
 export function normalizeWhatsAppPhone(phone: string | null): string {
   const digits = (phone || '').replace(/\D/g, '');
 
@@ -90,6 +149,15 @@ export function renderWhatsAppTemplate(template: string, lead: Lead): string {
   return template.replace(/\{\{(\w+)\}\}/g, (_, key: string) => values[key] ?? '');
 }
 
+export function renderStatusAwareWhatsAppMessage(
+  lead: Lead,
+  step: WhatsAppFollowUpStep,
+  fallbackTemplate: string
+): string {
+  const statusTemplate = STATUS_AWARE_MESSAGES[lead.status]?.[step];
+  return renderWhatsAppTemplate(statusTemplate || fallbackTemplate, lead);
+}
+
 export function getWhatsAppUrl(phone: string, message: string): string {
   return `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
 }
@@ -105,7 +173,7 @@ export function getDueFollowUpStep(lead: Lead, today = new Date()): WhatsAppFoll
 }
 
 export function isLeadEligibleForWhatsAppFollowUp(lead: Lead, today = new Date()): boolean {
-  if (['sem_interesse', 'lead_perdido'].includes(lead.status)) return false;
+  if (['agendou_reuniao', 'fechado', 'sem_interesse', 'lead_perdido'].includes(lead.status)) return false;
 
   const todayStr = today.toISOString().split('T')[0];
   return [lead.follow_up_1, lead.follow_up_2, lead.follow_up_3].some((date) => date === todayStr);

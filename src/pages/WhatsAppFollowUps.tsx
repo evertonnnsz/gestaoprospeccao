@@ -22,7 +22,7 @@ import {
   getWhatsAppUrl,
   isLeadEligibleForWhatsAppFollowUp,
   normalizeWhatsAppPhone,
-  renderWhatsAppTemplate,
+  renderStatusAwareWhatsAppMessage,
 } from '@/lib/utils/whatsapp';
 import { generateFollowUpDates, generateNextFollowUpFromContact } from '@/lib/utils/followUpDates';
 
@@ -55,7 +55,7 @@ export default function WhatsAppFollowUps() {
   );
 
   const isRenewableLead = (lead: Lead) => {
-    if (['fechado', 'sem_interesse', 'lead_perdido'].includes(lead.status)) return false;
+    if (['agendou_reuniao', 'fechado', 'sem_interesse', 'lead_perdido'].includes(lead.status)) return false;
 
     const todayStr = new Date().toISOString().split('T')[0];
     const followUps = [lead.follow_up_1, lead.follow_up_2, lead.follow_up_3];
@@ -102,7 +102,8 @@ export default function WhatsAppFollowUps() {
       if (template) {
         nextTemplateIds[lead.id] = selectedTemplateIds[lead.id] || template.id;
         const currentTemplate = templates.find((item) => item.id === nextTemplateIds[lead.id]) || template;
-        nextDrafts[lead.id] = messageDrafts[lead.id] || renderWhatsAppTemplate(currentTemplate.body, lead);
+        nextDrafts[lead.id] =
+          messageDrafts[lead.id] || renderStatusAwareWhatsAppMessage(lead, step, currentTemplate.body);
       }
     });
 
@@ -162,7 +163,7 @@ export default function WhatsAppFollowUps() {
     setSelectedTemplateIds((current) => ({ ...current, [lead.id]: templateId }));
     setMessageDrafts((current) => ({
       ...current,
-      [lead.id]: renderWhatsAppTemplate(template.body, lead),
+      [lead.id]: renderStatusAwareWhatsAppMessage(lead, getDueFollowUpStep(lead), template.body),
     }));
   };
 

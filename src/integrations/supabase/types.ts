@@ -289,6 +289,9 @@ export type Database = {
           instagram: string | null
           last_contact: string | null
           lead_source: string | null
+          meeting_date: string | null
+          meeting_notes: string | null
+          meeting_time: string | null
           next_action: string | null
           nome_fantasia: string | null
           observations: string | null
@@ -314,6 +317,9 @@ export type Database = {
           instagram?: string | null
           last_contact?: string | null
           lead_source?: string | null
+          meeting_date?: string | null
+          meeting_notes?: string | null
+          meeting_time?: string | null
           next_action?: string | null
           nome_fantasia?: string | null
           observations?: string | null
@@ -339,6 +345,9 @@ export type Database = {
           instagram?: string | null
           last_contact?: string | null
           lead_source?: string | null
+          meeting_date?: string | null
+          meeting_notes?: string | null
+          meeting_time?: string | null
           next_action?: string | null
           nome_fantasia?: string | null
           observations?: string | null

@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useNavigate } from 'react-router-dom';
 import { 
   Building2, 
   Calendar, 
@@ -30,6 +31,7 @@ import {
   UserMinus,
   ChevronDown,
   PlayCircle,
+  Eye,
 } from 'lucide-react';
 import { format, addMonths, isBefore, isAfter } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -55,6 +57,7 @@ interface ClientCardProps {
 
 export function ClientCard({ client, onEdit, onDelete, onChange }: ClientCardProps) {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const currentStatus: ClientStatus = (client.status as ClientStatus) || 'active';
   const statusConfig = CLIENT_STATUS_CONFIG[currentStatus];
   const StatusIcon = statusConfig.icon;
@@ -137,6 +140,9 @@ export function ClientCard({ client, onEdit, onDelete, onChange }: ClientCardPro
             )}
           </div>
           <div className="flex gap-1">
+            <Button variant="ghost" size="icon" onClick={() => navigate(`/clients/${client.id}`)}>
+              <Eye className="w-4 h-4" />
+            </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" className={`gap-1 ${statusConfig.className}`}>

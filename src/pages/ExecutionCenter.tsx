@@ -4,6 +4,7 @@ import { AlertTriangle, BookOpen, Briefcase, CalendarCheck, ClipboardList, Dolla
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import type { Client, Lead } from '@/types/crm';
@@ -51,10 +52,35 @@ const dayOptions: { value: WeekdayId; label: string }[] = [
 
 const dayByIndex: WeekdayId[] = ['domingo', 'segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado'];
 
-const getLeadMeetingDay = (lead: Lead): WeekdayId | null => {
-  if (!lead.meeting_date) return null;
-  const date = new Date(`${lead.meeting_date}T12:00:00`);
+const toISODate = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const getWeekdayFromDate = (dateString: string): WeekdayId => {
+  const date = new Date(`${dateString}T12:00:00`);
   return dayByIndex[date.getDay()];
+};
+
+const getNextDateForWeekday = (weekday: WeekdayId) => {
+  const today = new Date();
+  const targetIndex = dayByIndex.indexOf(weekday);
+  const daysToAdd = (targetIndex - today.getDay() + 7) % 7;
+  const nextDate = new Date(today);
+  nextDate.setDate(today.getDate() + daysToAdd);
+  return toISODate(nextDate);
+};
+
+const formatSelectedDate = (dateString: string) => {
+  const date = new Date(`${dateString}T12:00:00`);
+  return date.toLocaleDateString('pt-BR', {
+    weekday: 'long',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
 };
 
 export default function ExecutionCenter() {
@@ -63,7 +89,8 @@ export default function ExecutionCenter() {
   const [clients, setClients] = useState<Client[]>([]);
   const [transactions, setTransactions] = useState<FinancialTransaction[]>([]);
   const [demands, setDemands] = useState<OSDemand[]>([]);
-  const [selectedDay, setSelectedDay] = useState<WeekdayId>(dayByIndex[new Date().getDay()]);
+  const [selectedDate, setSelectedDate] = useState(toISODate(new Date()));
+  const selectedDay = getWeekdayFromDate(selectedDate);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -88,7 +115,7 @@ export default function ExecutionCenter() {
   const followUps = getPendingFollowUps(leads);
   const activeDemands = getActiveDemands(demands);
   const scheduledMeetings = leads.filter(
-    (lead) => lead.status === 'agendou_reuniao' && getLeadMeetingDay(lead) === selectedDay,
+    (lead) => lead.status === 'agendou_reuniao' && lead.meeting_date === selectedDate,
   );
   const insights = getAssistantInsights(context);
   const activeClients = clients.filter((client) => client.status === 'active');
@@ -98,6 +125,7 @@ export default function ExecutionCenter() {
   );
   const selectedDayLabel = dayOptions.find((day) => day.value === selectedDay)?.label || 'Hoje';
   const isWeekend = selectedDay === 'sabado' || selectedDay === 'domingo';
+  const handleDayChange = (value: WeekdayId) => setSelectedDate(getNextDateForWeekday(value));
 
   const queue = useMemo<ExecutionItem[]>(() => {
     const plannedItems = plannedActivities.map((activity, index) => ({
@@ -199,11 +227,11 @@ export default function ExecutionCenter() {
             <div>
               <CardTitle>Planejamento por dia</CardTitle>
               <p className="text-sm text-muted-foreground">
-                Filtre um dia da semana para ver a rotina prevista antes de executar.
+                Filtre por data real para enxergar reuniões, missões e operação do dia escolhido.
               </p>
             </div>
-            <div className="w-full lg:w-64">
-              <Select value={selectedDay} onValueChange={(value) => setSelectedDay(value as WeekdayId)}>
+            <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 lg:w-[420px]">
+              <Select value={selectedDay} onValueChange={(value) => handleDayChange(value as WeekdayId)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -215,6 +243,11 @@ export default function ExecutionCenter() {
                   ))}
                 </SelectContent>
               </Select>
+              <Input
+                type="date"
+                value={selectedDate}
+                onChange={(event) => setSelectedDate(event.target.value)}
+              />
             </div>
           </div>
         </CardHeader>
@@ -222,7 +255,7 @@ export default function ExecutionCenter() {
           <div className="rounded-lg bg-muted/60 p-4">
             <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
               <div>
-                <p className="font-semibold">{selectedDayLabel}</p>
+                <p className="font-semibold">{selectedDayLabel} - {formatSelectedDate(selectedDate)}</p>
                 <p className="text-sm text-muted-foreground">
                   {isWeekend
                     ? 'Fim de semana sem operação. Apenas estudo ou leitura para manter evolução sem peso operacional.'

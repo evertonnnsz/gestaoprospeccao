@@ -4,6 +4,20 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Client, Lead, LeadStatus, STATUS_LABELS, STATUS_ORDER, LEAD_SOURCES } from '@/types/crm';
 import { calculateChurnRate } from '@/lib/utils/clientRevenue';
+import {
+  MONTHLY_GOAL,
+  getAssistantInsights,
+  getExecutionScore,
+  getMonthlyRevenue,
+  getNextBestAction,
+  getPendingFollowUps,
+  getRecommendedMode,
+  getRecurringRevenue,
+  getTodayMeetings,
+  readStoredDemands,
+  type OSDemand,
+} from '@/lib/fatureOS';
+import { FinancialTransaction } from '@/types/financial';
 import { StatsCard } from '@/components/dashboard/StatsCard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -20,6 +34,14 @@ import {
   X,
   FileText,
   UserMinus,
+  Brain,
+  CheckCircle2,
+  ClipboardList,
+  DollarSign,
+  Dumbbell,
+  Gauge,
+  Inbox,
+  Play,
 } from 'lucide-react';
 import { parseISO, startOfDay, format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -60,6 +82,9 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
+  const [transactions, setTransactions] = useState<FinancialTransaction[]>([]);
+  const [demands, setDemands] = useState<OSDemand[]>([]);
+  const [briefingOpen, setBriefingOpen] = useState(() => sessionStorage.getItem('fature-briefing-seen') !== 'yes');
   const [, setLoading] = useState(true);
 
   // Filters
@@ -84,6 +109,12 @@ export default function Dashboard() {
           .select('*');
         if (clientsError) throw clientsError;
         setClients(((clientsData as unknown) as Client[]) || []);
+        const { data: transactionsData, error: transactionsError } = await supabase
+          .from('financial_transactions')
+          .select('*');
+        if (transactionsError) throw transactionsError;
+        setTransactions((transactionsData as FinancialTransaction[]) || []);
+        setDemands(readStoredDemands());
       } catch (error) {
         console.error('Error fetching leads:', error);
       } finally {
@@ -171,6 +202,16 @@ export default function Dashboard() {
   const meetingRate = totalLeads > 0 ? (meetingsHeld / totalLeads) * 100 : 0;
   const responseRate = totalLeads > 0 ? (respondedLeads / totalLeads) * 100 : 0;
   const churn = calculateChurnRate(clients);
+  const osContext = { leads, clients, transactions, demands };
+  const monthlyRevenue = getMonthlyRevenue(transactions);
+  const recurringRevenue = getRecurringRevenue(clients);
+  const revenueRemaining = Math.max(MONTHLY_GOAL - monthlyRevenue, 0);
+  const revenueProgress = MONTHLY_GOAL > 0 ? Math.min((monthlyRevenue / MONTHLY_GOAL) * 100, 100) : 0;
+  const executionScore = getExecutionScore(osContext);
+  const pendingFollowUps = getPendingFollowUps(leads);
+  const nextBestAction = getNextBestAction(osContext);
+  const recommendedMode = getRecommendedMode(osContext);
+  const assistantInsights = getAssistantInsights(osContext);
 
   // Sources chart data
   const sourcesData = useMemo(() => {
@@ -190,6 +231,41 @@ export default function Dashboard() {
 
   return (
     <div className="p-6 space-y-6">
+      {briefingOpen && (
+        <Card className="border-warning/30 bg-gradient-to-br from-sidebar to-sidebar-accent text-sidebar-foreground shadow-lg">
+          <CardContent className="p-6 space-y-5">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div>
+                <p className="text-sm font-medium text-warning">Briefing do Dia</p>
+                <h2 className="text-2xl font-bold">Antes de começar, esta é a leitura da operação.</h2>
+                <p className="text-sidebar-foreground/70">
+                  Prioridades acima de horários. O sistema aponta a melhor ação para mover faturamento e operação.
+                </p>
+              </div>
+              <Button
+                className="bg-warning text-warning-foreground hover:bg-warning/90"
+                onClick={() => {
+                  sessionStorage.setItem('fature-briefing-seen', 'yes');
+                  setBriefingOpen(false);
+                }}
+              >
+                Iniciar meu dia
+              </Button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+              <BriefingItem label="Meta mensal" value={`R$ ${MONTHLY_GOAL.toLocaleString('pt-BR')}`} />
+              <BriefingItem label="Faturamento atual" value={`R$ ${monthlyRevenue.toLocaleString('pt-BR')}`} />
+              <BriefingItem label="Faltam" value={`R$ ${revenueRemaining.toLocaleString('pt-BR')}`} />
+              <BriefingItem label="Modo recomendado" value={recommendedMode} />
+              <BriefingItem label="Reuniões do dia" value={String(getTodayMeetings(leads).length)} />
+              <BriefingItem label="Follow-ups pendentes" value={String(pendingFollowUps.length)} />
+              <BriefingItem label="Missão principal" value={pendingFollowUps.length > 0 ? 'Follow-up comercial' : 'Gerar oportunidades'} />
+              <BriefingItem label="Próxima melhor ação" value={nextBestAction.title} />
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
@@ -207,6 +283,82 @@ export default function Dashboard() {
           onDateRangeChange={setDateRange}
         />
       </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        <Card className="xl:col-span-2 border-warning/30 shadow-sm">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <DollarSign className="w-5 h-5 text-warning" />
+              Radar de Faturamento
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-end justify-between gap-4">
+              <div>
+                <p className="text-sm text-muted-foreground">Progresso da meta mensal</p>
+                <p className="text-3xl font-bold">{revenueProgress.toFixed(0)}%</p>
+              </div>
+              <div className="text-right">
+                <p className="text-sm text-muted-foreground">Receita recorrente</p>
+                <p className="text-xl font-semibold">R$ {recurringRevenue.toLocaleString('pt-BR')}</p>
+              </div>
+            </div>
+            <div className="h-3 rounded-full bg-muted overflow-hidden">
+              <div className="h-full bg-warning transition-all" style={{ width: `${revenueProgress}%` }} />
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <MiniMetric label="Atual" value={`R$ ${monthlyRevenue.toLocaleString('pt-BR')}`} />
+              <MiniMetric label="Meta" value={`R$ ${MONTHLY_GOAL.toLocaleString('pt-BR')}`} />
+              <MiniMetric label="Faltam" value={`R$ ${revenueRemaining.toLocaleString('pt-BR')}`} />
+              <MiniMetric label="Clientes ativos" value={String(clients.filter((client) => client.status === 'active').length)} />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-sm">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Gauge className="w-5 h-5 text-primary" />
+              Score de Execução
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <span className="text-5xl font-bold">{executionScore}</span>
+              <span className="text-muted-foreground">/100</span>
+            </div>
+            <div className="h-3 rounded-full bg-muted overflow-hidden">
+              <div className="h-full bg-primary transition-all" style={{ width: `${executionScore}%` }} />
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Calculado por prospecção, follow-ups, reuniões, demandas concluídas, CRM e planejamento.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-4">
+        <OSCard icon={ClipboardList} title="Missão do Dia" text={pendingFollowUps.length > 0 ? 'Concluir follow-ups pendentes' : 'Criar novas oportunidades comerciais'} />
+        <OSCard icon={CalendarCheck} title="Agenda Inteligente" text={getTodayMeetings(leads).length > 0 ? 'Reuniões comerciais dominam a prioridade' : 'Dia livre para execução por impacto'} />
+        <OSCard icon={Inbox} title="Operacional" text={`${demands.filter((demand) => !['concluida', 'cancelada', 'arquivada'].includes(demand.status)).length} demandas ativas`} />
+        <OSCard icon={Dumbbell} title="Academia" text="Registrar treino mantém o score do dia completo" />
+      </div>
+
+      <Card className="border-primary/20 shadow-sm">
+        <CardContent className="p-5 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <div className="flex items-center gap-2 font-semibold">
+              <Brain className="w-5 h-5 text-primary" />
+              IA Assistente
+            </div>
+            <p className="text-sm text-muted-foreground">{assistantInsights[0]?.message}</p>
+          </div>
+          <Button onClick={() => navigate(nextBestAction.path)} className="gap-2">
+            <Play className="w-4 h-4" />
+            {nextBestAction.title}
+          </Button>
+        </CardContent>
+      </Card>
 
       {/* Smart Filters */}
       <Card className="shadow-sm">
@@ -376,6 +528,40 @@ export default function Dashboard() {
         </Card>
       </div>
     </div>
+  );
+}
+
+function BriefingItem({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border border-sidebar-border bg-white/5 p-3">
+      <p className="text-xs text-sidebar-foreground/60">{label}</p>
+      <p className="font-semibold">{value}</p>
+    </div>
+  );
+}
+
+function MiniMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border p-3">
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="font-semibold">{value}</p>
+    </div>
+  );
+}
+
+function OSCard({ icon: Icon, title, text }: { icon: any; title: string; text: string }) {
+  return (
+    <Card className="shadow-sm">
+      <CardContent className="p-4 space-y-3">
+        <div className="w-10 h-10 rounded-lg bg-warning/10 text-warning flex items-center justify-center">
+          <Icon className="w-5 h-5" />
+        </div>
+        <div>
+          <p className="font-semibold">{title}</p>
+          <p className="text-sm text-muted-foreground">{text}</p>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 

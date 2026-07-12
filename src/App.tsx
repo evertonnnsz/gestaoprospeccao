@@ -7,7 +7,11 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
+import ExecutionCenter from "./pages/ExecutionCenter";
 import DemandCenter from "./pages/DemandCenter";
+import AIAssistant from "./pages/AIAssistant";
+import Indicators from "./pages/Indicators";
+import Studies from "./pages/Studies";
 import Leads from "./pages/Leads";
 import Prospecting from "./pages/Prospecting";
 import Clients from "./pages/Clients";
@@ -35,7 +39,11 @@ const App = () => (
             <Route path="/auth" element={<Auth />} />
             <Route element={<DashboardLayout />}>
               <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/central-execucao" element={<ExecutionCenter />} />
               <Route path="/central-demandas" element={<DemandCenter />} />
+              <Route path="/ia-assistente" element={<AIAssistant />} />
+              <Route path="/indicadores" element={<Indicators />} />
+              <Route path="/estudos" element={<Studies />} />
               <Route path="/leads" element={<Leads />} />
               <Route path="/prospecting" element={<Prospecting />} />
               <Route path="/clients" element={<Clients />} />

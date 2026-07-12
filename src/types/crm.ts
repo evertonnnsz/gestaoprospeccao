@@ -28,6 +28,9 @@ export interface Lead {
   follow_up_3: string | null;
   last_contact: string | null;
   next_action: string | null;
+  meeting_date: string | null;
+  meeting_time: string | null;
+  meeting_notes: string | null;
   responded: boolean | null;
   cnpj: string | null;
   razao_social: string | null;

@@ -73,7 +73,15 @@ export function getRecurringRevenue(clients: Client[]) {
 }
 
 export function getTodayMeetings(leads: Lead[]) {
-  return leads.filter((lead) => lead.status === 'agendou_reuniao' || lead.status === 'reuniao_realizada');
+  return leads.filter((lead) => {
+    if (lead.status === 'reuniao_realizada') return true;
+    if (lead.status !== 'agendou_reuniao' || !lead.meeting_date) return false;
+    try {
+      return isToday(parseISO(lead.meeting_date));
+    } catch {
+      return false;
+    }
+  });
 }
 
 export function getPendingFollowUps(leads: Lead[]) {

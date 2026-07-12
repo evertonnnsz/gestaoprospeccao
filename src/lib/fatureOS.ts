@@ -3,7 +3,9 @@ import type { Client, Lead } from '@/types/crm';
 import type { FinancialTransaction } from '@/types/financial';
 
 export const DEMAND_STORAGE_KEY = 'fature-demand-center-v2';
-export const MONTHLY_GOAL = 15000;
+export const MONTHLY_GOAL_STORAGE_KEY = 'fature-os-monthly-goal';
+export const DEFAULT_MONTHLY_GOAL = 15000;
+export const MONTHLY_GOAL = DEFAULT_MONTHLY_GOAL;
 
 export type OSDemand = {
   id: string;
@@ -37,6 +39,20 @@ export function readStoredDemands(): OSDemand[] {
   } catch {
     return [];
   }
+}
+
+export function readMonthlyGoal() {
+  try {
+    const stored = localStorage.getItem(MONTHLY_GOAL_STORAGE_KEY);
+    const parsed = stored ? Number(stored) : DEFAULT_MONTHLY_GOAL;
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_MONTHLY_GOAL;
+  } catch {
+    return DEFAULT_MONTHLY_GOAL;
+  }
+}
+
+export function saveMonthlyGoal(goal: number) {
+  localStorage.setItem(MONTHLY_GOAL_STORAGE_KEY, String(goal));
 }
 
 export function getMonthlyRevenue(transactions: FinancialTransaction[]) {
@@ -163,7 +179,10 @@ export function getRecommendedMode(context: OSContext) {
 
 export function getAssistantInsights(context: OSContext) {
   const revenue = getMonthlyRevenue(context.transactions);
-  const remaining = Math.max(MONTHLY_GOAL - revenue, 0);
+  const monthlyGoal = readMonthlyGoal();
+  const recurringRevenue = getRecurringRevenue(context.clients);
+  const revenueBase = Math.max(revenue, recurringRevenue);
+  const remaining = Math.max(monthlyGoal - revenueBase, 0);
   const followUps = getPendingFollowUps(context.leads);
   const critical = getCriticalDemands(context.demands);
   const activeClients = context.clients.filter((client) => client.status === 'active');
@@ -172,9 +191,9 @@ export function getAssistantInsights(context: OSContext) {
 
   if (remaining > 0) {
     insights.push({
-      level: remaining > MONTHLY_GOAL * 0.5 ? 'Atenção' : 'Informação',
+      level: remaining > monthlyGoal * 0.5 ? 'Atenção' : 'Informação',
       title: 'Meta mensal em andamento',
-      message: `Faltam R$ ${remaining.toLocaleString('pt-BR')} para atingir a meta de R$ ${MONTHLY_GOAL.toLocaleString('pt-BR')}.`,
+      message: `Faltam R$ ${remaining.toLocaleString('pt-BR')} para atingir a meta de R$ ${monthlyGoal.toLocaleString('pt-BR')}.`,
       action: nextAction.title,
     });
   }

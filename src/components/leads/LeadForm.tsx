@@ -40,6 +40,9 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
     follow_up_3: '',
     last_contact: '',
     next_action: '',
+    meeting_date: '',
+    meeting_time: '',
+    meeting_notes: '',
     approach_date: new Date().toISOString().split('T')[0],
     responded: false,
     cnpj: '',
@@ -64,6 +67,9 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
       follow_up_3: followUps.follow_up_3,
       last_contact: '',
       next_action: '',
+      meeting_date: '',
+      meeting_time: '',
+      meeting_notes: '',
       approach_date: new Date().toISOString().split('T')[0],
       responded: false,
       cnpj: '',
@@ -93,6 +99,9 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
           follow_up_3: lead.follow_up_3 || (followUps?.follow_up_3 ?? ''),
           last_contact: lead.last_contact || '',
           next_action: lead.next_action || '',
+          meeting_date: lead.meeting_date || '',
+          meeting_time: lead.meeting_time || '',
+          meeting_notes: lead.meeting_notes || '',
           approach_date: lead.approach_date || new Date().toISOString().split('T')[0],
           responded: lead.responded || false,
           cnpj: lead.cnpj || '',
@@ -119,6 +128,9 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
       follow_up_2: formData.follow_up_2 || null,
       follow_up_3: formData.follow_up_3 || null,
       last_contact: formData.last_contact || null,
+      meeting_date: formData.status === 'agendou_reuniao' ? formData.meeting_date || null : null,
+      meeting_time: formData.status === 'agendou_reuniao' ? formData.meeting_time || null : null,
+      meeting_notes: formData.status === 'agendou_reuniao' ? formData.meeting_notes || null : null,
       approach_date: formData.approach_date || null,
       responded: formData.responded,
       cnpj: formData.cnpj || null,
@@ -268,6 +280,45 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
                 </SelectContent>
               </Select>
             </div>
+
+            {formData.status === 'agendou_reuniao' && (
+              <div className="md:col-span-2 rounded-lg border border-warning/30 bg-warning/5 p-4 space-y-4">
+                <Label className="flex items-center gap-2 text-base font-semibold">
+                  <Calendar className="w-4 h-4 text-warning" />
+                  Reunião comercial
+                </Label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="meeting_date">Data da reunião</Label>
+                    <Input
+                      id="meeting_date"
+                      type="date"
+                      value={formData.meeting_date}
+                      onChange={(e) => setFormData({ ...formData, meeting_date: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="meeting_time">Horário</Label>
+                    <Input
+                      id="meeting_time"
+                      type="time"
+                      value={formData.meeting_time}
+                      onChange={(e) => setFormData({ ...formData, meeting_time: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="meeting_notes">Observações da reunião</Label>
+                  <Textarea
+                    id="meeting_notes"
+                    rows={2}
+                    placeholder="Ex: Diagnóstico inicial, reunião pelo Google Meet, alinhar proposta..."
+                    value={formData.meeting_notes}
+                    onChange={(e) => setFormData({ ...formData, meeting_notes: e.target.value })}
+                  />
+                </div>
+              </div>
+            )}
 
             {/* Lead Source */}
             <div className="space-y-2">

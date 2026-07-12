@@ -32,7 +32,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
+import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
+import type { Client } from '@/types/crm';
 
 type DemandType = 'cliente' | 'comercial' | 'interna' | 'financeiro' | 'estudo' | 'outro';
 type DemandPriority = 'critica' | 'alta' | 'media' | 'baixa';
@@ -53,8 +55,11 @@ type Demand = {
   id: string;
   title: string;
   description: string;
+  origin: string;
   type: DemandType;
   clientName: string;
+  notes: string;
+  attachmentUrl: string;
   priority: DemandPriority;
   estimatedMinutes: number;
   deadline: DemandDeadline;
@@ -85,8 +90,11 @@ const STORAGE_KEY = 'fature-demand-center-v2';
 const defaultForm: DemandForm = {
   title: '',
   description: '',
+  origin: '',
   type: 'cliente',
   clientName: '',
+  notes: '',
+  attachmentUrl: '',
   priority: 'media',
   estimatedMinutes: 30,
   deadline: 'hoje',
@@ -257,12 +265,24 @@ function suggestForm(form: DemandForm): DemandForm {
 
 export default function DemandCenter() {
   const [demands, setDemands] = useState<Demand[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<DemandForm>(defaultForm);
 
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY);
     setDemands(stored ? JSON.parse(stored) : []);
+    const fetchClients = async () => {
+      const { data } = await supabase
+        .from('clients')
+        .select('*, lead:leads(*)')
+        .eq('status', 'active')
+        .order('created_at', { ascending: false });
+
+      setClients((data || []) as Client[]);
+    };
+
+    fetchClients();
   }, []);
 
   useEffect(() => {
@@ -442,7 +462,23 @@ export default function DemandCenter() {
               <Input value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} placeholder="Subir novo criativo" />
             </Field>
             <Field label="Cliente">
-              <Input value={form.clientName} onChange={(event) => setForm({ ...form, clientName: event.target.value })} placeholder="Opcional" />
+              <Select value={form.clientName || 'sem_cliente'} onValueChange={(value) => setForm({ ...form, clientName: value === 'sem_cliente' ? '' : value, affectsActiveClient: value !== 'sem_cliente' })}>
+                <SelectTrigger><SelectValue placeholder="Selecione um cliente" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="sem_cliente">Sem cliente vinculado</SelectItem>
+                  {clients.map((client) => {
+                    const name = client.lead?.company_name || `Cliente ${client.id.slice(0, 6)}`;
+                    return (
+                      <SelectItem key={client.id} value={name}>
+                        {name}
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+            </Field>
+            <Field label="Origem">
+              <Input value={form.origin} onChange={(event) => setForm({ ...form, origin: event.target.value })} placeholder="WhatsApp, reunião, cliente, interno..." />
             </Field>
             <Field label="Tipo">
               <Select value={form.type} onValueChange={(value) => setForm({ ...form, type: value as DemandType })}>
@@ -501,6 +537,12 @@ export default function DemandCenter() {
                 />
               </Field>
             </div>
+            <Field label="Anexo">
+              <Input value={form.attachmentUrl} onChange={(event) => setForm({ ...form, attachmentUrl: event.target.value })} placeholder="Link do arquivo ou imagem" />
+            </Field>
+            <Field label="Observações">
+              <Input value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} placeholder="Contexto adicional" />
+            </Field>
           </div>
 
           <div className="rounded-lg border p-4 space-y-3">
@@ -592,6 +634,7 @@ function DemandCard({ demand, onStatusChange }: { demand: Demand; onStatusChange
           <div>
             <CardTitle className="text-lg">{demand.title}</CardTitle>
             {demand.clientName && <p className="text-sm text-muted-foreground">{demand.clientName}</p>}
+            {demand.origin && <p className="text-xs text-muted-foreground">Origem: {demand.origin}</p>}
           </div>
           <div className="text-right">
             <p className="text-xs text-muted-foreground">Score</p>

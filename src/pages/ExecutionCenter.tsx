@@ -91,6 +91,20 @@ export default function ExecutionCenter() {
   const isWeekend = selectedDay === 'sabado' || selectedDay === 'domingo';
 
   const queue = useMemo<ExecutionItem[]>(() => {
+    const plannedItems = plannedActivities.map((activity, index) => ({
+      id: activity.id,
+      title: activity.title,
+      detail: activity.detail,
+      area: activity.area,
+      priority: 60 - index,
+      path: activity.area === 'Comercial' ? '/leads' : activity.area === 'Estudos' ? '/estudos' : '/central-execucao',
+      tone: 'default' as const,
+    }));
+
+    if (isWeekend) {
+      return plannedItems;
+    }
+
     const demandItems = activeDemands.map((demand) => ({
       id: demand.id,
       title: demand.title,
@@ -132,8 +146,9 @@ export default function ExecutionCenter() {
       },
     ];
 
-    return [...demandItems, ...followUpItems, ...missionItems].sort((a, b) => b.priority - a.priority);
-  }, [activeDemands, criticalDemands.length, followUps]);
+    return [...demandItems, ...followUpItems, ...plannedItems].sort((a, b) => b.priority - a.priority);
+  }, [activeDemands, followUps, isWeekend, plannedActivities]);
+  const selectedNextAction = queue[0];
 
   return (
     <div className="p-6 space-y-6 animate-fade-in">
@@ -145,9 +160,9 @@ export default function ExecutionCenter() {
             Uma fila única para missões, demandas críticas e follow-ups, sempre ordenada por impacto.
           </p>
         </div>
-        <Button onClick={() => navigate(nextBestAction.path)} className="gap-2">
+        <Button onClick={() => navigate(selectedNextAction?.path || nextBestAction.path)} className="gap-2">
           <Play className="w-4 h-4" />
-          {nextBestAction.title}
+          {selectedNextAction?.title || nextBestAction.title}
         </Button>
       </div>
 

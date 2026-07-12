@@ -1,4 +1,4 @@
-import { memo, useCallback, useState, useEffect } from 'react';
+import { memo, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -6,8 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Lead, LeadStatus, STATUS_LABELS, STATUS_ORDER } from '@/types/crm';
-import { LEAD_SOURCES } from '@/types/crm';
+import { Lead, LeadStatus, STATUS_LABELS, STATUS_ORDER, LEAD_SOURCES } from '@/types/crm';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -21,152 +20,160 @@ interface LeadFormProps {
   onSuccess: () => void;
 }
 
-function LeadFormComponent({ open, onOpenChange, lead, onSuccess }: LeadFormProps) {
-  const { user } = useAuth();
-  const { toast } = useToast();
-  const [loading, setLoading] = useState(false);
-  
-  const [formData, setFormData] = useState({
+type LeadFormDefaults = {
+  company_name: string;
+  contact_name: string;
+  whatsapp: string;
+  instagram: string;
+  status: LeadStatus;
+  observations: string;
+  lead_source: string;
+  segment: string;
+  follow_up_1: string;
+  follow_up_2: string;
+  follow_up_3: string;
+  last_contact: string;
+  next_action: string;
+  meeting_date: string;
+  meeting_time: string;
+  meeting_notes: string;
+  approach_date: string;
+  responded: boolean;
+  cnpj: string;
+  razao_social: string;
+  nome_fantasia: string;
+  endereco_completo: string;
+};
+
+const todayISO = () => {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const buildDefaults = (lead?: Lead | null): LeadFormDefaults => {
+  if (lead) {
+    return {
+      company_name: lead.company_name || '',
+      contact_name: lead.contact_name || '',
+      whatsapp: lead.whatsapp || '',
+      instagram: lead.instagram || '',
+      status: lead.status || 'lead_coletado',
+      observations: lead.observations || '',
+      lead_source: lead.lead_source || '',
+      segment: lead.segment || '',
+      follow_up_1: lead.follow_up_1 || '',
+      follow_up_2: lead.follow_up_2 || '',
+      follow_up_3: lead.follow_up_3 || '',
+      last_contact: lead.last_contact || '',
+      next_action: lead.next_action || '',
+      meeting_date: lead.meeting_date || '',
+      meeting_time: lead.meeting_time || '',
+      meeting_notes: lead.meeting_notes || '',
+      approach_date: lead.approach_date || todayISO(),
+      responded: lead.responded || false,
+      cnpj: lead.cnpj || '',
+      razao_social: lead.razao_social || '',
+      nome_fantasia: lead.nome_fantasia || '',
+      endereco_completo: lead.endereco_completo || '',
+    };
+  }
+
+  const followUps = generateFollowUpDates();
+  return {
     company_name: '',
     contact_name: '',
     whatsapp: '',
     instagram: '',
-    status: 'lead_coletado' as LeadStatus,
+    status: 'lead_coletado',
     observations: '',
     lead_source: '',
     segment: '',
-    follow_up_1: '',
-    follow_up_2: '',
-    follow_up_3: '',
+    follow_up_1: followUps.follow_up_1,
+    follow_up_2: followUps.follow_up_2,
+    follow_up_3: followUps.follow_up_3,
     last_contact: '',
     next_action: '',
     meeting_date: '',
     meeting_time: '',
     meeting_notes: '',
-    approach_date: new Date().toISOString().split('T')[0],
+    approach_date: todayISO(),
     responded: false,
     cnpj: '',
     razao_social: '',
     nome_fantasia: '',
     endereco_completo: '',
-  });
-
-  const getDefaultFormData = () => {
-    const followUps = generateFollowUpDates();
-    return {
-      company_name: '',
-      contact_name: '',
-      whatsapp: '',
-      instagram: '',
-      status: 'lead_coletado' as LeadStatus,
-      observations: '',
-      lead_source: '',
-      segment: '',
-      follow_up_1: followUps.follow_up_1,
-      follow_up_2: followUps.follow_up_2,
-      follow_up_3: followUps.follow_up_3,
-      last_contact: '',
-      next_action: '',
-      meeting_date: '',
-      meeting_time: '',
-      meeting_notes: '',
-      approach_date: new Date().toISOString().split('T')[0],
-      responded: false,
-      cnpj: '',
-      razao_social: '',
-      nome_fantasia: '',
-      endereco_completo: '',
-    };
   };
+};
 
-  const updateFormField = useCallback((field: string, value: string | boolean | LeadStatus) => {
-    setFormData((current) => ({ ...current, [field]: value }));
-  }, []);
+const readText = (form: FormData, key: keyof LeadFormDefaults) => String(form.get(key) || '');
+const nullable = (value: string) => value.trim() || null;
 
-  // Reset form when dialog opens or lead prop changes
+function LeadFormComponent({ open, onOpenChange, lead, onSuccess }: LeadFormProps) {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [loading, setLoading] = useState(false);
+  const [defaults, setDefaults] = useState<LeadFormDefaults>(() => buildDefaults(lead));
+  const [status, setStatus] = useState<LeadStatus>(defaults.status);
+  const [leadSource, setLeadSource] = useState(defaults.lead_source);
+  const [responded, setResponded] = useState(defaults.responded);
+  const [formKey, setFormKey] = useState(0);
+
   useEffect(() => {
-    if (open) {
-      if (lead) {
-        const isEditing = !!lead.id;
-        const followUps = !isEditing ? generateFollowUpDates() : null;
-        setFormData({
-          company_name: lead.company_name || '',
-          contact_name: lead.contact_name || '',
-          whatsapp: lead.whatsapp || '',
-          instagram: lead.instagram || '',
-          status: lead.status || 'lead_coletado',
-          observations: lead.observations || '',
-          lead_source: lead.lead_source || '',
-          segment: lead.segment || '',
-          follow_up_1: lead.follow_up_1 || (followUps?.follow_up_1 ?? ''),
-          follow_up_2: lead.follow_up_2 || (followUps?.follow_up_2 ?? ''),
-          follow_up_3: lead.follow_up_3 || (followUps?.follow_up_3 ?? ''),
-          last_contact: lead.last_contact || '',
-          next_action: lead.next_action || '',
-          meeting_date: lead.meeting_date || '',
-          meeting_time: lead.meeting_time || '',
-          meeting_notes: lead.meeting_notes || '',
-          approach_date: lead.approach_date || new Date().toISOString().split('T')[0],
-          responded: lead.responded || false,
-          cnpj: lead.cnpj || '',
-          razao_social: lead.razao_social || '',
-          nome_fantasia: lead.nome_fantasia || '',
-          endereco_completo: lead.endereco_completo || '',
-        });
-      } else {
-        setFormData(getDefaultFormData());
-      }
-    }
-  }, [open, lead]);
+    if (!open) return;
+    const nextDefaults = buildDefaults(lead);
+    setDefaults(nextDefaults);
+    setStatus(nextDefaults.status);
+    setLeadSource(nextDefaults.lead_source);
+    setResponded(nextDefaults.responded);
+    setFormKey((key) => key + 1);
+  }, [lead, open]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
     if (!user) return;
 
+    const form = new FormData(event.currentTarget);
     setLoading(true);
 
+    const meetingDate = readText(form, 'meeting_date');
     const payload = {
-      ...formData,
       user_id: user.id,
-      follow_up_1: formData.follow_up_1 || null,
-      follow_up_2: formData.follow_up_2 || null,
-      follow_up_3: formData.follow_up_3 || null,
-      last_contact: formData.last_contact || null,
-      meeting_date: formData.status === 'agendou_reuniao' ? formData.meeting_date || null : null,
-      meeting_time: formData.status === 'agendou_reuniao' ? formData.meeting_time || null : null,
-      meeting_notes: formData.status === 'agendou_reuniao' ? formData.meeting_notes || null : null,
-      approach_date: formData.approach_date || null,
-      responded: formData.responded,
-      cnpj: formData.cnpj || null,
-      razao_social: formData.razao_social || null,
-      nome_fantasia: formData.nome_fantasia || null,
-      endereco_completo: formData.endereco_completo || null,
+      company_name: readText(form, 'company_name'),
+      contact_name: nullable(readText(form, 'contact_name')),
+      whatsapp: nullable(readText(form, 'whatsapp')),
+      instagram: nullable(readText(form, 'instagram')),
+      status,
+      observations: nullable(readText(form, 'observations')),
+      lead_source: nullable(leadSource),
+      segment: nullable(readText(form, 'segment')),
+      follow_up_1: nullable(readText(form, 'follow_up_1')),
+      follow_up_2: nullable(readText(form, 'follow_up_2')),
+      follow_up_3: nullable(readText(form, 'follow_up_3')),
+      last_contact: nullable(readText(form, 'last_contact')),
+      next_action: nullable(readText(form, 'next_action')),
+      meeting_date: status === 'agendou_reuniao' || meetingDate ? nullable(meetingDate) : null,
+      meeting_time: status === 'agendou_reuniao' || meetingDate ? nullable(readText(form, 'meeting_time')) : null,
+      meeting_notes: status === 'agendou_reuniao' || meetingDate ? nullable(readText(form, 'meeting_notes')) : null,
+      approach_date: nullable(readText(form, 'approach_date')),
+      responded,
+      cnpj: nullable(readText(form, 'cnpj')),
+      razao_social: nullable(readText(form, 'razao_social')),
+      nome_fantasia: nullable(readText(form, 'nome_fantasia')),
+      endereco_completo: nullable(readText(form, 'endereco_completo')),
     };
 
     try {
       if (lead?.id) {
-        const { error } = await supabase
-          .from('leads')
-          .update(payload)
-          .eq('id', lead.id);
-        
+        const { error } = await supabase.from('leads').update(payload).eq('id', lead.id);
         if (error) throw error;
-        
-        toast({
-          title: 'Lead atualizado!',
-          description: 'As informações foram salvas com sucesso.',
-        });
+        toast({ title: 'Lead atualizado!', description: 'As informações foram salvas com sucesso.' });
       } else {
-        const { error } = await supabase
-          .from('leads')
-          .insert(payload);
-        
+        const { error } = await supabase.from('leads').insert(payload);
         if (error) throw error;
-        
-        toast({
-          title: 'Lead criado!',
-          description: 'O novo lead foi adicionado com sucesso.',
-        });
+        toast({ title: 'Lead criado!', description: 'O novo lead foi adicionado com sucesso.' });
       }
 
       onSuccess();
@@ -188,104 +195,66 @@ function LeadFormComponent({ open, onOpenChange, lead, onSuccess }: LeadFormProp
         <DialogHeader>
           <DialogTitle>{lead?.id ? 'Editar Lead' : 'Novo Lead'}</DialogTitle>
         </DialogHeader>
-        
-        <form onSubmit={handleSubmit} className="space-y-6">
+
+        <form key={formKey} onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Company Name */}
             <div className="space-y-2">
               <Label htmlFor="company_name">Empresa *</Label>
               <div className="relative">
                 <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  id="company_name"
-                  className="pl-10"
-                  value={formData.company_name}
-                  onChange={(e) => updateFormField('company_name', e.target.value)}
-                  required
-                />
+                <Input id="company_name" name="company_name" className="pl-10" defaultValue={defaults.company_name} required />
               </div>
             </div>
 
-            {/* Approach Date */}
             <div className="space-y-2">
               <Label htmlFor="approach_date">Data do Cadastro</Label>
               <div className="relative">
                 <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  id="approach_date"
-                  type="date"
-                  className="pl-10"
-                  value={formData.approach_date}
-                  onChange={(e) => updateFormField('approach_date', e.target.value)}
-                />
+                <Input id="approach_date" name="approach_date" type="date" className="pl-10" defaultValue={defaults.approach_date} />
               </div>
             </div>
 
-            {/* Contact Name */}
             <div className="space-y-2">
               <Label htmlFor="contact_name">Nome do Contato</Label>
               <div className="relative">
                 <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  id="contact_name"
-                  className="pl-10"
-                  value={formData.contact_name}
-                  onChange={(e) => updateFormField('contact_name', e.target.value)}
-                />
+                <Input id="contact_name" name="contact_name" className="pl-10" defaultValue={defaults.contact_name} />
               </div>
             </div>
 
-            {/* WhatsApp */}
             <div className="space-y-2">
               <Label htmlFor="whatsapp">WhatsApp</Label>
               <div className="relative">
                 <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  id="whatsapp"
-                  className="pl-10"
-                  placeholder="+55 11 99999-9999"
-                  value={formData.whatsapp}
-                  onChange={(e) => updateFormField('whatsapp', e.target.value)}
-                />
+                <Input id="whatsapp" name="whatsapp" className="pl-10" placeholder="+55 11 99999-9999" defaultValue={defaults.whatsapp} />
               </div>
             </div>
 
-            {/* Instagram */}
             <div className="space-y-2">
               <Label htmlFor="instagram">Instagram</Label>
               <div className="relative">
                 <Instagram className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  id="instagram"
-                  className="pl-10"
-                  placeholder="@usuario"
-                  value={formData.instagram}
-                  onChange={(e) => updateFormField('instagram', e.target.value)}
-                />
+                <Input id="instagram" name="instagram" className="pl-10" placeholder="@usuario" defaultValue={defaults.instagram} />
               </div>
             </div>
 
-            {/* Status */}
             <div className="space-y-2">
               <Label>Status</Label>
-              <Select 
-                value={formData.status} 
-                onValueChange={(value) => updateFormField('status', value as LeadStatus)}
-              >
+              <Select value={status} onValueChange={(value) => setStatus(value as LeadStatus)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {STATUS_ORDER.map((status) => (
-                    <SelectItem key={status} value={status}>
-                      {STATUS_LABELS[status]}
+                  {STATUS_ORDER.map((statusOption) => (
+                    <SelectItem key={statusOption} value={statusOption}>
+                      {STATUS_LABELS[statusOption]}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
 
-            {formData.status === 'agendou_reuniao' && (
+            {status === 'agendou_reuniao' && (
               <div className="md:col-span-2 rounded-lg border border-warning/30 bg-warning/5 p-4 space-y-4">
                 <Label className="flex items-center gap-2 text-base font-semibold">
                   <Calendar className="w-4 h-4 text-warning" />
@@ -294,43 +263,29 @@ function LeadFormComponent({ open, onOpenChange, lead, onSuccess }: LeadFormProp
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="meeting_date">Data da reunião</Label>
-                    <Input
-                      id="meeting_date"
-                      type="date"
-                      value={formData.meeting_date}
-                      onChange={(e) => updateFormField('meeting_date', e.target.value)}
-                    />
+                    <Input id="meeting_date" name="meeting_date" type="date" defaultValue={defaults.meeting_date} />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="meeting_time">Horário</Label>
-                    <Input
-                      id="meeting_time"
-                      type="time"
-                      value={formData.meeting_time}
-                      onChange={(e) => updateFormField('meeting_time', e.target.value)}
-                    />
+                    <Input id="meeting_time" name="meeting_time" type="time" defaultValue={defaults.meeting_time} />
                   </div>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="meeting_notes">Observações da reunião</Label>
                   <Textarea
                     id="meeting_notes"
+                    name="meeting_notes"
                     rows={2}
                     placeholder="Ex: Diagnóstico inicial, reunião pelo Google Meet, alinhar proposta..."
-                    value={formData.meeting_notes}
-                    onChange={(e) => updateFormField('meeting_notes', e.target.value)}
+                    defaultValue={defaults.meeting_notes}
                   />
                 </div>
               </div>
             )}
 
-            {/* Lead Source */}
             <div className="space-y-2">
               <Label htmlFor="lead_source">Origem do Lead</Label>
-              <Select
-                value={formData.lead_source || undefined}
-                onValueChange={(value) => updateFormField('lead_source', value)}
-              >
+              <Select value={leadSource || undefined} onValueChange={setLeadSource}>
                 <SelectTrigger id="lead_source">
                   <SelectValue placeholder="Selecione a origem" />
                 </SelectTrigger>
@@ -344,18 +299,12 @@ function LeadFormComponent({ open, onOpenChange, lead, onSuccess }: LeadFormProp
               </Select>
             </div>
 
-            {/* Segment */}
             <div className="space-y-2">
               <Label htmlFor="segment">Segmento</Label>
-              <Input
-                id="segment"
-                placeholder="Ex: Tecnologia, Saúde, Varejo"
-                value={formData.segment}
-                onChange={(e) => updateFormField('segment', e.target.value)}
-              />
+              <Input id="segment" name="segment" placeholder="Ex: Tecnologia, Saúde, Varejo" defaultValue={defaults.segment} />
+            </div>
           </div>
 
-          {/* Dados Empresariais */}
           <div className="space-y-4">
             <Label className="flex items-center gap-2 text-base font-semibold">
               <FileText className="w-4 h-4" />
@@ -364,30 +313,15 @@ function LeadFormComponent({ open, onOpenChange, lead, onSuccess }: LeadFormProp
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="cnpj">CNPJ</Label>
-                <Input
-                  id="cnpj"
-                  placeholder="00.000.000/0000-00"
-                  value={formData.cnpj}
-                  onChange={(e) => updateFormField('cnpj', e.target.value)}
-                />
+                <Input id="cnpj" name="cnpj" placeholder="00.000.000/0000-00" defaultValue={defaults.cnpj} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="razao_social">Razão Social</Label>
-                <Input
-                  id="razao_social"
-                  placeholder="Nome jurídico da empresa"
-                  value={formData.razao_social}
-                  onChange={(e) => updateFormField('razao_social', e.target.value)}
-                />
+                <Input id="razao_social" name="razao_social" placeholder="Nome jurídico da empresa" defaultValue={defaults.razao_social} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="nome_fantasia">Nome Fantasia</Label>
-                <Input
-                  id="nome_fantasia"
-                  placeholder="Nome comercial"
-                  value={formData.nome_fantasia}
-                  onChange={(e) => updateFormField('nome_fantasia', e.target.value)}
-                />
+                <Input id="nome_fantasia" name="nome_fantasia" placeholder="Nome comercial" defaultValue={defaults.nome_fantasia} />
               </div>
             </div>
             <div className="space-y-2">
@@ -397,27 +331,19 @@ function LeadFormComponent({ open, onOpenChange, lead, onSuccess }: LeadFormProp
               </Label>
               <Textarea
                 id="endereco_completo"
+                name="endereco_completo"
                 rows={2}
                 placeholder="Logradouro, nº, bairro, cidade - UF, CEP"
-                value={formData.endereco_completo}
-                onChange={(e) => updateFormField('endereco_completo', e.target.value)}
+                defaultValue={defaults.endereco_completo}
               />
             </div>
           </div>
 
-            {/* Next Action */}
-            <div className="space-y-2">
-              <Label htmlFor="next_action">Próxima Ação</Label>
-              <Input
-                id="next_action"
-                placeholder="Ex: Enviar proposta, Ligar"
-                value={formData.next_action}
-                onChange={(e) => updateFormField('next_action', e.target.value)}
-              />
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="next_action">Próxima Ação</Label>
+            <Input id="next_action" name="next_action" placeholder="Ex: Enviar proposta, Ligar" defaultValue={defaults.next_action} />
           </div>
 
-          {/* Follow-ups */}
           <div className="space-y-2">
             <Label className="flex items-center gap-2">
               <Calendar className="w-4 h-4" />
@@ -426,71 +352,38 @@ function LeadFormComponent({ open, onOpenChange, lead, onSuccess }: LeadFormProp
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-1">
                 <Label htmlFor="follow_up_1" className="text-xs text-muted-foreground">Follow-up 1</Label>
-                <Input
-                  id="follow_up_1"
-                  type="date"
-                  value={formData.follow_up_1}
-                  onChange={(e) => updateFormField('follow_up_1', e.target.value)}
-                />
+                <Input id="follow_up_1" name="follow_up_1" type="date" defaultValue={defaults.follow_up_1} />
               </div>
               <div className="space-y-1">
                 <Label htmlFor="follow_up_2" className="text-xs text-muted-foreground">Follow-up 2</Label>
-                <Input
-                  id="follow_up_2"
-                  type="date"
-                  value={formData.follow_up_2}
-                  onChange={(e) => updateFormField('follow_up_2', e.target.value)}
-                />
+                <Input id="follow_up_2" name="follow_up_2" type="date" defaultValue={defaults.follow_up_2} />
               </div>
               <div className="space-y-1">
                 <Label htmlFor="follow_up_3" className="text-xs text-muted-foreground">Follow-up 3</Label>
-                <Input
-                  id="follow_up_3"
-                  type="date"
-                  value={formData.follow_up_3}
-                  onChange={(e) => updateFormField('follow_up_3', e.target.value)}
-                />
+                <Input id="follow_up_3" name="follow_up_3" type="date" defaultValue={defaults.follow_up_3} />
               </div>
             </div>
           </div>
 
-          {/* Last Contact */}
           <div className="space-y-2">
             <Label htmlFor="last_contact">Último Contato</Label>
-            <Input
-              id="last_contact"
-              type="date"
-              value={formData.last_contact}
-              onChange={(e) => updateFormField('last_contact', e.target.value)}
-            />
+            <Input id="last_contact" name="last_contact" type="date" defaultValue={defaults.last_contact} />
           </div>
 
-          {/* Responded Checkbox */}
           <div className="flex items-center space-x-3 p-4 bg-muted/50 rounded-lg">
-            <Checkbox
-              id="responded"
-              checked={formData.responded}
-              onCheckedChange={(checked) => updateFormField('responded', checked === true)}
-            />
+            <Checkbox id="responded" checked={responded} onCheckedChange={(checked) => setResponded(checked === true)} />
             <Label htmlFor="responded" className="flex items-center gap-2 cursor-pointer">
               <MessageCircle className="w-4 h-4 text-success" />
               Lead respondeu a mensagem
             </Label>
           </div>
 
-          {/* Observations */}
           <div className="space-y-2">
             <Label htmlFor="observations" className="flex items-center gap-2">
               <MessageSquare className="w-4 h-4" />
               Observações
             </Label>
-            <Textarea
-              id="observations"
-              rows={4}
-              placeholder="Anotações sobre o lead..."
-              value={formData.observations}
-              onChange={(e) => updateFormField('observations', e.target.value)}
-            />
+            <Textarea id="observations" name="observations" rows={4} placeholder="Anotações sobre o lead..." defaultValue={defaults.observations} />
           </div>
 
           <DialogFooter>

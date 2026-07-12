@@ -15,6 +15,10 @@ import {
   ClipboardCheck,
   MessageCircle,
   Inbox,
+  ClipboardList,
+  Brain,
+  BarChart3,
+  BookOpen,
 } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -23,15 +27,16 @@ import { Button } from '@/components/ui/button';
 import { useState } from 'react';
 
 const navItems = [
-  { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
+  { title: 'Dashboard Executivo', url: '/dashboard', icon: LayoutDashboard },
+  { title: 'Central de Execução', url: '/central-execucao', icon: ClipboardList },
   { title: 'Central de Demandas', url: '/central-demandas', icon: Inbox },
-  { title: 'Leads', url: '/leads', icon: Users },
+  { title: 'Comercial', url: '/leads', icon: Users },
   { title: 'Prospecção', url: '/prospecting', icon: Sparkles },
-  { title: 'Clientes', url: '/clients', icon: Briefcase },
+  { title: 'Operacional', url: '/customer-success', icon: HeartHandshake },
   { title: 'Financeiro', url: '/financial', icon: DollarSign },
-  { title: 'Funil', url: '/funnel', icon: Target },
-  { title: 'Sucesso do Cliente', url: '/customer-success', icon: HeartHandshake },
-  { title: 'Onboarding', url: '/onboarding', icon: ClipboardCheck },
+  { title: 'Estudos', url: '/estudos', icon: BookOpen },
+  { title: 'Indicadores', url: '/indicadores', icon: BarChart3 },
+  { title: 'IA Assistente', url: '/ia-assistente', icon: Brain },
 ];
 
 const adminItems = [

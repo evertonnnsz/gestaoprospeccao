@@ -80,7 +80,7 @@ type Demand = {
 
 type DemandForm = Omit<Demand, 'id' | 'status' | 'priorityScore' | 'aiSuggestion' | 'createdAt' | 'updatedAt' | 'completedAt'>;
 
-const STORAGE_KEY = 'fature-demand-center';
+const STORAGE_KEY = 'fature-demand-center-v2';
 
 const defaultForm: DemandForm = {
   title: '',
@@ -148,42 +148,6 @@ const statusLabels: Record<DemandStatus, string> = {
   cancelada: 'Cancelada',
   arquivada: 'Arquivada',
 };
-
-const seedDemands: Demand[] = [
-  createDemand({
-    ...defaultForm,
-    title: 'Subir novo criativo',
-    description: 'Cliente pediu uma nova arte para campanha ativa no Meta Ads.',
-    type: 'cliente',
-    clientName: 'Cliente ativo',
-    priority: 'alta',
-    impact: 'cliente',
-    affectsActiveClient: true,
-    affectsRunningCampaign: true,
-    clientNoticesToday: true,
-  }),
-  createDemand({
-    ...defaultForm,
-    title: 'Revisar proposta comercial',
-    description: 'Ajustar proposta antes do envio para oportunidade quente.',
-    type: 'comercial',
-    priority: 'alta',
-    impact: 'faturamento',
-    generatesRevenue: true,
-    quickWin: false,
-  }),
-  createDemand({
-    ...defaultForm,
-    title: 'Organizar aula de Google Ads',
-    description: 'Separar 30 minutos para continuar o estudo da semana.',
-    type: 'estudo',
-    priority: 'baixa',
-    deadline: 'esta_semana',
-    impact: 'estrategico',
-    hasRealDeadline: false,
-    canRescheduleSafely: true,
-  }),
-];
 
 function createDemand(form: DemandForm): Demand {
   const now = new Date().toISOString();
@@ -298,7 +262,7 @@ export default function DemandCenter() {
 
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY);
-    setDemands(stored ? JSON.parse(stored) : seedDemands);
+    setDemands(stored ? JSON.parse(stored) : []);
   }, []);
 
   useEffect(() => {

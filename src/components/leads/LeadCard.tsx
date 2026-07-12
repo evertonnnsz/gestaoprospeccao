@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { format, parseISO, startOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Lead } from '@/types/crm';
@@ -42,7 +43,7 @@ interface LeadCardProps {
   hasCheckbox?: boolean;
 }
 
-export function LeadCard({ lead, onEdit, onDelete, onUpdate, hasCheckbox }: LeadCardProps) {
+function LeadCardComponent({ lead, onEdit, onDelete, onUpdate, hasCheckbox }: LeadCardProps) {
   const { toast } = useToast();
 
   const hasOverdueFollowUp = () => {
@@ -302,3 +303,5 @@ export function LeadCard({ lead, onEdit, onDelete, onUpdate, hasCheckbox }: Lead
     </Card>
   );
 }
+
+export const LeadCard = memo(LeadCardComponent);

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { memo, useCallback, useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -21,7 +21,7 @@ interface LeadFormProps {
   onSuccess: () => void;
 }
 
-export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps) {
+function LeadFormComponent({ open, onOpenChange, lead, onSuccess }: LeadFormProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
@@ -78,6 +78,10 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
       endereco_completo: '',
     };
   };
+
+  const updateFormField = useCallback((field: string, value: string | boolean | LeadStatus) => {
+    setFormData((current) => ({ ...current, [field]: value }));
+  }, []);
 
   // Reset form when dialog opens or lead prop changes
   useEffect(() => {
@@ -196,7 +200,7 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
                   id="company_name"
                   className="pl-10"
                   value={formData.company_name}
-                  onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
+                  onChange={(e) => updateFormField('company_name', e.target.value)}
                   required
                 />
               </div>
@@ -212,7 +216,7 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
                   type="date"
                   className="pl-10"
                   value={formData.approach_date}
-                  onChange={(e) => setFormData({ ...formData, approach_date: e.target.value })}
+                  onChange={(e) => updateFormField('approach_date', e.target.value)}
                 />
               </div>
             </div>
@@ -226,7 +230,7 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
                   id="contact_name"
                   className="pl-10"
                   value={formData.contact_name}
-                  onChange={(e) => setFormData({ ...formData, contact_name: e.target.value })}
+                  onChange={(e) => updateFormField('contact_name', e.target.value)}
                 />
               </div>
             </div>
@@ -241,7 +245,7 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
                   className="pl-10"
                   placeholder="+55 11 99999-9999"
                   value={formData.whatsapp}
-                  onChange={(e) => setFormData({ ...formData, whatsapp: e.target.value })}
+                  onChange={(e) => updateFormField('whatsapp', e.target.value)}
                 />
               </div>
             </div>
@@ -256,7 +260,7 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
                   className="pl-10"
                   placeholder="@usuario"
                   value={formData.instagram}
-                  onChange={(e) => setFormData({ ...formData, instagram: e.target.value })}
+                  onChange={(e) => updateFormField('instagram', e.target.value)}
                 />
               </div>
             </div>
@@ -266,7 +270,7 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
               <Label>Status</Label>
               <Select 
                 value={formData.status} 
-                onValueChange={(value) => setFormData({ ...formData, status: value as LeadStatus })}
+                onValueChange={(value) => updateFormField('status', value as LeadStatus)}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -294,7 +298,7 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
                       id="meeting_date"
                       type="date"
                       value={formData.meeting_date}
-                      onChange={(e) => setFormData({ ...formData, meeting_date: e.target.value })}
+                      onChange={(e) => updateFormField('meeting_date', e.target.value)}
                     />
                   </div>
                   <div className="space-y-2">
@@ -303,7 +307,7 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
                       id="meeting_time"
                       type="time"
                       value={formData.meeting_time}
-                      onChange={(e) => setFormData({ ...formData, meeting_time: e.target.value })}
+                      onChange={(e) => updateFormField('meeting_time', e.target.value)}
                     />
                   </div>
                 </div>
@@ -314,7 +318,7 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
                     rows={2}
                     placeholder="Ex: Diagnóstico inicial, reunião pelo Google Meet, alinhar proposta..."
                     value={formData.meeting_notes}
-                    onChange={(e) => setFormData({ ...formData, meeting_notes: e.target.value })}
+                    onChange={(e) => updateFormField('meeting_notes', e.target.value)}
                   />
                 </div>
               </div>
@@ -325,7 +329,7 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
               <Label htmlFor="lead_source">Origem do Lead</Label>
               <Select
                 value={formData.lead_source || undefined}
-                onValueChange={(value) => setFormData({ ...formData, lead_source: value })}
+                onValueChange={(value) => updateFormField('lead_source', value)}
               >
                 <SelectTrigger id="lead_source">
                   <SelectValue placeholder="Selecione a origem" />
@@ -347,7 +351,7 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
                 id="segment"
                 placeholder="Ex: Tecnologia, Saúde, Varejo"
                 value={formData.segment}
-                onChange={(e) => setFormData({ ...formData, segment: e.target.value })}
+                onChange={(e) => updateFormField('segment', e.target.value)}
               />
           </div>
 
@@ -364,7 +368,7 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
                   id="cnpj"
                   placeholder="00.000.000/0000-00"
                   value={formData.cnpj}
-                  onChange={(e) => setFormData({ ...formData, cnpj: e.target.value })}
+                  onChange={(e) => updateFormField('cnpj', e.target.value)}
                 />
               </div>
               <div className="space-y-2">
@@ -373,7 +377,7 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
                   id="razao_social"
                   placeholder="Nome jurídico da empresa"
                   value={formData.razao_social}
-                  onChange={(e) => setFormData({ ...formData, razao_social: e.target.value })}
+                  onChange={(e) => updateFormField('razao_social', e.target.value)}
                 />
               </div>
               <div className="space-y-2">
@@ -382,7 +386,7 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
                   id="nome_fantasia"
                   placeholder="Nome comercial"
                   value={formData.nome_fantasia}
-                  onChange={(e) => setFormData({ ...formData, nome_fantasia: e.target.value })}
+                  onChange={(e) => updateFormField('nome_fantasia', e.target.value)}
                 />
               </div>
             </div>
@@ -396,7 +400,7 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
                 rows={2}
                 placeholder="Logradouro, nº, bairro, cidade - UF, CEP"
                 value={formData.endereco_completo}
-                onChange={(e) => setFormData({ ...formData, endereco_completo: e.target.value })}
+                onChange={(e) => updateFormField('endereco_completo', e.target.value)}
               />
             </div>
           </div>
@@ -408,7 +412,7 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
                 id="next_action"
                 placeholder="Ex: Enviar proposta, Ligar"
                 value={formData.next_action}
-                onChange={(e) => setFormData({ ...formData, next_action: e.target.value })}
+                onChange={(e) => updateFormField('next_action', e.target.value)}
               />
             </div>
           </div>
@@ -426,7 +430,7 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
                   id="follow_up_1"
                   type="date"
                   value={formData.follow_up_1}
-                  onChange={(e) => setFormData({ ...formData, follow_up_1: e.target.value })}
+                  onChange={(e) => updateFormField('follow_up_1', e.target.value)}
                 />
               </div>
               <div className="space-y-1">
@@ -435,7 +439,7 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
                   id="follow_up_2"
                   type="date"
                   value={formData.follow_up_2}
-                  onChange={(e) => setFormData({ ...formData, follow_up_2: e.target.value })}
+                  onChange={(e) => updateFormField('follow_up_2', e.target.value)}
                 />
               </div>
               <div className="space-y-1">
@@ -444,7 +448,7 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
                   id="follow_up_3"
                   type="date"
                   value={formData.follow_up_3}
-                  onChange={(e) => setFormData({ ...formData, follow_up_3: e.target.value })}
+                  onChange={(e) => updateFormField('follow_up_3', e.target.value)}
                 />
               </div>
             </div>
@@ -457,7 +461,7 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
               id="last_contact"
               type="date"
               value={formData.last_contact}
-              onChange={(e) => setFormData({ ...formData, last_contact: e.target.value })}
+              onChange={(e) => updateFormField('last_contact', e.target.value)}
             />
           </div>
 
@@ -466,7 +470,7 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
             <Checkbox
               id="responded"
               checked={formData.responded}
-              onCheckedChange={(checked) => setFormData({ ...formData, responded: checked === true })}
+              onCheckedChange={(checked) => updateFormField('responded', checked === true)}
             />
             <Label htmlFor="responded" className="flex items-center gap-2 cursor-pointer">
               <MessageCircle className="w-4 h-4 text-success" />
@@ -485,7 +489,7 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
               rows={4}
               placeholder="Anotações sobre o lead..."
               value={formData.observations}
-              onChange={(e) => setFormData({ ...formData, observations: e.target.value })}
+              onChange={(e) => updateFormField('observations', e.target.value)}
             />
           </div>
 
@@ -502,3 +506,5 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
     </Dialog>
   );
 }
+
+export const LeadForm = memo(LeadFormComponent);

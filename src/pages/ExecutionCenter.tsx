@@ -51,6 +51,12 @@ const dayOptions: { value: WeekdayId; label: string }[] = [
 
 const dayByIndex: WeekdayId[] = ['domingo', 'segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado'];
 
+const getLeadMeetingDay = (lead: Lead): WeekdayId | null => {
+  if (!lead.meeting_date) return null;
+  const date = new Date(`${lead.meeting_date}T12:00:00`);
+  return dayByIndex[date.getDay()];
+};
+
 export default function ExecutionCenter() {
   const navigate = useNavigate();
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -81,6 +87,9 @@ export default function ExecutionCenter() {
   const criticalDemands = getCriticalDemands(demands);
   const followUps = getPendingFollowUps(leads);
   const activeDemands = getActiveDemands(demands);
+  const scheduledMeetings = leads.filter(
+    (lead) => lead.status === 'agendou_reuniao' && getLeadMeetingDay(lead) === selectedDay,
+  );
   const insights = getAssistantInsights(context);
   const activeClients = clients.filter((client) => client.status === 'active');
   const plannedActivities = useMemo(
@@ -104,6 +113,16 @@ export default function ExecutionCenter() {
     if (isWeekend) {
       return plannedItems;
     }
+
+    const meetingItems = scheduledMeetings.map((lead) => ({
+      id: `meeting-${lead.id}`,
+      title: `Reunião: ${lead.company_name}`,
+      detail: `${lead.meeting_time ? `${lead.meeting_time} • ` : ''}${lead.meeting_notes || lead.next_action || 'Reunião comercial agendada.'}`,
+      area: 'Comercial',
+      priority: 100,
+      path: '/leads?status=agendou_reuniao',
+      tone: 'critical' as const,
+    }));
 
     const demandItems = activeDemands.map((demand) => ({
       id: demand.id,
@@ -146,8 +165,8 @@ export default function ExecutionCenter() {
       },
     ];
 
-    return [...demandItems, ...followUpItems, ...plannedItems].sort((a, b) => b.priority - a.priority);
-  }, [activeDemands, followUps, isWeekend, plannedActivities]);
+    return [...meetingItems, ...demandItems, ...followUpItems, ...plannedItems].sort((a, b) => b.priority - a.priority);
+  }, [activeDemands, followUps, isWeekend, plannedActivities, scheduledMeetings]);
   const selectedNextAction = queue[0];
 
   return (
@@ -166,9 +185,10 @@ export default function ExecutionCenter() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
         <Metric title="Demandas críticas" value={criticalDemands.length} icon={AlertTriangle} tone="critical" />
         <Metric title="Follow-ups" value={followUps.length} icon={CalendarCheck} tone="warning" />
+        <Metric title="Reuniões do dia" value={scheduledMeetings.length} icon={CalendarCheck} tone="critical" />
         <Metric title="Demandas ativas" value={activeDemands.length} icon={Inbox} tone="default" />
         <Metric title="Missões fixas" value={3} icon={ClipboardList} tone="default" />
       </div>

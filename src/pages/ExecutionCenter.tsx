@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AlertTriangle, CalendarCheck, ClipboardList, Inbox, Play } from 'lucide-react';
+import { AlertTriangle, BookOpen, Briefcase, CalendarCheck, ClipboardList, DollarSign, Inbox, Play, Target } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import type { Client, Lead } from '@/types/crm';
 import type { FinancialTransaction } from '@/types/financial';
@@ -27,12 +28,36 @@ type ExecutionItem = {
   tone: 'critical' | 'warning' | 'default';
 };
 
+type WeekdayId = 'domingo' | 'segunda' | 'terca' | 'quarta' | 'quinta' | 'sexta' | 'sabado';
+
+type PlannedActivity = {
+  id: string;
+  title: string;
+  detail: string;
+  area: 'Comercial' | 'Operacional' | 'Financeiro' | 'Estudos' | 'Planejamento';
+  duration: string;
+  icon: any;
+};
+
+const dayOptions: { value: WeekdayId; label: string }[] = [
+  { value: 'segunda', label: 'Segunda-feira' },
+  { value: 'terca', label: 'Terça-feira' },
+  { value: 'quarta', label: 'Quarta-feira' },
+  { value: 'quinta', label: 'Quinta-feira' },
+  { value: 'sexta', label: 'Sexta-feira' },
+  { value: 'sabado', label: 'Sábado' },
+  { value: 'domingo', label: 'Domingo' },
+];
+
+const dayByIndex: WeekdayId[] = ['domingo', 'segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado'];
+
 export default function ExecutionCenter() {
   const navigate = useNavigate();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [transactions, setTransactions] = useState<FinancialTransaction[]>([]);
   const [demands, setDemands] = useState<OSDemand[]>([]);
+  const [selectedDay, setSelectedDay] = useState<WeekdayId>(dayByIndex[new Date().getDay()]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -57,6 +82,13 @@ export default function ExecutionCenter() {
   const followUps = getPendingFollowUps(leads);
   const activeDemands = getActiveDemands(demands);
   const insights = getAssistantInsights(context);
+  const activeClients = clients.filter((client) => client.status === 'active');
+  const plannedActivities = useMemo(
+    () => getPlannedActivities(selectedDay, activeClients),
+    [activeClients, selectedDay],
+  );
+  const selectedDayLabel = dayOptions.find((day) => day.value === selectedDay)?.label || 'Hoje';
+  const isWeekend = selectedDay === 'sabado' || selectedDay === 'domingo';
 
   const queue = useMemo<ExecutionItem[]>(() => {
     const demandItems = activeDemands.map((demand) => ({
@@ -126,6 +158,69 @@ export default function ExecutionCenter() {
         <Metric title="Missões fixas" value={2} icon={ClipboardList} tone="default" />
       </div>
 
+      <Card className="border-warning/30 shadow-sm">
+        <CardHeader className="space-y-3">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <CardTitle>Planejamento por dia</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Filtre um dia da semana para ver a rotina prevista antes de executar.
+              </p>
+            </div>
+            <div className="w-full lg:w-64">
+              <Select value={selectedDay} onValueChange={(value) => setSelectedDay(value as WeekdayId)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {dayOptions.map((day) => (
+                    <SelectItem key={day.value} value={day.value}>
+                      {day.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="rounded-lg bg-muted/60 p-4">
+            <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+              <div>
+                <p className="font-semibold">{selectedDayLabel}</p>
+                <p className="text-sm text-muted-foreground">
+                  {isWeekend
+                    ? 'Fim de semana sem operação. Apenas estudo ou leitura para manter evolução sem peso operacional.'
+                    : 'Dia útil com blocos comerciais e operacionais organizados por prioridade.'}
+                </p>
+              </div>
+              <Badge className={isWeekend ? 'bg-primary text-primary-foreground' : 'bg-warning text-warning-foreground'}>
+                {isWeekend ? 'Modo Leve' : 'Modo Operação'}
+              </Badge>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3">
+            {plannedActivities.map((activity) => (
+              <div key={activity.id} className="rounded-lg border p-4 space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-warning/10 text-warning flex items-center justify-center">
+                      <activity.icon className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <p className="font-semibold">{activity.title}</p>
+                      <p className="text-xs text-muted-foreground">{activity.area} • {activity.duration}</p>
+                    </div>
+                  </div>
+                </div>
+                <p className="text-sm text-muted-foreground">{activity.detail}</p>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         <Card className="xl:col-span-2 shadow-sm">
           <CardHeader>
@@ -174,6 +269,104 @@ export default function ExecutionCenter() {
       </div>
     </div>
   );
+}
+
+function getPlannedActivities(day: WeekdayId, activeClients: Client[]): PlannedActivity[] {
+  if (day === 'sabado' || day === 'domingo') {
+    return [
+      {
+        id: `${day}-study`,
+        title: 'Estudar ou ler um livro',
+        detail: 'Bloco único e leve para manter repertório sem abrir rotina operacional.',
+        area: 'Estudos',
+        duration: '1h a 2h',
+        icon: BookOpen,
+      },
+    ];
+  }
+
+  const activeClientNames = activeClients
+    .slice(0, 4)
+    .map((client) => client.lead?.company_name)
+    .filter(Boolean)
+    .join(', ');
+
+  const operationalDetail = activeClientNames
+    ? `Revisar campanhas, pendências e entregas dos clientes ativos: ${activeClientNames}.`
+    : 'Revisar campanhas, pendências, relatórios e entregas dos clientes ativos.';
+
+  const base: PlannedActivity[] = [
+    {
+      id: `${day}-prospecting`,
+      title: 'Prospecção ativa',
+      detail: 'Abrir novas oportunidades comerciais antes de entrar no operacional profundo.',
+      area: 'Comercial',
+      duration: '1h',
+      icon: Target,
+    },
+    {
+      id: `${day}-followups`,
+      title: 'Follow-ups comerciais',
+      detail: 'Retomar oportunidades abertas, propostas e contatos que dependem de resposta.',
+      area: 'Comercial',
+      duration: '30min a 1h',
+      icon: CalendarCheck,
+    },
+    {
+      id: `${day}-operation`,
+      title: day === 'segunda' ? 'Operacional de segunda-feira' : 'Bloco operacional',
+      detail: operationalDetail,
+      area: 'Operacional',
+      duration: '1h a 2h',
+      icon: Briefcase,
+    },
+    {
+      id: `${day}-demands`,
+      title: 'Revisar Central de Demandas',
+      detail: 'Executar demandas críticas, classificar Inbox e evitar solicitação solta fora do sistema.',
+      area: 'Operacional',
+      duration: '30min',
+      icon: Inbox,
+    },
+  ];
+
+  if (day === 'segunda') {
+    return [
+      {
+        id: 'segunda-week-plan',
+        title: 'Planejamento semanal',
+        detail: 'Definir foco da semana, meta comercial, clientes prioritários e entregas operacionais.',
+        area: 'Planejamento',
+        duration: '30min',
+        icon: ClipboardList,
+      },
+      ...base,
+      {
+        id: 'segunda-finance',
+        title: 'Radar financeiro da semana',
+        detail: 'Checar receita prevista, clientes em risco, pagamentos e distância da meta mensal.',
+        area: 'Financeiro',
+        duration: '20min',
+        icon: DollarSign,
+      },
+    ];
+  }
+
+  if (day === 'sexta') {
+    return [
+      ...base,
+      {
+        id: 'sexta-close',
+        title: 'Fechamento e próxima semana',
+        detail: 'Encerrar pendências críticas e deixar segunda-feira planejada.',
+        area: 'Planejamento',
+        duration: '40min',
+        icon: ClipboardList,
+      },
+    ];
+  }
+
+  return base;
 }
 
 function Metric({ title, value, icon: Icon, tone }: { title: string; value: number; icon: any; tone: 'critical' | 'warning' | 'default' }) {

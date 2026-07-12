@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AlertTriangle, BookOpen, Briefcase, CalendarCheck, ClipboardList, DollarSign, Inbox, Play, Target } from 'lucide-react';
+import { AlertTriangle, BookOpen, Briefcase, CalendarCheck, ClipboardList, DollarSign, Dumbbell, Inbox, Play, Target } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -155,7 +155,7 @@ export default function ExecutionCenter() {
         <Metric title="Demandas críticas" value={criticalDemands.length} icon={AlertTriangle} tone="critical" />
         <Metric title="Follow-ups" value={followUps.length} icon={CalendarCheck} tone="warning" />
         <Metric title="Demandas ativas" value={activeDemands.length} icon={Inbox} tone="default" />
-        <Metric title="Missões fixas" value={2} icon={ClipboardList} tone="default" />
+        <Metric title="Missões fixas" value={3} icon={ClipboardList} tone="default" />
       </div>
 
       <Card className="border-warning/30 shadow-sm">
@@ -191,7 +191,7 @@ export default function ExecutionCenter() {
                 <p className="text-sm text-muted-foreground">
                   {isWeekend
                     ? 'Fim de semana sem operação. Apenas estudo ou leitura para manter evolução sem peso operacional.'
-                    : 'Dia útil com blocos comerciais e operacionais organizados por prioridade.'}
+                    : 'Dia útil com saúde, blocos comerciais e operacionais organizados por prioridade.'}
                 </p>
               </div>
               <Badge className={isWeekend ? 'bg-primary text-primary-foreground' : 'bg-warning text-warning-foreground'}>
@@ -264,6 +264,9 @@ export default function ExecutionCenter() {
             <div className="rounded-lg border border-warning/30 bg-warning/5 p-3 text-sm text-muted-foreground">
               Reuniões e demandas críticas sobem na fila. Missões recorrentes não desaparecem, apenas mudam de posição.
             </div>
+            <div className="rounded-lg bg-muted/60 p-3 text-sm text-muted-foreground">
+              Academia, estudo, prospecção e planejamento são missões fixas. Elas aparecem aqui na Central de Execução, mas não entram na Central de Demandas porque não são solicitações inesperadas.
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -296,6 +299,14 @@ function getPlannedActivities(day: WeekdayId, activeClients: Client[]): PlannedA
     : 'Revisar campanhas, pendências, relatórios e entregas dos clientes ativos.';
 
   const base: PlannedActivity[] = [
+    {
+      id: `${day}-health`,
+      title: 'Academia / atividade física',
+      detail: 'Missão fixa de saúde. Deve ser preservada no dia útil e só reagendada quando houver prioridade real.',
+      area: 'Planejamento',
+      duration: '1h',
+      icon: Dumbbell,
+    },
     {
       id: `${day}-prospecting`,
       title: 'Prospecção ativa',

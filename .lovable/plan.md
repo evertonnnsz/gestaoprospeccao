@@ -1,34 +1,36 @@
-# Migration: WhatsApp Follow-up Automation
+# Plano: Adicionar campos de reunião à tabela leads
 
-Vou aplicar a migration em `supabase/migrations/20260705120000_whatsapp_followup_automation.sql` no banco, com um ajuste obrigatório: adicionar `GRANT`s nas duas novas tabelas do schema `public` (sem isso o PostgREST bloqueia acesso, mesmo com RLS correta).
+## Objetivo
+Garantir que o banco de dados aceite e persista os campos `meeting_date`, `meeting_time` e `meeting_notes` já utilizados no formulário de leads, e atualizar o schema cache do Supabase para que o app consiga salvá-los.
 
-## O que será criado
+## O que será feito
 
-- **Enums**
-  - `public.whatsapp_message_status`: `draft`, `sent`, `failed`
-  - `public.whatsapp_follow_up_step`: `initial`, `follow_up_1`, `follow_up_2`, `follow_up_3`, `custom`
-- **Tabela `public.whatsapp_message_templates`** — modelos de mensagem por usuário (nome, etapa, corpo, ativo)
-- **Tabela `public.whatsapp_message_logs`** — histórico de envios, ligada a `public.leads(id)` e opcionalmente a um template
-- **RLS**: cada usuário só vê/edita seus próprios templates e logs (`auth.uid() = user_id`)
-- **Trigger** `update_updated_at_column` em templates
-- **Índices** por `(user_id, follow_up_step, is_active)`, `(user_id, lead_id, created_at)` e `(user_id, status, created_at)`
+1. **Migration no banco de dados**
+   - Adicionar três colunas novas à tabela `public.leads`:
+     - `meeting_date` do tipo `DATE`, nullable
+     - `meeting_time` do tipo `TIME`, nullable
+     - `meeting_notes` do tipo `TEXT`, nullable
+   - Usar `ADD COLUMN IF NOT EXISTS` para evitar erro caso as colunas já existam.
+   - Nenhuma tabela existente será recriada ou apagada.
 
-## Ajuste técnico (obrigatório)
+2. **Atualização do schema cache**
+   - Após a migration ser aprovada e executada, regenerar os tipos do Supabase (`src/integrations/supabase/types.ts`) para refletir as novas colunas.
+   - Isso permite que o client do Supabase envie e receba os campos sem erros de schema.
 
-Adicionar após cada `CREATE TABLE`:
+3. **Verificação**
+   - Validar que o build do projeto continua passando após a atualização dos tipos.
+
+## Notas técnicas
+
+- Os campos já estão presentes na interface `Lead` (`src/types/crm.ts`) e no `LeadForm` (`src/components/leads/LeadForm.tsx`), então nenhuma mudança de frontend é necessária além da regeneração dos tipos.
+- A tabela `leads` já possui RLS ativa; adicionar colunas não afeta as políticas existentes.
+- A migration usará apenas `ALTER TABLE`; nenhum dado existente será modificado.
+
+## SQL da migration
 
 ```sql
-GRANT SELECT, INSERT, UPDATE, DELETE ON public.whatsapp_message_templates TO authenticated;
-GRANT ALL ON public.whatsapp_message_templates TO service_role;
-
-GRANT SELECT, INSERT, UPDATE, DELETE ON public.whatsapp_message_logs TO authenticated;
-GRANT ALL ON public.whatsapp_message_logs TO service_role;
+ALTER TABLE public.leads
+  ADD COLUMN IF NOT EXISTS meeting_date DATE,
+  ADD COLUMN IF NOT EXISTS meeting_time TIME,
+  ADD COLUMN IF NOT EXISTS meeting_notes TEXT;
 ```
-
-Sem `anon` — todo acesso é escopado por `auth.uid()`.
-
-## Observações
-
-- Nenhuma tabela existente é alterada; `public.leads` é apenas referenciada por FK.
-- A migration é aplicada via ferramenta de migration do Lovable Cloud (aparece para sua aprovação antes de rodar).
-- Nenhum código de frontend será tocado neste passo — só o banco.

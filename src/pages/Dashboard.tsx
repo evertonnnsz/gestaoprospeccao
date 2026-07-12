@@ -3,24 +3,34 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Client, Lead, LeadStatus, STATUS_LABELS, STATUS_ORDER, LEAD_SOURCES } from '@/types/crm';
-import { calculateChurnRate } from '@/lib/utils/clientRevenue';
+import { calculateChurnRate, splitClientsRevenue } from '@/lib/utils/clientRevenue';
 import {
-  MONTHLY_GOAL,
   getAssistantInsights,
   getExecutionScore,
   getMonthlyRevenue,
   getNextBestAction,
   getPendingFollowUps,
   getRecommendedMode,
-  getRecurringRevenue,
   getTodayMeetings,
+  readMonthlyGoal,
   readStoredDemands,
+  saveMonthlyGoal,
   type OSDemand,
 } from '@/lib/fatureOS';
 import { FinancialTransaction } from '@/types/financial';
 import { StatsCard } from '@/components/dashboard/StatsCard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PeriodFilter, PeriodType, DateRange, filterByPeriod } from '@/components/filters/PeriodFilter';
 import {
@@ -42,6 +52,7 @@ import {
   Gauge,
   Inbox,
   Play,
+  Pencil,
 } from 'lucide-react';
 import { parseISO, startOfDay, format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -85,6 +96,9 @@ export default function Dashboard() {
   const [transactions, setTransactions] = useState<FinancialTransaction[]>([]);
   const [demands, setDemands] = useState<OSDemand[]>([]);
   const [briefingOpen, setBriefingOpen] = useState(() => sessionStorage.getItem('fature-briefing-seen') !== 'yes');
+  const [goalDialogOpen, setGoalDialogOpen] = useState(false);
+  const [monthlyGoal, setMonthlyGoal] = useState(readMonthlyGoal);
+  const [goalInput, setGoalInput] = useState(() => readMonthlyGoal().toLocaleString('pt-BR'));
   const [, setLoading] = useState(true);
 
   // Filters
@@ -203,15 +217,26 @@ export default function Dashboard() {
   const responseRate = totalLeads > 0 ? (respondedLeads / totalLeads) * 100 : 0;
   const churn = calculateChurnRate(clients);
   const osContext = { leads, clients, transactions, demands };
-  const monthlyRevenue = getMonthlyRevenue(transactions);
-  const recurringRevenue = getRecurringRevenue(clients);
-  const revenueRemaining = Math.max(MONTHLY_GOAL - monthlyRevenue, 0);
-  const revenueProgress = MONTHLY_GOAL > 0 ? Math.min((monthlyRevenue / MONTHLY_GOAL) * 100, 100) : 0;
+  const transactionRevenue = getMonthlyRevenue(transactions);
+  const clientsRevenue = splitClientsRevenue(clients);
+  const monthlyRevenue = clientsRevenue.total;
+  const receivedRevenue = Math.max(clientsRevenue.received, transactionRevenue);
+  const revenueRemaining = Math.max(monthlyGoal - monthlyRevenue, 0);
+  const revenueProgress = monthlyGoal > 0 ? Math.min((monthlyRevenue / monthlyGoal) * 100, 100) : 0;
   const executionScore = getExecutionScore(osContext);
   const pendingFollowUps = getPendingFollowUps(leads);
   const nextBestAction = getNextBestAction(osContext);
   const recommendedMode = getRecommendedMode(osContext);
   const assistantInsights = getAssistantInsights(osContext);
+
+  const saveGoal = () => {
+    const parsed = Number(goalInput.replace(/\./g, '').replace(',', '.').replace(/[^\d.]/g, ''));
+    if (!Number.isFinite(parsed) || parsed <= 0) return;
+    setMonthlyGoal(parsed);
+    saveMonthlyGoal(parsed);
+    setGoalInput(parsed.toLocaleString('pt-BR'));
+    setGoalDialogOpen(false);
+  };
 
   // Sources chart data
   const sourcesData = useMemo(() => {
@@ -253,8 +278,8 @@ export default function Dashboard() {
               </Button>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
-              <BriefingItem label="Meta mensal" value={`R$ ${MONTHLY_GOAL.toLocaleString('pt-BR')}`} />
-              <BriefingItem label="Faturamento atual" value={`R$ ${monthlyRevenue.toLocaleString('pt-BR')}`} />
+              <BriefingItem label="Meta mensal" value={`R$ ${monthlyGoal.toLocaleString('pt-BR')}`} />
+              <BriefingItem label="Faturamento previsto" value={`R$ ${monthlyRevenue.toLocaleString('pt-BR')}`} />
               <BriefingItem label="Faltam" value={`R$ ${revenueRemaining.toLocaleString('pt-BR')}`} />
               <BriefingItem label="Modo recomendado" value={recommendedMode} />
               <BriefingItem label="Reuniões do dia" value={String(getTodayMeetings(leads).length)} />
@@ -299,18 +324,25 @@ export default function Dashboard() {
                 <p className="text-3xl font-bold">{revenueProgress.toFixed(0)}%</p>
               </div>
               <div className="text-right">
-                <p className="text-sm text-muted-foreground">Receita recorrente</p>
-                <p className="text-xl font-semibold">R$ {recurringRevenue.toLocaleString('pt-BR')}</p>
+                <p className="text-sm text-muted-foreground">Meta atual</p>
+                <div className="flex items-center justify-end gap-2">
+                  <p className="text-xl font-semibold">R$ {monthlyGoal.toLocaleString('pt-BR')}</p>
+                  <Button variant="outline" size="sm" onClick={() => setGoalDialogOpen(true)} className="gap-1">
+                    <Pencil className="w-3.5 h-3.5" />
+                    Editar
+                  </Button>
+                </div>
               </div>
             </div>
             <div className="h-3 rounded-full bg-muted overflow-hidden">
               <div className="h-full bg-warning transition-all" style={{ width: `${revenueProgress}%` }} />
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <MiniMetric label="Atual" value={`R$ ${monthlyRevenue.toLocaleString('pt-BR')}`} />
-              <MiniMetric label="Meta" value={`R$ ${MONTHLY_GOAL.toLocaleString('pt-BR')}`} />
+            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3">
+              <MiniMetric label="Previsto recorrente" value={`R$ ${monthlyRevenue.toLocaleString('pt-BR')}`} />
+              <MiniMetric label="Recebido" value={`R$ ${receivedRevenue.toLocaleString('pt-BR')}`} />
+              <MiniMetric label="A receber" value={`R$ ${clientsRevenue.receivable.toLocaleString('pt-BR')}`} />
               <MiniMetric label="Faltam" value={`R$ ${revenueRemaining.toLocaleString('pt-BR')}`} />
-              <MiniMetric label="Clientes ativos" value={String(clients.filter((client) => client.status === 'active').length)} />
+              <MiniMetric label="Clientes ativos" value={String(clientsRevenue.totalCount)} />
             </div>
           </CardContent>
         </Card>
@@ -527,6 +559,36 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       </div>
+
+      <Dialog open={goalDialogOpen} onOpenChange={setGoalDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar meta mensal</DialogTitle>
+            <DialogDescription>
+              Esta meta será usada no Radar de Faturamento, Briefing do Dia e IA Assistente.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="monthly-goal">Meta mensal</Label>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">R$</span>
+              <Input
+                id="monthly-goal"
+                inputMode="numeric"
+                value={goalInput}
+                onChange={(event) => setGoalInput(event.target.value)}
+                placeholder="15.000,00"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setGoalDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={saveGoal}>Salvar meta</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

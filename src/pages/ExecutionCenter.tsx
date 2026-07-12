@@ -114,9 +114,17 @@ export default function ExecutionCenter() {
   const criticalDemands = getCriticalDemands(demands);
   const followUps = getPendingFollowUps(leads);
   const activeDemands = getActiveDemands(demands);
-  const scheduledMeetings = leads.filter(
-    (lead) => lead.status === 'agendou_reuniao' && lead.meeting_date === selectedDate,
-  );
+  const scheduledMeetings = leads
+    .filter((lead) => {
+      if (!lead.meeting_date) return false;
+      const meetingDay = getWeekdayFromDate(lead.meeting_date);
+      return lead.meeting_date === selectedDate || meetingDay === selectedDay;
+    })
+    .sort((a, b) => {
+      const dateComparison = (a.meeting_date || '').localeCompare(b.meeting_date || '');
+      if (dateComparison !== 0) return dateComparison;
+      return (a.meeting_time || '').localeCompare(b.meeting_time || '');
+    });
   const insights = getAssistantInsights(context);
   const activeClients = clients.filter((client) => client.status === 'active');
   const plannedActivities = useMemo(

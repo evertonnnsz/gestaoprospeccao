@@ -15,7 +15,9 @@ import {
   getCriticalDemands,
   getNextBestAction,
   getPendingFollowUps,
+  readStoredMeetings,
   readStoredDemands,
+  type OSMeeting,
   type OSDemand,
 } from '@/lib/fatureOS';
 
@@ -89,6 +91,7 @@ export default function ExecutionCenter() {
   const [clients, setClients] = useState<Client[]>([]);
   const [transactions, setTransactions] = useState<FinancialTransaction[]>([]);
   const [demands, setDemands] = useState<OSDemand[]>([]);
+  const [storedMeetings, setStoredMeetings] = useState<OSMeeting[]>([]);
   const [selectedDate, setSelectedDate] = useState(toISODate(new Date()));
   const selectedDay = getWeekdayFromDate(selectedDate);
 
@@ -104,6 +107,7 @@ export default function ExecutionCenter() {
       setClients((clientsData || []) as Client[]);
       setTransactions((transactionsData || []) as FinancialTransaction[]);
       setDemands(readStoredDemands());
+      setStoredMeetings(readStoredMeetings());
     };
 
     fetchData();
@@ -114,22 +118,45 @@ export default function ExecutionCenter() {
   const criticalDemands = getCriticalDemands(demands);
   const followUps = getPendingFollowUps(leads);
   const activeDemands = getActiveDemands(demands);
-  const meetingsWithDate = leads
+  const meetingsFromLeads = leads
     .filter((lead) => !!lead.meeting_date)
+    .map((lead) => ({
+      id: `lead-${lead.id}`,
+      leadId: lead.id,
+      companyName: lead.company_name,
+      date: lead.meeting_date || '',
+      time: lead.meeting_time || undefined,
+      notes: lead.meeting_notes || lead.next_action || undefined,
+      source: 'CRM',
+    }));
+  const meetingsFromStorage = storedMeetings
+    .filter((meeting) => meeting.status !== 'canceled')
+    .map((meeting) => ({
+      id: meeting.id,
+      leadId: meeting.leadId,
+      companyName: meeting.companyName,
+      date: meeting.date,
+      time: meeting.time,
+      notes: meeting.notes,
+      source: 'Agenda OS',
+    }));
+  const meetingsWithDate = [...meetingsFromLeads, ...meetingsFromStorage]
+    .filter((meeting, index, meetings) =>
+      meetings.findIndex((item) =>
+        (item.leadId === meeting.leadId || item.companyName === meeting.companyName) && item.date === meeting.date
+      ) === index
+    )
     .sort((a, b) => {
-      const dateComparison = (a.meeting_date || '').localeCompare(b.meeting_date || '');
+      const dateComparison = a.date.localeCompare(b.date);
       if (dateComparison !== 0) return dateComparison;
-      return (a.meeting_time || '').localeCompare(b.meeting_time || '');
+      return (a.time || '').localeCompare(b.time || '');
     });
   const scheduledMeetings = meetingsWithDate
-    .filter((lead) => {
-      if (!lead.meeting_date) return false;
-      return lead.meeting_date === selectedDate;
-    })
+    .filter((meeting) => meeting.date === selectedDate)
     .sort((a, b) => {
-      const dateComparison = (a.meeting_date || '').localeCompare(b.meeting_date || '');
+      const dateComparison = a.date.localeCompare(b.date);
       if (dateComparison !== 0) return dateComparison;
-      return (a.meeting_time || '').localeCompare(b.meeting_time || '');
+      return (a.time || '').localeCompare(b.time || '');
     });
   const insights = getAssistantInsights(context);
   const activeClients = clients.filter((client) => client.status === 'active');
@@ -152,10 +179,10 @@ export default function ExecutionCenter() {
       tone: 'default' as const,
     }));
 
-    const meetingItems = scheduledMeetings.map((lead) => ({
-      id: `meeting-${lead.id}`,
-      title: `Reunião: ${lead.company_name}`,
-      detail: `${lead.meeting_time ? `${lead.meeting_time} • ` : ''}${lead.meeting_notes || lead.next_action || 'Reunião comercial agendada.'}`,
+    const meetingItems = scheduledMeetings.map((meeting) => ({
+      id: `meeting-${meeting.id}`,
+      title: `Reunião: ${meeting.companyName}`,
+      detail: `${meeting.time ? `${meeting.time} • ` : ''}${meeting.notes || 'Reunião comercial agendada.'}`,
       area: 'Comercial',
       priority: 100,
       path: '/leads?status=agendou_reuniao',
@@ -312,17 +339,17 @@ export default function ExecutionCenter() {
         </CardHeader>
         <CardContent className="space-y-3">
           {scheduledMeetings.length > 0 ? (
-            scheduledMeetings.map((lead) => (
-              <div key={lead.id} className="flex flex-col gap-2 rounded-lg border p-4 md:flex-row md:items-center md:justify-between">
+            scheduledMeetings.map((meeting) => (
+              <div key={meeting.id} className="flex flex-col gap-2 rounded-lg border p-4 md:flex-row md:items-center md:justify-between">
                 <div>
-                  <p className="font-semibold">{lead.company_name}</p>
+                  <p className="font-semibold">{meeting.companyName}</p>
                   <p className="text-sm text-muted-foreground">
-                    {lead.meeting_date ? formatSelectedDate(lead.meeting_date) : 'Sem data'}
-                    {lead.meeting_time ? ` às ${lead.meeting_time}` : ''}
-                    {lead.meeting_notes ? ` - ${lead.meeting_notes}` : ''}
+                    {meeting.date ? formatSelectedDate(meeting.date) : 'Sem data'}
+                    {meeting.time ? ` às ${meeting.time}` : ''}
+                    {meeting.notes ? ` - ${meeting.notes}` : ''}
                   </p>
                 </div>
-                <Badge className="bg-primary text-primary-foreground">Na data selecionada</Badge>
+                <Badge className="bg-primary text-primary-foreground">{meeting.source}</Badge>
               </div>
             ))
           ) : (
@@ -333,12 +360,12 @@ export default function ExecutionCenter() {
               </p>
               {meetingsWithDate.length > 0 && (
                 <div className="mt-3 space-y-2">
-                  {meetingsWithDate.slice(0, 5).map((lead) => (
-                    <div key={lead.id} className="flex flex-col gap-1 rounded-md bg-muted/60 p-3 text-sm md:flex-row md:items-center md:justify-between">
-                      <span className="font-medium">{lead.company_name}</span>
+                  {meetingsWithDate.slice(0, 5).map((meeting) => (
+                    <div key={meeting.id} className="flex flex-col gap-1 rounded-md bg-muted/60 p-3 text-sm md:flex-row md:items-center md:justify-between">
+                      <span className="font-medium">{meeting.companyName}</span>
                       <span className="text-muted-foreground">
-                        {lead.meeting_date ? formatSelectedDate(lead.meeting_date) : 'Sem data'}
-                        {lead.meeting_time ? ` às ${lead.meeting_time}` : ''}
+                        {meeting.date ? formatSelectedDate(meeting.date) : 'Sem data'}
+                        {meeting.time ? ` às ${meeting.time}` : ''}
                       </span>
                     </div>
                   ))}

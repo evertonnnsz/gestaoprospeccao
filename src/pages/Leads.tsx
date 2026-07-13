@@ -219,6 +219,7 @@ export default function Leads() {
     setEditingLead(null);
     setFormOpen(true);
   }, []);
+  const shouldRenderLeadGrid = !formOpen;
 
   return (
     <div className="p-6 space-y-6">
@@ -356,11 +357,15 @@ export default function Leads() {
       </div>
 
       {/* Leads Grid */}
-      {loading ? (
+      {formOpen ? (
+        <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
+          Edição aberta. A lista foi pausada temporariamente para deixar o preenchimento mais rápido.
+        </div>
+      ) : loading ? (
         <div className="flex items-center justify-center py-12">
           <Loader2 className="w-8 h-8 animate-spin text-primary" />
         </div>
-      ) : filteredLeads.length === 0 ? (
+      ) : shouldRenderLeadGrid && filteredLeads.length === 0 ? (
         <div className="text-center py-12">
           <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
             <Search className="w-8 h-8 text-muted-foreground" />
@@ -378,7 +383,7 @@ export default function Leads() {
             </Button>
           )}
         </div>
-      ) : (
+      ) : shouldRenderLeadGrid ? (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {filteredLeads.map((lead) => (
             <div key={lead.id} className="relative">
@@ -400,7 +405,7 @@ export default function Leads() {
             </div>
           ))}
         </div>
-      )}
+      ) : null}
 
       {/* Lead Form Modal */}
       <LeadForm

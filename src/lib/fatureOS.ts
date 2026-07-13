@@ -4,6 +4,7 @@ import type { FinancialTransaction } from '@/types/financial';
 
 export const DEMAND_STORAGE_KEY = 'fature-demand-center-v2';
 export const MEETING_STORAGE_KEY = 'fature-os-meetings-v1';
+export const EXECUTION_COMPLETIONS_STORAGE_KEY = 'fature-os-execution-completions-v1';
 export const MONTHLY_GOAL_STORAGE_KEY = 'fature-os-monthly-goal';
 export const DEFAULT_MONTHLY_GOAL = 15000;
 export const MONTHLY_GOAL = DEFAULT_MONTHLY_GOAL;
@@ -43,6 +44,14 @@ export type OSMeeting = {
   status: 'scheduled' | 'done' | 'canceled';
   createdAt: string;
   updatedAt: string;
+};
+
+export type OSExecutionCompletion = {
+  id: string;
+  date: string;
+  title: string;
+  area: string;
+  completedAt: string;
 };
 
 export function readStoredDemands(): OSDemand[] {
@@ -90,6 +99,32 @@ export function upsertStoredMeeting(meeting: Omit<OSMeeting, 'id' | 'createdAt' 
   }
 
   saveStoredMeetings(meetings);
+}
+
+export function readExecutionCompletions(): OSExecutionCompletion[] {
+  try {
+    const stored = localStorage.getItem(EXECUTION_COMPLETIONS_STORAGE_KEY);
+    return stored ? JSON.parse(stored) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveExecutionCompletions(completions: OSExecutionCompletion[]) {
+  localStorage.setItem(EXECUTION_COMPLETIONS_STORAGE_KEY, JSON.stringify(completions));
+}
+
+export function completeExecutionItem(item: Omit<OSExecutionCompletion, 'completedAt'>) {
+  const completions = readExecutionCompletions();
+  const nextCompletion: OSExecutionCompletion = {
+    ...item,
+    completedAt: new Date().toISOString(),
+  };
+  saveExecutionCompletions([
+    ...completions.filter((completion) => !(completion.id === item.id && completion.date === item.date)),
+    nextCompletion,
+  ]);
+  return nextCompletion;
 }
 
 export function readMonthlyGoal() {

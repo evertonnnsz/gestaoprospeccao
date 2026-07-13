@@ -114,11 +114,17 @@ export default function ExecutionCenter() {
   const criticalDemands = getCriticalDemands(demands);
   const followUps = getPendingFollowUps(leads);
   const activeDemands = getActiveDemands(demands);
-  const scheduledMeetings = leads
+  const meetingsWithDate = leads
+    .filter((lead) => !!lead.meeting_date)
+    .sort((a, b) => {
+      const dateComparison = (a.meeting_date || '').localeCompare(b.meeting_date || '');
+      if (dateComparison !== 0) return dateComparison;
+      return (a.meeting_time || '').localeCompare(b.meeting_time || '');
+    });
+  const scheduledMeetings = meetingsWithDate
     .filter((lead) => {
       if (!lead.meeting_date) return false;
-      const meetingDay = getWeekdayFromDate(lead.meeting_date);
-      return lead.meeting_date === selectedDate || meetingDay === selectedDay;
+      return lead.meeting_date === selectedDate;
     })
     .sort((a, b) => {
       const dateComparison = (a.meeting_date || '').localeCompare(b.meeting_date || '');
@@ -146,10 +152,6 @@ export default function ExecutionCenter() {
       tone: 'default' as const,
     }));
 
-    if (isWeekend) {
-      return plannedItems;
-    }
-
     const meetingItems = scheduledMeetings.map((lead) => ({
       id: `meeting-${lead.id}`,
       title: `Reunião: ${lead.company_name}`,
@@ -159,6 +161,10 @@ export default function ExecutionCenter() {
       path: '/leads?status=agendou_reuniao',
       tone: 'critical' as const,
     }));
+
+    if (isWeekend) {
+      return [...meetingItems, ...plannedItems].sort((a, b) => b.priority - a.priority);
+    }
 
     const demandItems = activeDemands.map((demand) => ({
       id: demand.id,
@@ -294,6 +300,52 @@ export default function ExecutionCenter() {
               </div>
             ))}
           </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border-primary/20 shadow-sm">
+        <CardHeader>
+          <CardTitle>Reuniões encontradas no CRM</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Conferência direta dos leads que possuem data de reunião salva.
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {scheduledMeetings.length > 0 ? (
+            scheduledMeetings.map((lead) => (
+              <div key={lead.id} className="flex flex-col gap-2 rounded-lg border p-4 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <p className="font-semibold">{lead.company_name}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {lead.meeting_date ? formatSelectedDate(lead.meeting_date) : 'Sem data'}
+                    {lead.meeting_time ? ` às ${lead.meeting_time}` : ''}
+                    {lead.meeting_notes ? ` - ${lead.meeting_notes}` : ''}
+                  </p>
+                </div>
+                <Badge className="bg-primary text-primary-foreground">Na data selecionada</Badge>
+              </div>
+            ))
+          ) : (
+            <div className="rounded-lg border border-dashed p-4">
+              <p className="font-medium">Nenhuma reunião encontrada para {formatSelectedDate(selectedDate)}.</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Total de leads com alguma data de reunião salva no CRM: {meetingsWithDate.length}.
+              </p>
+              {meetingsWithDate.length > 0 && (
+                <div className="mt-3 space-y-2">
+                  {meetingsWithDate.slice(0, 5).map((lead) => (
+                    <div key={lead.id} className="flex flex-col gap-1 rounded-md bg-muted/60 p-3 text-sm md:flex-row md:items-center md:justify-between">
+                      <span className="font-medium">{lead.company_name}</span>
+                      <span className="text-muted-foreground">
+                        {lead.meeting_date ? formatSelectedDate(lead.meeting_date) : 'Sem data'}
+                        {lead.meeting_time ? ` às ${lead.meeting_time}` : ''}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
 

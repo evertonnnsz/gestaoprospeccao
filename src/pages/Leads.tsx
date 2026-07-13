@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Lead, LeadStatus, STATUS_LABELS, STATUS_ORDER } from '@/types/crm';
@@ -89,7 +89,7 @@ export default function Leads() {
     fetchLeads();
   }, []);
 
-  const fetchLeads = async () => {
+  const fetchLeads = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('leads')
@@ -103,7 +103,7 @@ export default function Leads() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   const handleDelete = async () => {
     if (!deletingLead) return;
@@ -167,7 +167,7 @@ export default function Leads() {
     }
   };
 
-  const toggleLeadSelection = (leadId: string) => {
+  const toggleLeadSelection = useCallback((leadId: string) => {
     setSelectedLeads(prev => {
       const next = new Set(prev);
       if (next.has(leadId)) {
@@ -177,20 +177,15 @@ export default function Leads() {
       }
       return next;
     });
-  };
-
-  const toggleSelectAll = () => {
-    if (selectedLeads.size === filteredLeads.length) {
-      setSelectedLeads(new Set());
-    } else {
-      setSelectedLeads(new Set(filteredLeads.map(l => l.id)));
-    }
-  };
+  }, []);
 
   // Apply period filter first
-  const periodFilteredLeads = filterByPeriod(leads, periodFilter, dateRange);
+  const periodFilteredLeads = useMemo(
+    () => filterByPeriod(leads, periodFilter, dateRange),
+    [dateRange, leads, periodFilter],
+  );
 
-  const filteredLeads = periodFilteredLeads.filter(lead => {
+  const filteredLeads = useMemo(() => periodFilteredLeads.filter(lead => {
     const matchesSearch = 
       lead.company_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (lead.contact_name?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false);
@@ -205,17 +200,25 @@ export default function Leads() {
     const matchesToday = !todayFilter || hasTodayFollowUp(lead);
     
     return matchesSearch && matchesStatus && matchesResponded && matchesOverdue && matchesToday;
-  });
+  }), [overdueFilter, periodFilteredLeads, respondedFilter, searchQuery, statusFilter, todayFilter]);
 
-  const handleEdit = (lead: Lead) => {
+  const toggleSelectAll = useCallback(() => {
+    if (selectedLeads.size === filteredLeads.length) {
+      setSelectedLeads(new Set());
+    } else {
+      setSelectedLeads(new Set(filteredLeads.map(l => l.id)));
+    }
+  }, [filteredLeads, selectedLeads.size]);
+
+  const handleEdit = useCallback((lead: Lead) => {
     setEditingLead(lead);
     setFormOpen(true);
-  };
+  }, []);
 
-  const handleNewLead = () => {
+  const handleNewLead = useCallback(() => {
     setEditingLead(null);
     setFormOpen(true);
-  };
+  }, []);
 
   return (
     <div className="p-6 space-y-6">

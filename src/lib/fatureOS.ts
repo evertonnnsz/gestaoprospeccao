@@ -3,6 +3,7 @@ import type { Client, Lead } from '@/types/crm';
 import type { FinancialTransaction } from '@/types/financial';
 
 export const DEMAND_STORAGE_KEY = 'fature-demand-center-v2';
+export const MEETING_STORAGE_KEY = 'fature-os-meetings-v1';
 export const MONTHLY_GOAL_STORAGE_KEY = 'fature-os-monthly-goal';
 export const DEFAULT_MONTHLY_GOAL = 15000;
 export const MONTHLY_GOAL = DEFAULT_MONTHLY_GOAL;
@@ -32,6 +33,18 @@ export type OSContext = {
   demands: OSDemand[];
 };
 
+export type OSMeeting = {
+  id: string;
+  leadId: string;
+  companyName: string;
+  date: string;
+  time?: string;
+  notes?: string;
+  status: 'scheduled' | 'done' | 'canceled';
+  createdAt: string;
+  updatedAt: string;
+};
+
 export function readStoredDemands(): OSDemand[] {
   try {
     const stored = localStorage.getItem(DEMAND_STORAGE_KEY);
@@ -39,6 +52,44 @@ export function readStoredDemands(): OSDemand[] {
   } catch {
     return [];
   }
+}
+
+export function readStoredMeetings(): OSMeeting[] {
+  try {
+    const stored = localStorage.getItem(MEETING_STORAGE_KEY);
+    return stored ? JSON.parse(stored) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveStoredMeetings(meetings: OSMeeting[]) {
+  localStorage.setItem(MEETING_STORAGE_KEY, JSON.stringify(meetings));
+}
+
+export function upsertStoredMeeting(meeting: Omit<OSMeeting, 'id' | 'createdAt' | 'updatedAt' | 'status'> & { status?: OSMeeting['status'] }) {
+  const now = new Date().toISOString();
+  const meetings = readStoredMeetings();
+  const existingIndex = meetings.findIndex((item) => item.leadId === meeting.leadId);
+  const nextMeeting: OSMeeting = {
+    id: existingIndex >= 0 ? meetings[existingIndex].id : `meeting-${meeting.leadId}`,
+    leadId: meeting.leadId,
+    companyName: meeting.companyName,
+    date: meeting.date,
+    time: meeting.time,
+    notes: meeting.notes,
+    status: meeting.status || 'scheduled',
+    createdAt: existingIndex >= 0 ? meetings[existingIndex].createdAt : now,
+    updatedAt: now,
+  };
+
+  if (existingIndex >= 0) {
+    meetings[existingIndex] = nextMeeting;
+  } else {
+    meetings.push(nextMeeting);
+  }
+
+  saveStoredMeetings(meetings);
 }
 
 export function readMonthlyGoal() {

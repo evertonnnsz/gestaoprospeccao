@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AlertTriangle, BookOpen, Briefcase, CalendarCheck, ClipboardList, DollarSign, Dumbbell, Inbox, Play, Target } from 'lucide-react';
+import { AlertTriangle, BookOpen, Briefcase, CalendarCheck, CheckCircle2, ClipboardList, DollarSign, Dumbbell, Inbox, Play, Target } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -12,11 +12,14 @@ import type { FinancialTransaction } from '@/types/financial';
 import {
   getActiveDemands,
   getAssistantInsights,
+  completeExecutionItem,
   getCriticalDemands,
   getNextBestAction,
   getPendingFollowUps,
+  readExecutionCompletions,
   readStoredMeetings,
   readStoredDemands,
+  type OSExecutionCompletion,
   type OSMeeting,
   type OSDemand,
 } from '@/lib/fatureOS';
@@ -29,6 +32,8 @@ type ExecutionItem = {
   priority: number;
   path: string;
   tone: 'critical' | 'warning' | 'default';
+  action: 'navigate' | 'complete';
+  completed?: boolean;
 };
 
 type WeekdayId = 'domingo' | 'segunda' | 'terca' | 'quarta' | 'quinta' | 'sexta' | 'sabado';
@@ -37,7 +42,7 @@ type PlannedActivity = {
   id: string;
   title: string;
   detail: string;
-  area: 'Comercial' | 'Operacional' | 'Financeiro' | 'Estudos' | 'Planejamento';
+  area: 'Saúde' | 'Comercial' | 'Operacional' | 'Financeiro' | 'Estudos' | 'Planejamento';
   duration: string;
   icon: any;
 };
@@ -85,6 +90,9 @@ const formatSelectedDate = (dateString: string) => {
   });
 };
 
+const sortExecutionItems = (items: ExecutionItem[]) =>
+  items.sort((a, b) => Number(a.completed) - Number(b.completed) || b.priority - a.priority);
+
 export default function ExecutionCenter() {
   const navigate = useNavigate();
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -92,6 +100,7 @@ export default function ExecutionCenter() {
   const [transactions, setTransactions] = useState<FinancialTransaction[]>([]);
   const [demands, setDemands] = useState<OSDemand[]>([]);
   const [storedMeetings, setStoredMeetings] = useState<OSMeeting[]>([]);
+  const [completions, setCompletions] = useState<OSExecutionCompletion[]>([]);
   const [selectedDate, setSelectedDate] = useState(toISODate(new Date()));
   const selectedDay = getWeekdayFromDate(selectedDate);
 
@@ -108,6 +117,7 @@ export default function ExecutionCenter() {
       setTransactions((transactionsData || []) as FinancialTransaction[]);
       setDemands(readStoredDemands());
       setStoredMeetings(readStoredMeetings());
+      setCompletions(readExecutionCompletions());
     };
 
     fetchData();
@@ -167,6 +177,33 @@ export default function ExecutionCenter() {
   const selectedDayLabel = dayOptions.find((day) => day.value === selectedDay)?.label || 'Hoje';
   const isWeekend = selectedDay === 'sabado' || selectedDay === 'domingo';
   const handleDayChange = (value: WeekdayId) => setSelectedDate(getNextDateForWeekday(value));
+  const completedIdsForDate = completions.filter((completion) => completion.date === selectedDate).map((completion) => completion.id);
+  const completedIdSet = new Set(completedIdsForDate);
+  const handleCompleteItem = (item: ExecutionItem) => {
+    const completion = completeExecutionItem({
+      id: item.id,
+      date: selectedDate,
+      title: item.title,
+      area: item.area,
+    });
+    setCompletions((current) => [
+      ...current.filter((currentItem) => !(currentItem.id === item.id && currentItem.date === selectedDate)),
+      completion,
+    ]);
+  };
+  const handlePrimaryAction = () => {
+    if (!selectedNextAction) {
+      navigate(nextBestAction.path);
+      return;
+    }
+
+    if (selectedNextAction.action === 'complete') {
+      handleCompleteItem(selectedNextAction);
+      return;
+    }
+
+    navigate(selectedNextAction.path || nextBestAction.path);
+  };
 
   const queue = useMemo<ExecutionItem[]>(() => {
     const plannedItems = plannedActivities.map((activity, index) => ({
@@ -177,6 +214,8 @@ export default function ExecutionCenter() {
       priority: 60 - index,
       path: activity.area === 'Comercial' ? '/leads' : activity.area === 'Estudos' ? '/estudos' : '/central-execucao',
       tone: 'default' as const,
+      action: 'complete' as const,
+      completed: completedIdSet.has(activity.id),
     }));
 
     const meetingItems = scheduledMeetings.map((meeting) => ({
@@ -187,10 +226,11 @@ export default function ExecutionCenter() {
       priority: 100,
       path: '/leads?status=agendou_reuniao',
       tone: 'critical' as const,
+      action: 'navigate' as const,
     }));
 
     if (isWeekend) {
-      return [...meetingItems, ...plannedItems].sort((a, b) => b.priority - a.priority);
+      return sortExecutionItems([...meetingItems, ...plannedItems]);
     }
 
     const demandItems = activeDemands.map((demand) => ({
@@ -201,6 +241,7 @@ export default function ExecutionCenter() {
       priority: demand.priorityScore,
       path: '/central-demandas',
       tone: demand.priority === 'critica' ? ('critical' as const) : ('warning' as const),
+      action: 'navigate' as const,
     }));
 
     const followUpItems = followUps.map((lead) => ({
@@ -211,6 +252,7 @@ export default function ExecutionCenter() {
       priority: 55,
       path: '/leads?filter=today',
       tone: 'warning' as const,
+      action: 'navigate' as const,
     }));
 
     const missionItems: ExecutionItem[] = [
@@ -222,6 +264,7 @@ export default function ExecutionCenter() {
         priority: followUps.length > 0 || criticalDemands.length > 0 ? 35 : 65,
         path: '/prospecting',
         tone: 'default',
+        action: 'navigate',
       },
       {
         id: 'mission-planning',
@@ -231,11 +274,13 @@ export default function ExecutionCenter() {
         priority: 25,
         path: '/dashboard',
         tone: 'default',
+        action: 'complete',
+        completed: completedIdSet.has('mission-planning'),
       },
     ];
 
-    return [...meetingItems, ...demandItems, ...followUpItems, ...plannedItems].sort((a, b) => b.priority - a.priority);
-  }, [activeDemands, followUps, isWeekend, plannedActivities, scheduledMeetings]);
+    return sortExecutionItems([...meetingItems, ...demandItems, ...followUpItems, ...plannedItems]);
+  }, [activeDemands, completedIdsForDate, followUps, isWeekend, plannedActivities, scheduledMeetings]);
   const selectedNextAction = queue[0];
 
   return (
@@ -248,8 +293,8 @@ export default function ExecutionCenter() {
             Uma fila única para missões, demandas críticas e follow-ups, sempre ordenada por impacto.
           </p>
         </div>
-        <Button onClick={() => navigate(selectedNextAction?.path || nextBestAction.path)} className="gap-2">
-          <Play className="w-4 h-4" />
+        <Button onClick={handlePrimaryAction} disabled={selectedNextAction?.completed} className="gap-2">
+          {selectedNextAction?.action === 'complete' ? <CheckCircle2 className="w-4 h-4" /> : <Play className="w-4 h-4" />}
           {selectedNextAction?.title || nextBestAction.title}
         </Button>
       </div>
@@ -383,19 +428,27 @@ export default function ExecutionCenter() {
           </CardHeader>
           <CardContent className="space-y-3">
             {queue.map((item, index) => (
-              <div key={item.id} className="flex flex-col gap-3 rounded-lg border p-4 md:flex-row md:items-center md:justify-between">
+              <div key={item.id} className={`flex flex-col gap-3 rounded-lg border p-4 md:flex-row md:items-center md:justify-between ${item.completed ? 'bg-success/5 border-success/30' : ''}`}>
                 <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center font-semibold">{index + 1}</div>
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-semibold ${item.completed ? 'bg-success/10 text-success' : 'bg-muted'}`}>
+                    {item.completed ? <CheckCircle2 className="w-4 h-4" /> : index + 1}
+                  </div>
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
-                      <p className="font-semibold">{item.title}</p>
+                      <p className={`font-semibold ${item.completed ? 'line-through text-muted-foreground' : ''}`}>{item.title}</p>
                       <Badge className={badgeClass(item.tone)}>{item.area}</Badge>
+                      {item.completed && <Badge className="bg-success text-success-foreground">ConcluÃ­do</Badge>}
                     </div>
                     <p className="text-sm text-muted-foreground">{item.detail}</p>
                   </div>
                 </div>
-                <Button variant="outline" size="sm" onClick={() => navigate(item.path)}>
-                  Executar
+                <Button
+                  variant={item.action === 'complete' ? 'default' : 'outline'}
+                  size="sm"
+                  disabled={item.completed}
+                  onClick={() => item.action === 'complete' ? handleCompleteItem(item) : navigate(item.path)}
+                >
+                  {item.completed ? 'ConcluÃ­do' : item.action === 'complete' ? 'Concluir' : 'Abrir'}
                 </Button>
               </div>
             ))}
@@ -458,7 +511,7 @@ function getPlannedActivities(day: WeekdayId, activeClients: Client[]): PlannedA
       id: `${day}-health`,
       title: 'Academia / atividade física',
       detail: 'Missão fixa de saúde. Deve ser preservada no dia útil e só reagendada quando houver prioridade real.',
-      area: 'Planejamento',
+      area: 'Saúde',
       duration: '1h',
       icon: Dumbbell,
     },

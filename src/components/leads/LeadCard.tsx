@@ -231,7 +231,7 @@ function LeadCardComponent({ lead, onEdit, onDelete, onUpdate, hasCheckbox }: Le
             {lead.segment && (
               <span className="truncate">{lead.segment}</span>
             )}
-            {lead.status === 'agendou_reuniao' && lead.meeting_date && (
+            {lead.meeting_date && (
               <span className="flex items-center gap-1 text-warning font-medium">
                 <Calendar className="w-3.5 h-3.5" />
                 Reunião {format(parseISO(lead.meeting_date), "dd/MM", { locale: ptBR })}

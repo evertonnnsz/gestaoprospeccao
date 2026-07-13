@@ -12,6 +12,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { Building2, User, Phone, Instagram, Calendar, MessageSquare, MessageCircle, FileText, MapPin } from 'lucide-react';
 import { generateFollowUpDates } from '@/lib/utils/followUpDates';
+import { upsertStoredMeeting } from '@/lib/fatureOS';
 
 interface LeadFormProps {
   open: boolean;
@@ -166,6 +167,8 @@ function LeadFormComponent({ open, onOpenChange, lead, onSuccess }: LeadFormProp
     };
 
     try {
+      let savedLeadId = lead?.id;
+
       if (lead?.id) {
         const { error } = await supabase.from('leads').update(payload).eq('id', lead.id);
         if (error) throw error;
@@ -173,7 +176,18 @@ function LeadFormComponent({ open, onOpenChange, lead, onSuccess }: LeadFormProp
       } else {
         const { error } = await supabase.from('leads').insert(payload);
         if (error) throw error;
+        savedLeadId = `local-${Date.now()}`;
         toast({ title: 'Lead criado!', description: 'O novo lead foi adicionado com sucesso.' });
+      }
+
+      if (savedLeadId && meetingDate) {
+        upsertStoredMeeting({
+          leadId: savedLeadId,
+          companyName: payload.company_name,
+          date: meetingDate,
+          time: nullable(readText(form, 'meeting_time')) || undefined,
+          notes: nullable(readText(form, 'meeting_notes')) || undefined,
+        });
       }
 
       onSuccess();

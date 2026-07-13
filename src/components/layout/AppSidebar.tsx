@@ -31,6 +31,7 @@ const navItems = [
   { title: 'Central de Execução', url: '/central-execucao', icon: ClipboardList },
   { title: 'Central de Demandas', url: '/central-demandas', icon: Inbox },
   { title: 'Comercial', url: '/leads', icon: Users },
+  { title: 'Clientes Ativos', url: '/clients', icon: Briefcase },
   { title: 'Prospecção', url: '/prospecting', icon: Sparkles },
   { title: 'Operacional', url: '/customer-success', icon: HeartHandshake },
   { title: 'Financeiro', url: '/financial', icon: DollarSign },

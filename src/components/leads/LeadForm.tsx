@@ -55,6 +55,9 @@ const todayISO = () => {
 };
 
 const buildDefaults = (lead?: Lead | null): LeadFormDefaults => {
+  const isEditing = !!lead?.id;
+  const followUps = !isEditing ? generateFollowUpDates() : null;
+
   if (lead) {
     return {
       company_name: lead.company_name || '',
@@ -65,9 +68,9 @@ const buildDefaults = (lead?: Lead | null): LeadFormDefaults => {
       observations: lead.observations || '',
       lead_source: lead.lead_source || '',
       segment: lead.segment || '',
-      follow_up_1: lead.follow_up_1 || '',
-      follow_up_2: lead.follow_up_2 || '',
-      follow_up_3: lead.follow_up_3 || '',
+      follow_up_1: lead.follow_up_1 || followUps?.follow_up_1 || '',
+      follow_up_2: lead.follow_up_2 || followUps?.follow_up_2 || '',
+      follow_up_3: lead.follow_up_3 || followUps?.follow_up_3 || '',
       last_contact: lead.last_contact || '',
       next_action: lead.next_action || '',
       meeting_date: lead.meeting_date || '',
@@ -82,7 +85,7 @@ const buildDefaults = (lead?: Lead | null): LeadFormDefaults => {
     };
   }
 
-  const followUps = generateFollowUpDates();
+  const newLeadFollowUps = generateFollowUpDates();
   return {
     company_name: '',
     contact_name: '',
@@ -92,9 +95,9 @@ const buildDefaults = (lead?: Lead | null): LeadFormDefaults => {
     observations: '',
     lead_source: '',
     segment: '',
-    follow_up_1: followUps.follow_up_1,
-    follow_up_2: followUps.follow_up_2,
-    follow_up_3: followUps.follow_up_3,
+    follow_up_1: newLeadFollowUps.follow_up_1,
+    follow_up_2: newLeadFollowUps.follow_up_2,
+    follow_up_3: newLeadFollowUps.follow_up_3,
     last_contact: '',
     next_action: '',
     meeting_date: '',

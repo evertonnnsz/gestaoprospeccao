@@ -13,6 +13,7 @@ import { Plus, Search, Filter, Loader2, AlertTriangle, X, Calendar, Trash2 } fro
 import { Checkbox } from '@/components/ui/checkbox';
 import { isPast, isToday, parseISO, startOfDay } from 'date-fns';
 import { PeriodFilter, PeriodType, DateRange, filterByPeriod } from '@/components/filters/PeriodFilter';
+import { generateFollowUpDates } from '@/lib/utils/followUpDates';
 
 // Helper function to compare dates without timezone issues
 const isSameDay = (dateStr: string): boolean => {
@@ -49,6 +50,25 @@ const hasTodayFollowUp = (lead: Lead): boolean => {
   return followUps.some(date => date && isSameDay(date));
 };
 
+const shouldRecoverFollowUps = (lead: Lead): boolean => {
+  if (['agendou_reuniao', 'reuniao_realizada', 'fechado', 'sem_interesse', 'lead_perdido'].includes(lead.status)) {
+    return false;
+  }
+
+  if (lead.follow_up_1 || lead.follow_up_2 || lead.follow_up_3) {
+    return false;
+  }
+
+  try {
+    const baseDate = parseISO(lead.approach_date || lead.created_at);
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    return baseDate >= startOfDay(sevenDaysAgo);
+  } catch {
+    return false;
+  }
+};
+
 export default function Leads() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -75,6 +95,8 @@ export default function Leads() {
     const statusParam = searchParams.get('status');
     if (statusParam) {
       setStatusFilter(statusParam);
+    } else {
+      setStatusFilter('all');
     }
   }, [searchParams]);
 
@@ -82,7 +104,13 @@ export default function Leads() {
     setOverdueFilter(false);
     setTodayFilter(false);
     searchParams.delete('filter');
+    searchParams.delete('status');
     setSearchParams(searchParams);
+    setStatusFilter('all');
+    setRespondedFilter('all');
+    setPeriodFilter('all');
+    setDateRange({ from: undefined, to: undefined });
+    setSearchQuery('');
   };
 
   useEffect(() => {
@@ -97,7 +125,33 @@ export default function Leads() {
         .order('created_at', { ascending: false });
       
       if (error) throw error;
-      setLeads((data as Lead[]) || []);
+      const loadedLeads = ((data as Lead[]) || []);
+      const leadsToRecover = loadedLeads.filter(shouldRecoverFollowUps);
+
+      if (leadsToRecover.length > 0) {
+        const recoveredLeads = await Promise.all(
+          leadsToRecover.map(async (lead) => {
+            const followUps = generateFollowUpDates(parseISO(lead.approach_date || lead.created_at));
+            const { error: updateError } = await supabase
+              .from('leads')
+              .update(followUps)
+              .eq('id', lead.id);
+
+            if (updateError) {
+              console.error('Error recovering follow-ups:', updateError);
+              return lead;
+            }
+
+            return { ...lead, ...followUps };
+          }),
+        );
+
+        const recoveredById = new Map(recoveredLeads.map((lead) => [lead.id, lead]));
+        setLeads(loadedLeads.map((lead) => recoveredById.get(lead.id) || lead));
+        return;
+      }
+
+      setLeads(loadedLeads);
     } catch (error) {
       console.error('Error fetching leads:', error);
     } finally {
@@ -220,6 +274,13 @@ export default function Leads() {
     setFormOpen(true);
   }, []);
   const shouldRenderLeadGrid = !formOpen;
+  const hasActiveFilters =
+    overdueFilter ||
+    todayFilter ||
+    statusFilter !== 'all' ||
+    respondedFilter !== 'all' ||
+    periodFilter !== 'all' ||
+    !!searchQuery;
 
   return (
     <div className="p-6 space-y-6">
@@ -270,6 +331,23 @@ export default function Leads() {
             className="text-primary/70 hover:text-primary transition-colors"
           >
             <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
+      {hasActiveFilters && !overdueFilter && !todayFilter && (
+        <div className="bg-warning/10 border border-warning/20 rounded-lg px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-2 text-warning">
+            <Filter className="h-4 w-4" />
+            <span className="text-sm font-medium">
+              Existem filtros ativos. Alguns leads podem estar ocultos nesta visualizaÃ§Ã£o.
+            </span>
+          </div>
+          <button
+            onClick={clearFilter}
+            className="text-warning/80 hover:text-warning transition-colors text-sm font-medium"
+          >
+            Ver todos os leads
           </button>
         </div>
       )}
@@ -339,7 +417,7 @@ export default function Leads() {
             </div>
           )}
           <span className="text-sm text-muted-foreground">
-            {filteredLeads.length} lead{filteredLeads.length !== 1 ? 's' : ''} encontrado{filteredLeads.length !== 1 ? 's' : ''}
+            {filteredLeads.length} de {leads.length} lead{leads.length !== 1 ? 's' : ''} exibido{filteredLeads.length !== 1 ? 's' : ''}
           </span>
         </div>
         

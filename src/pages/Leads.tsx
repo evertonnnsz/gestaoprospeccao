@@ -14,6 +14,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { isPast, isToday, parseISO, startOfDay } from 'date-fns';
 import { PeriodFilter, PeriodType, DateRange, filterByPeriod } from '@/components/filters/PeriodFilter';
 import { generateFollowUpDates } from '@/lib/utils/followUpDates';
+import { fetchAllLeads, fetchLeadCount } from '@/lib/utils/fetchAllLeads';
 
 // Helper function to compare dates without timezone issues
 const isSameDay = (dateStr: string): boolean => {
@@ -72,6 +73,7 @@ const shouldRecoverFollowUps = (lead: Lead): boolean => {
 export default function Leads() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [leads, setLeads] = useState<Lead[]>([]);
+  const [totalLeadCount, setTotalLeadCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -119,13 +121,11 @@ export default function Leads() {
 
   const fetchLeads = useCallback(async () => {
     try {
-      const { data, error } = await supabase
-        .from('leads')
-        .select('*')
-        .order('created_at', { ascending: false });
-      
-      if (error) throw error;
-      const loadedLeads = ((data as Lead[]) || []);
+      const [loadedLeads, exactLeadCount] = await Promise.all([
+        fetchAllLeads(),
+        fetchLeadCount(),
+      ]);
+      setTotalLeadCount(exactLeadCount);
       const leadsToRecover = loadedLeads.filter(shouldRecoverFollowUps);
 
       if (leadsToRecover.length > 0) {
@@ -281,6 +281,7 @@ export default function Leads() {
     respondedFilter !== 'all' ||
     periodFilter !== 'all' ||
     !!searchQuery;
+  const visibleTotal = Math.max(totalLeadCount, leads.length);
 
   return (
     <div className="p-6 space-y-6">
@@ -417,7 +418,7 @@ export default function Leads() {
             </div>
           )}
           <span className="text-sm text-muted-foreground">
-            {filteredLeads.length} de {leads.length} lead{leads.length !== 1 ? 's' : ''} exibido{filteredLeads.length !== 1 ? 's' : ''}
+            {filteredLeads.length} de {visibleTotal} lead{visibleTotal !== 1 ? 's' : ''} exibido{filteredLeads.length !== 1 ? 's' : ''}
           </span>
         </div>
         

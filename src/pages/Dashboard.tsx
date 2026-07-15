@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Client, Lead, LeadStatus, STATUS_LABELS, STATUS_ORDER, LEAD_SOURCES } from '@/types/crm';
 import { calculateChurnRate, splitClientsRevenue } from '@/lib/utils/clientRevenue';
+import { fetchAllLeads, fetchLeadCount } from '@/lib/utils/fetchAllLeads';
 import {
   getAssistantInsights,
   getExecutionScore,
@@ -99,6 +100,7 @@ export default function Dashboard() {
   const [goalDialogOpen, setGoalDialogOpen] = useState(false);
   const [monthlyGoal, setMonthlyGoal] = useState(readMonthlyGoal);
   const [goalInput, setGoalInput] = useState(() => readMonthlyGoal().toLocaleString('pt-BR'));
+  const [leadCount, setLeadCount] = useState(0);
   const [, setLoading] = useState(true);
 
   // Filters
@@ -112,12 +114,12 @@ export default function Dashboard() {
   useEffect(() => {
     const fetchLeads = async () => {
       try {
-        const { data, error } = await supabase
-          .from('leads')
-          .select('*')
-          .order('created_at', { ascending: false });
-        if (error) throw error;
-        setLeads((data as Lead[]) || []);
+        const [allLeads, exactLeadCount] = await Promise.all([
+          fetchAllLeads(),
+          fetchLeadCount(),
+        ]);
+        setLeads(allLeads);
+        setLeadCount(exactLeadCount);
         const { data: clientsData, error: clientsError } = await supabase
           .from('clients')
           .select('*');
@@ -198,7 +200,7 @@ export default function Dashboard() {
   };
 
   // KPIs
-  const totalLeads = filteredLeads.length;
+  const totalLeads = hasActiveFilters ? filteredLeads.length : Math.max(leadCount, filteredLeads.length);
   const closedLeads = filteredLeads.filter((l) => l.status === 'fechado').length;
   const meetingsHeld = filteredLeads.filter((l) => MEETING_STATUSES.includes(l.status as LeadStatus)).length;
   const respondedLeads = filteredLeads.filter((l) => l.responded === true).length;

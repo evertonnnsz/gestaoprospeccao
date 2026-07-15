@@ -12,6 +12,7 @@ import { TransactionsTable } from '@/components/financial/TransactionsTable';
 import { TransactionForm } from '@/components/financial/TransactionForm';
 import { GamifiedPanel } from '@/components/financial/gamified/GamifiedPanel';
 import { splitClientsRevenue } from '@/lib/utils/clientRevenue';
+import { fetchAllLeads } from '@/lib/utils/fetchAllLeads';
 
 import { PeriodFilter, PeriodType, DateRange, filterByPeriod } from '@/components/filters/PeriodFilter';
 import { Loader2 } from 'lucide-react';
@@ -50,11 +51,8 @@ export default function Financial() {
 
       if (clientsError) throw clientsError;
 
-      // Fetch all leads for gamified panel metrics
-      const { data: leadsData, error: leadsError } = await supabase
-        .from('leads')
-        .select('*');
-      if (leadsError) throw leadsError;
+      // Fetch all leads for gamified panel metrics, including records beyond Supabase's 1000-row default.
+      const leadsData = await fetchAllLeads();
 
       // Fetch profile for company name
       const { data: profileData } = await supabase
@@ -65,7 +63,7 @@ export default function Financial() {
 
       setTransactions((transactionsData || []) as FinancialTransaction[]);
       setClients((clientsData || []) as Client[]);
-      setLeads((leadsData || []) as Lead[]);
+      setLeads(leadsData);
       setCompanyName(profileData?.company_name ?? null);
     } catch (error) {
       console.error('Error fetching data:', error);

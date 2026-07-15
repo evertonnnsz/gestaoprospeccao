@@ -8,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import type { Client, Lead } from '@/types/crm';
 import type { FinancialTransaction } from '@/types/financial';
 import { getAssistantInsights, getNextBestAction, readStoredDemands, type OSDemand } from '@/lib/fatureOS';
+import { fetchAllLeads } from '@/lib/utils/fetchAllLeads';
 
 export default function AIAssistant() {
   const navigate = useNavigate();
@@ -18,13 +19,13 @@ export default function AIAssistant() {
 
   useEffect(() => {
     const fetchData = async () => {
-      const [{ data: leadsData }, { data: clientsData }, { data: transactionsData }] = await Promise.all([
-        supabase.from('leads').select('*'),
+      const [leadsData, { data: clientsData }, { data: transactionsData }] = await Promise.all([
+        fetchAllLeads(),
         supabase.from('clients').select('*, lead:leads(*)'),
         supabase.from('financial_transactions').select('*'),
       ]);
 
-      setLeads((leadsData || []) as Lead[]);
+      setLeads(leadsData);
       setClients((clientsData || []) as Client[]);
       setTransactions((transactionsData || []) as FinancialTransaction[]);
       setDemands(readStoredDemands());

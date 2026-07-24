@@ -1,13 +1,13 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
-
 @layer base {
   :root {
-    --background: 220 14% 96%;
-    --foreground: 222 47% 11%;
+    --background: 150 22% 97%;
+    --foreground: 158 34% 12%;
 
     --card: 0 0% 100%;
     --card-foreground: 222 47% 11%;
@@ -15,98 +15,96 @@
     --popover: 0 0% 100%;
     --popover-foreground: 222 47% 11%;
 
-    --primary: 217 91% 60%;
+    --primary: 158 64% 20%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 220 14% 96%;
-    --secondary-foreground: 222 47% 11%;
+    --secondary: 150 20% 94%;
+    --secondary-foreground: 158 34% 12%;
 
-    --muted: 220 13% 91%;
-    --muted-foreground: 215 16% 47%;
+    --muted: 150 16% 92%;
+    --muted-foreground: 158 12% 40%;
 
-    --accent: 217 91% 60%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 150 42% 90%;
+    --accent-foreground: 158 64% 20%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --success: 142 76% 36%;
+    --success: 150 56% 30%;
     --success-foreground: 0 0% 100%;
 
-    --warning: 38 92% 50%;
-    --warning-foreground: 0 0% 100%;
+    --warning: 36 78% 48%;
+    --warning-foreground: 30 20% 98%;
 
-    --border: 220 13% 91%;
-    --input: 220 13% 91%;
-    --ring: 217 91% 60%;
+    --border: 152 17% 86%;
+    --input: 152 17% 86%;
+    --ring: 158 64% 20%;
 
-    --radius: 0.75rem;
+    --radius: 0.625rem;
 
-    --sidebar-background: 222 47% 11%;
-    --sidebar-foreground: 210 40% 98%;
-    --sidebar-primary: 217 91% 60%;
+    --sidebar-background: 155 38% 11%;
+    --sidebar-foreground: 150 22% 94%;
+    --sidebar-primary: 150 42% 90%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 217 33% 17%;
-    --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 217 33% 17%;
-    --sidebar-ring: 217 91% 60%;
+    --sidebar-accent: 154 28% 17%;
+    --sidebar-accent-foreground: 150 22% 94%;
+    --sidebar-border: 154 24% 20%;
+    --sidebar-ring: 150 42% 84%;
 
-    --chart-1: 217 91% 60%;
-    --chart-2: 142 76% 36%;
-    --chart-3: 38 92% 50%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 0 84% 60%;
+    --chart-1: 158 64% 24%;
+    --chart-2: 150 45% 38%;
+    --chart-3: 36 78% 48%;
+    --chart-4: 205 52% 45%;
+    --chart-5: 0 70% 54%;
 
-    /* Gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(217 91% 60%) 0%, hsl(217 91% 50%) 100%);
-    --gradient-sidebar: linear-gradient(180deg, hsl(222 47% 11%) 0%, hsl(222 47% 8%) 100%);
-    --gradient-card: linear-gradient(135deg, hsl(0 0% 100%) 0%, hsl(220 14% 98%) 100%);
+    --surface-subtle: 150 25% 95%;
+    --surface-raised: 0 0% 100%;
+    --focus-soft: 150 52% 88%;
 
-    /* Shadows */
-    --shadow-sm: 0 1px 2px 0 hsl(222 47% 11% / 0.05);
-    --shadow-md: 0 4px 6px -1px hsl(222 47% 11% / 0.1), 0 2px 4px -2px hsl(222 47% 11% / 0.1);
-    --shadow-lg: 0 10px 15px -3px hsl(222 47% 11% / 0.1), 0 4px 6px -4px hsl(222 47% 11% / 0.1);
-    --shadow-xl: 0 20px 25px -5px hsl(222 47% 11% / 0.1), 0 8px 10px -6px hsl(222 47% 11% / 0.1);
-    --shadow-glow: 0 0 20px hsl(217 91% 60% / 0.3);
+    --shadow-sm: 0 1px 2px 0 hsl(158 34% 12% / 0.04);
+    --shadow-md: 0 8px 24px -18px hsl(158 34% 12% / 0.28);
+    --shadow-lg: 0 16px 36px -24px hsl(158 34% 12% / 0.32);
+    --shadow-xl: 0 24px 54px -30px hsl(158 34% 12% / 0.36);
+    --shadow-glow: 0 0 0 4px hsl(var(--focus-soft) / 0.6);
   }
 
   .dark {
-    --background: 222 47% 11%;
+    --background: 158 34% 10%;
     --foreground: 210 40% 98%;
 
-    --card: 222 47% 14%;
+    --card: 158 28% 13%;
     --card-foreground: 210 40% 98%;
 
-    --popover: 222 47% 14%;
+    --popover: 158 28% 13%;
     --popover-foreground: 210 40% 98%;
 
-    --primary: 217 91% 60%;
+    --primary: 150 42% 78%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 217 33% 17%;
+    --secondary: 154 24% 18%;
     --secondary-foreground: 210 40% 98%;
 
-    --muted: 217 33% 17%;
+    --muted: 154 24% 18%;
     --muted-foreground: 215 20% 65%;
 
-    --accent: 217 33% 17%;
+    --accent: 154 24% 18%;
     --accent-foreground: 210 40% 98%;
 
     --destructive: 0 62% 30%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 217 33% 17%;
-    --input: 217 33% 17%;
-    --ring: 217 91% 60%;
+    --border: 154 24% 20%;
+    --input: 154 24% 20%;
+    --ring: 150 42% 78%;
 
-    --sidebar-background: 222 47% 8%;
+    --sidebar-background: 158 34% 8%;
     --sidebar-foreground: 210 40% 98%;
-    --sidebar-primary: 217 91% 60%;
+    --sidebar-primary: 150 42% 78%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 217 33% 14%;
+    --sidebar-accent: 154 24% 16%;
     --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 217 33% 14%;
-    --sidebar-ring: 217 91% 60%;
+    --sidebar-border: 154 24% 18%;
+    --sidebar-ring: 150 42% 78%;
   }
 }
 
@@ -118,6 +116,11 @@
   body {
     @apply bg-background text-foreground font-sans antialiased;
     font-family: 'Inter', sans-serif;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  h1, h2, h3 {
+    @apply tracking-normal;
   }
 }
 
@@ -142,17 +145,41 @@
     @apply bg-card/80 backdrop-blur-sm;
   }
 
-  .status-lead_coletado { @apply bg-muted text-muted-foreground; }
-  .status-contato_iniciado { @apply bg-primary/10 text-primary; }
-  .status-visualizou_nao_respondeu { @apply bg-warning/10 text-warning; }
-  .status-interesse_demonstrado { @apply bg-success/10 text-success; }
-  .status-agendou_reuniao { @apply bg-chart-4/10 text-chart-4; }
-  .status-reuniao_realizada { @apply bg-chart-4/20 text-chart-4; }
-  .status-proposta_enviada { @apply bg-primary/20 text-primary; }
-  .status-em_negociacao { @apply bg-warning/20 text-warning; }
-  .status-fechado { @apply bg-success text-success-foreground; }
-  .status-sem_interesse { @apply bg-muted text-muted-foreground; }
-  .status-lead_perdido { @apply bg-destructive/10 text-destructive; }
+  .app-page {
+    @apply mx-auto w-full max-w-[1520px] p-4 sm:p-6 lg:p-8 space-y-6;
+  }
+
+  .page-header {
+    @apply flex flex-col gap-4 rounded-xl border bg-card px-5 py-5 shadow-sm sm:flex-row sm:items-center sm:justify-between;
+  }
+
+  .section-card {
+    @apply rounded-xl border bg-card shadow-sm;
+  }
+
+  .filter-panel {
+    @apply rounded-xl border bg-card p-4 shadow-sm;
+  }
+
+  .metric-label {
+    @apply text-xs font-semibold uppercase tracking-wide text-muted-foreground;
+  }
+
+  .metric-value {
+    @apply text-2xl font-semibold text-foreground;
+  }
+
+  .status-lead_coletado { @apply bg-muted text-muted-foreground border-border; }
+  .status-contato_iniciado { @apply bg-primary/10 text-primary border-primary/20; }
+  .status-visualizou_nao_respondeu { @apply bg-warning/10 text-warning border-warning/20; }
+  .status-interesse_demonstrado { @apply bg-success/10 text-success border-success/20; }
+  .status-agendou_reuniao { @apply bg-chart-4/10 text-chart-4 border-chart-4/20; }
+  .status-reuniao_realizada { @apply bg-chart-4/10 text-chart-4 border-chart-4/20; }
+  .status-proposta_enviada { @apply bg-primary/10 text-primary border-primary/20; }
+  .status-em_negociacao { @apply bg-warning/10 text-warning border-warning/20; }
+  .status-fechado { @apply bg-success text-success-foreground border-success; }
+  .status-sem_interesse { @apply bg-muted text-muted-foreground border-border; }
+  .status-lead_perdido { @apply bg-destructive/10 text-destructive border-destructive/20; }
 }
 
 @keyframes fadeIn {

@@ -152,7 +152,7 @@ export default function Settings() {
   });
 
   return (
-    <div className="p-6 space-y-6 max-w-4xl">
+    <div className="app-page max-w-5xl">
       <div>
         <h1 className="text-2xl font-bold text-foreground">Configurações</h1>
         <p className="text-muted-foreground">Personalize sua conta e aparência do sistema</p>

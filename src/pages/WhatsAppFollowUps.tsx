@@ -13,7 +13,6 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { fetchAllLeads } from '@/lib/utils/fetchAllLeads';
 import {
   DEFAULT_WHATSAPP_TEMPLATES,
   WhatsAppFollowUpStep,
@@ -122,17 +121,18 @@ export default function WhatsAppFollowUps() {
 
     setLoading(true);
     try {
-      const [leadsData, { data: templatesData, error: templatesError }, { data: logsData, error: logsError }] =
+      const [{ data: leadsData, error: leadsError }, { data: templatesData, error: templatesError }, { data: logsData, error: logsError }] =
         await Promise.all([
-          fetchAllLeads(),
+          supabase.from('leads').select('*').order('created_at', { ascending: false }),
           db.from('whatsapp_message_templates').select('*').eq('user_id', user.id).order('created_at', { ascending: true }),
           db.from('whatsapp_message_logs').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(100),
         ]);
 
+      if (leadsError) throw leadsError;
       if (templatesError) throw templatesError;
       if (logsError) throw logsError;
 
-      setLeads(leadsData);
+      setLeads((leadsData as Lead[]) || []);
       setLogs((logsData as WhatsAppLog[]) || []);
 
       if (!templatesData?.length) {
@@ -334,7 +334,7 @@ export default function WhatsAppFollowUps() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="app-page">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold">Follow-ups WhatsApp</h1>

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Lead, LeadStatus, STATUS_LABELS, STATUS_ORDER } from '@/types/crm';
@@ -13,8 +13,6 @@ import { Plus, Search, Filter, Loader2, AlertTriangle, X, Calendar, Trash2 } fro
 import { Checkbox } from '@/components/ui/checkbox';
 import { isPast, isToday, parseISO, startOfDay } from 'date-fns';
 import { PeriodFilter, PeriodType, DateRange, filterByPeriod } from '@/components/filters/PeriodFilter';
-import { generateFollowUpDates } from '@/lib/utils/followUpDates';
-import { fetchAllLeads, fetchLeadCount } from '@/lib/utils/fetchAllLeads';
 
 // Helper function to compare dates without timezone issues
 const isSameDay = (dateStr: string): boolean => {
@@ -51,29 +49,9 @@ const hasTodayFollowUp = (lead: Lead): boolean => {
   return followUps.some(date => date && isSameDay(date));
 };
 
-const shouldRecoverFollowUps = (lead: Lead): boolean => {
-  if (['agendou_reuniao', 'reuniao_realizada', 'fechado', 'sem_interesse', 'lead_perdido'].includes(lead.status)) {
-    return false;
-  }
-
-  if (lead.follow_up_1 || lead.follow_up_2 || lead.follow_up_3) {
-    return false;
-  }
-
-  try {
-    const baseDate = parseISO(lead.approach_date || lead.created_at);
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    return baseDate >= startOfDay(sevenDaysAgo);
-  } catch {
-    return false;
-  }
-};
-
 export default function Leads() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [leads, setLeads] = useState<Lead[]>([]);
-  const [totalLeadCount, setTotalLeadCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -97,8 +75,6 @@ export default function Leads() {
     const statusParam = searchParams.get('status');
     if (statusParam) {
       setStatusFilter(statusParam);
-    } else {
-      setStatusFilter('all');
     }
   }, [searchParams]);
 
@@ -106,58 +82,28 @@ export default function Leads() {
     setOverdueFilter(false);
     setTodayFilter(false);
     searchParams.delete('filter');
-    searchParams.delete('status');
     setSearchParams(searchParams);
-    setStatusFilter('all');
-    setRespondedFilter('all');
-    setPeriodFilter('all');
-    setDateRange({ from: undefined, to: undefined });
-    setSearchQuery('');
   };
 
   useEffect(() => {
     fetchLeads();
   }, []);
 
-  const fetchLeads = useCallback(async () => {
+  const fetchLeads = async () => {
     try {
-      const [loadedLeads, exactLeadCount] = await Promise.all([
-        fetchAllLeads(),
-        fetchLeadCount(),
-      ]);
-      setTotalLeadCount(exactLeadCount);
-      const leadsToRecover = loadedLeads.filter(shouldRecoverFollowUps);
-
-      if (leadsToRecover.length > 0) {
-        const recoveredLeads = await Promise.all(
-          leadsToRecover.map(async (lead) => {
-            const followUps = generateFollowUpDates(parseISO(lead.approach_date || lead.created_at));
-            const { error: updateError } = await supabase
-              .from('leads')
-              .update(followUps)
-              .eq('id', lead.id);
-
-            if (updateError) {
-              console.error('Error recovering follow-ups:', updateError);
-              return lead;
-            }
-
-            return { ...lead, ...followUps };
-          }),
-        );
-
-        const recoveredById = new Map(recoveredLeads.map((lead) => [lead.id, lead]));
-        setLeads(loadedLeads.map((lead) => recoveredById.get(lead.id) || lead));
-        return;
-      }
-
-      setLeads(loadedLeads);
+      const { data, error } = await supabase
+        .from('leads')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      setLeads((data as Lead[]) || []);
     } catch (error) {
       console.error('Error fetching leads:', error);
     } finally {
       setLoading(false);
     }
-  }, []);
+  };
 
   const handleDelete = async () => {
     if (!deletingLead) return;
@@ -221,7 +167,7 @@ export default function Leads() {
     }
   };
 
-  const toggleLeadSelection = useCallback((leadId: string) => {
+  const toggleLeadSelection = (leadId: string) => {
     setSelectedLeads(prev => {
       const next = new Set(prev);
       if (next.has(leadId)) {
@@ -231,15 +177,20 @@ export default function Leads() {
       }
       return next;
     });
-  }, []);
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedLeads.size === filteredLeads.length) {
+      setSelectedLeads(new Set());
+    } else {
+      setSelectedLeads(new Set(filteredLeads.map(l => l.id)));
+    }
+  };
 
   // Apply period filter first
-  const periodFilteredLeads = useMemo(
-    () => filterByPeriod(leads, periodFilter, dateRange),
-    [dateRange, leads, periodFilter],
-  );
+  const periodFilteredLeads = filterByPeriod(leads, periodFilter, dateRange);
 
-  const filteredLeads = useMemo(() => periodFilteredLeads.filter(lead => {
+  const filteredLeads = periodFilteredLeads.filter(lead => {
     const matchesSearch = 
       lead.company_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (lead.contact_name?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false);
@@ -254,37 +205,20 @@ export default function Leads() {
     const matchesToday = !todayFilter || hasTodayFollowUp(lead);
     
     return matchesSearch && matchesStatus && matchesResponded && matchesOverdue && matchesToday;
-  }), [overdueFilter, periodFilteredLeads, respondedFilter, searchQuery, statusFilter, todayFilter]);
+  });
 
-  const toggleSelectAll = useCallback(() => {
-    if (selectedLeads.size === filteredLeads.length) {
-      setSelectedLeads(new Set());
-    } else {
-      setSelectedLeads(new Set(filteredLeads.map(l => l.id)));
-    }
-  }, [filteredLeads, selectedLeads.size]);
-
-  const handleEdit = useCallback((lead: Lead) => {
+  const handleEdit = (lead: Lead) => {
     setEditingLead(lead);
     setFormOpen(true);
-  }, []);
+  };
 
-  const handleNewLead = useCallback(() => {
+  const handleNewLead = () => {
     setEditingLead(null);
     setFormOpen(true);
-  }, []);
-  const shouldRenderLeadGrid = !formOpen;
-  const hasActiveFilters =
-    overdueFilter ||
-    todayFilter ||
-    statusFilter !== 'all' ||
-    respondedFilter !== 'all' ||
-    periodFilter !== 'all' ||
-    !!searchQuery;
-  const visibleTotal = Math.max(totalLeadCount, leads.length);
+  };
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="app-page">
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
@@ -332,23 +266,6 @@ export default function Leads() {
             className="text-primary/70 hover:text-primary transition-colors"
           >
             <X className="h-4 w-4" />
-          </button>
-        </div>
-      )}
-
-      {hasActiveFilters && !overdueFilter && !todayFilter && (
-        <div className="bg-warning/10 border border-warning/20 rounded-lg px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-2 text-warning">
-            <Filter className="h-4 w-4" />
-            <span className="text-sm font-medium">
-              Existem filtros ativos. Alguns leads podem estar ocultos nesta visualizaÃ§Ã£o.
-            </span>
-          </div>
-          <button
-            onClick={clearFilter}
-            className="text-warning/80 hover:text-warning transition-colors text-sm font-medium"
-          >
-            Ver todos os leads
           </button>
         </div>
       )}
@@ -418,7 +335,7 @@ export default function Leads() {
             </div>
           )}
           <span className="text-sm text-muted-foreground">
-            {filteredLeads.length} de {visibleTotal} lead{visibleTotal !== 1 ? 's' : ''} exibido{filteredLeads.length !== 1 ? 's' : ''}
+            {filteredLeads.length} lead{filteredLeads.length !== 1 ? 's' : ''} encontrado{filteredLeads.length !== 1 ? 's' : ''}
           </span>
         </div>
         
@@ -436,15 +353,11 @@ export default function Leads() {
       </div>
 
       {/* Leads Grid */}
-      {formOpen ? (
-        <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
-          Edição aberta. A lista foi pausada temporariamente para deixar o preenchimento mais rápido.
-        </div>
-      ) : loading ? (
+      {loading ? (
         <div className="flex items-center justify-center py-12">
           <Loader2 className="w-8 h-8 animate-spin text-primary" />
         </div>
-      ) : shouldRenderLeadGrid && filteredLeads.length === 0 ? (
+      ) : filteredLeads.length === 0 ? (
         <div className="text-center py-12">
           <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
             <Search className="w-8 h-8 text-muted-foreground" />
@@ -462,7 +375,7 @@ export default function Leads() {
             </Button>
           )}
         </div>
-      ) : shouldRenderLeadGrid ? (
+      ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {filteredLeads.map((lead) => (
             <div key={lead.id} className="relative">
@@ -484,7 +397,7 @@ export default function Leads() {
             </div>
           ))}
         </div>
-      ) : null}
+      )}
 
       {/* Lead Form Modal */}
       <LeadForm

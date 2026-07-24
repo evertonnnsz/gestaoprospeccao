@@ -64,7 +64,7 @@ export function DashboardLayout() {
       <OnboardingPendingAlert />
       <div className="flex flex-1">
         <AppSidebar />
-        <main className="flex-1 overflow-auto">
+        <main className="flex-1 overflow-auto bg-background">
           <Outlet />
         </main>
       </div>

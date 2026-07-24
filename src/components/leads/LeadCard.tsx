@@ -1,4 +1,3 @@
-import { memo } from 'react';
 import { format, parseISO, startOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Lead } from '@/types/crm';
@@ -43,7 +42,7 @@ interface LeadCardProps {
   hasCheckbox?: boolean;
 }
 
-function LeadCardComponent({ lead, onEdit, onDelete, onUpdate, hasCheckbox }: LeadCardProps) {
+export function LeadCard({ lead, onEdit, onDelete, onUpdate, hasCheckbox }: LeadCardProps) {
   const { toast } = useToast();
 
   const hasOverdueFollowUp = () => {
@@ -183,9 +182,9 @@ function LeadCardComponent({ lead, onEdit, onDelete, onUpdate, hasCheckbox }: Le
   return (
     <Card 
       className={cn(
-        "p-4 transition-all hover:shadow-md animate-fade-in",
-        isOverdue && "border-destructive/50 bg-destructive/5",
-        isTodays && !isOverdue && "border-primary/50 bg-primary/5"
+        "p-4 transition-all hover:-translate-y-0.5 hover:shadow-md animate-fade-in",
+        isOverdue && "border-destructive/40 bg-destructive/5",
+        isTodays && !isOverdue && "border-primary/30 bg-accent/50"
       )}
     >
       <div className={cn("flex items-start justify-between gap-4", hasCheckbox && "pl-8")}>
@@ -196,7 +195,7 @@ function LeadCardComponent({ lead, onEdit, onDelete, onUpdate, hasCheckbox }: Le
               <Building2 className="w-5 h-5 text-primary" />
             </div>
             <div className="min-w-0">
-              <h3 className="font-semibold truncate">{lead.company_name}</h3>
+              <h3 className="font-semibold truncate text-base">{lead.company_name}</h3>
               {lead.razao_social && (
                 <p className="text-xs text-muted-foreground truncate">{lead.razao_social}</p>
               )}
@@ -231,13 +230,6 @@ function LeadCardComponent({ lead, onEdit, onDelete, onUpdate, hasCheckbox }: Le
             {lead.segment && (
               <span className="truncate">{lead.segment}</span>
             )}
-            {lead.meeting_date && (
-              <span className="flex items-center gap-1 text-warning font-medium">
-                <Calendar className="w-3.5 h-3.5" />
-                Reunião {format(parseISO(lead.meeting_date), "dd/MM", { locale: ptBR })}
-                {lead.meeting_time ? ` às ${lead.meeting_time.slice(0, 5)}` : ''}
-              </span>
-            )}
             {nextFollowUp && (
               <span className="flex items-center gap-1">
                 <Calendar className="w-3.5 h-3.5" />
@@ -248,7 +240,7 @@ function LeadCardComponent({ lead, onEdit, onDelete, onUpdate, hasCheckbox }: Le
 
           {/* Next action */}
           {lead.next_action && (
-            <p className="text-sm bg-muted/50 rounded px-2 py-1 truncate">
+            <p className="text-sm bg-muted/60 rounded-lg px-3 py-2 truncate">
               Próxima ação: {lead.next_action}
             </p>
           )}
@@ -281,7 +273,7 @@ function LeadCardComponent({ lead, onEdit, onDelete, onUpdate, hasCheckbox }: Le
         </div>
 
         {/* Actions */}
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-col gap-1 rounded-lg bg-muted/40 p-1">
           {lead.whatsapp && (
             <Button size="icon" variant="ghost" className="h-8 w-8 text-success" onClick={openWhatsApp}>
               <MessageCircle className="w-4 h-4" />
@@ -303,5 +295,3 @@ function LeadCardComponent({ lead, onEdit, onDelete, onUpdate, hasCheckbox }: Le
     </Card>
   );
 }
-
-export const LeadCard = memo(LeadCardComponent);

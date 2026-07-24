@@ -15,18 +15,18 @@ interface StatsCardProps {
 
 const variantStyles = {
   default: 'bg-card',
-  primary: 'bg-primary/10',
-  success: 'bg-success/10',
-  warning: 'bg-warning/10',
-  destructive: 'bg-destructive/10',
+  primary: 'bg-card border-primary/20',
+  success: 'bg-card border-success/20',
+  warning: 'bg-card border-warning/20',
+  destructive: 'bg-card border-destructive/20',
 };
 
 const iconStyles = {
   default: 'bg-muted text-muted-foreground',
-  primary: 'bg-primary/20 text-primary',
-  success: 'bg-success/20 text-success',
-  warning: 'bg-warning/20 text-warning',
-  destructive: 'bg-destructive/20 text-destructive',
+  primary: 'bg-primary/10 text-primary',
+  success: 'bg-success/10 text-success',
+  warning: 'bg-warning/10 text-warning',
+  destructive: 'bg-destructive/10 text-destructive',
 };
 
 export function StatsCard({ title, value, icon: Icon, trend, variant = 'default', onClick }: StatsCardProps) {
@@ -35,7 +35,7 @@ export function StatsCard({ title, value, icon: Icon, trend, variant = 'default'
       className={cn(
         "rounded-xl p-6 shadow-sm border border-border/50 transition-all hover:shadow-md animate-fade-in",
         variantStyles[variant],
-        onClick && "cursor-pointer"
+        onClick && "cursor-pointer hover:-translate-y-0.5"
       )}
       onClick={onClick}
       role={onClick ? "button" : undefined}
@@ -44,8 +44,8 @@ export function StatsCard({ title, value, icon: Icon, trend, variant = 'default'
     >
       <div className="flex items-start justify-between">
         <div className="space-y-2">
-          <p className="text-sm font-medium text-muted-foreground">{title}</p>
-          <p className="text-3xl font-bold">{value}</p>
+          <p className="metric-label">{title}</p>
+          <p className="text-3xl font-semibold tracking-normal">{value}</p>
           {trend && (
             <p className={cn(
               "text-sm font-medium",
@@ -56,7 +56,7 @@ export function StatsCard({ title, value, icon: Icon, trend, variant = 'default'
             </p>
           )}
         </div>
-        <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center", iconStyles[variant])}>
+        <div className={cn("w-11 h-11 rounded-lg flex items-center justify-center", iconStyles[variant])}>
           <Icon className="w-6 h-6" />
         </div>
       </div>

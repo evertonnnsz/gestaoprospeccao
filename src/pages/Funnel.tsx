@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Lead, LeadStatus, STATUS_LABELS } from '@/types/crm';
-import { fetchAllLeads } from '@/lib/utils/fetchAllLeads';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PeriodFilter, PeriodType, DateRange, filterByPeriod } from '@/components/filters/PeriodFilter';
@@ -110,8 +109,8 @@ export default function Funnel() {
 
   useEffect(() => {
     const fetchLeads = async () => {
-      const data = await fetchAllLeads();
-      setLeads(data);
+      const { data } = await supabase.from('leads').select('*');
+      setLeads((data as Lead[]) || []);
       const { data: history } = await supabase
         .from('lead_status_history')
         .select('lead_id, status');
@@ -191,7 +190,7 @@ export default function Funnel() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="app-page">
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>

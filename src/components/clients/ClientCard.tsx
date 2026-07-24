@@ -12,7 +12,6 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { useNavigate } from 'react-router-dom';
 import { 
   Building2, 
   Calendar, 
@@ -31,15 +30,14 @@ import {
   UserMinus,
   ChevronDown,
   PlayCircle,
-  Eye,
 } from 'lucide-react';
 import { format, addMonths, isBefore, isAfter } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 const PAYMENT_STATUS_CONFIG: Record<MonthlyPaymentStatus, { label: string; icon: typeof CheckCircle2; className: string }> = {
-  paid: { label: 'Quitado', icon: CheckCircle2, className: 'bg-green-100 text-green-700 border-green-200' },
-  overdue: { label: 'Vencido', icon: AlertCircle, className: 'bg-red-100 text-red-700 border-red-200' },
-  pending: { label: 'Pendente', icon: CircleDashed, className: 'bg-yellow-100 text-yellow-700 border-yellow-200' },
+  paid: { label: 'Quitado', icon: CheckCircle2, className: 'bg-success/10 text-success border-success/20' },
+  overdue: { label: 'Vencido', icon: AlertCircle, className: 'bg-destructive/10 text-destructive border-destructive/20' },
+  pending: { label: 'Pendente', icon: CircleDashed, className: 'bg-warning/10 text-warning border-warning/20' },
 };
 
 const CLIENT_STATUS_CONFIG: Record<ClientStatus, { label: string; icon: typeof CheckCircle2; className: string }> = {
@@ -57,7 +55,6 @@ interface ClientCardProps {
 
 export function ClientCard({ client, onEdit, onDelete, onChange }: ClientCardProps) {
   const { toast } = useToast();
-  const navigate = useNavigate();
   const currentStatus: ClientStatus = (client.status as ClientStatus) || 'active';
   const statusConfig = CLIENT_STATUS_CONFIG[currentStatus];
   const StatusIcon = statusConfig.icon;
@@ -116,15 +113,17 @@ export function ClientCard({ client, onEdit, onDelete, onChange }: ClientCardPro
 
   return (
     <Card
-      className={`hover:shadow-md transition-shadow ${
-        contractExpiringSoon ? 'border-warning ring-1 ring-warning/30' : ''
+      className={`hover:-translate-y-0.5 hover:shadow-md transition-all ${
+        contractExpiringSoon ? 'border-warning/50 ring-1 ring-warning/20' : ''
       } ${isInactive ? 'opacity-75' : ''}`}
     >
       <CardHeader className="pb-3">
-        <div className="flex items-start justify-between">
+        <div className="flex items-start justify-between gap-3">
           <div>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Building2 className="w-5 h-5 text-primary" />
+            <CardTitle className="text-base flex items-center gap-2">
+              <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10">
+                <Building2 className="w-5 h-5 text-primary" />
+              </span>
               {client.lead?.company_name || 'Cliente'}
             </CardTitle>
             {client.lead?.contact_name && (
@@ -140,9 +139,6 @@ export function ClientCard({ client, onEdit, onDelete, onChange }: ClientCardPro
             )}
           </div>
           <div className="flex gap-1">
-            <Button variant="ghost" size="icon" onClick={() => navigate(`/clients/${client.id}`)}>
-              <Eye className="w-4 h-4" />
-            </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" className={`gap-1 ${statusConfig.className}`}>
@@ -202,7 +198,7 @@ export function ClientCard({ client, onEdit, onDelete, onChange }: ClientCardPro
           </div>
         )}
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-3 rounded-lg bg-muted/40 p-3">
           <div className="flex items-center gap-2 text-sm">
             <DollarSign className="w-4 h-4 text-muted-foreground" />
             <span className="font-medium">{formatCurrency(client.project_value)}</span>

@@ -33,7 +33,7 @@ export default function Approvals() {
   if (loading) return <div className="flex items-center justify-center h-full"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>;
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="app-page">
       <h1 className="text-2xl font-bold">Aprovação de Usuários</h1>
       {pendingUsers.length === 0 ? (
         <Card className="p-8 text-center"><p className="text-muted-foreground">Nenhum usuário pendente</p></Card>

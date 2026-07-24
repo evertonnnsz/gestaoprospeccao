@@ -3,35 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Client, Lead, LeadStatus, STATUS_LABELS, STATUS_ORDER, LEAD_SOURCES } from '@/types/crm';
-import { calculateChurnRate, splitClientsRevenue } from '@/lib/utils/clientRevenue';
-import { fetchAllLeads, fetchLeadCount } from '@/lib/utils/fetchAllLeads';
-import {
-  getAssistantInsights,
-  getExecutionScore,
-  getMonthlyRevenue,
-  getNextBestAction,
-  getPendingFollowUps,
-  getRecommendedMode,
-  getTodayMeetings,
-  readMonthlyGoal,
-  readStoredDemands,
-  saveMonthlyGoal,
-  type OSDemand,
-} from '@/lib/fatureOS';
-import { FinancialTransaction } from '@/types/financial';
+import { calculateChurnRate } from '@/lib/utils/clientRevenue';
 import { StatsCard } from '@/components/dashboard/StatsCard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { PeriodFilter, PeriodType, DateRange, filterByPeriod } from '@/components/filters/PeriodFilter';
 import {
@@ -45,15 +20,6 @@ import {
   X,
   FileText,
   UserMinus,
-  Brain,
-  CheckCircle2,
-  ClipboardList,
-  DollarSign,
-  Dumbbell,
-  Gauge,
-  Inbox,
-  Play,
-  Pencil,
 } from 'lucide-react';
 import { parseISO, startOfDay, format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -94,13 +60,6 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
-  const [transactions, setTransactions] = useState<FinancialTransaction[]>([]);
-  const [demands, setDemands] = useState<OSDemand[]>([]);
-  const [briefingOpen, setBriefingOpen] = useState(() => sessionStorage.getItem('fature-briefing-seen') !== 'yes');
-  const [goalDialogOpen, setGoalDialogOpen] = useState(false);
-  const [monthlyGoal, setMonthlyGoal] = useState(readMonthlyGoal);
-  const [goalInput, setGoalInput] = useState(() => readMonthlyGoal().toLocaleString('pt-BR'));
-  const [leadCount, setLeadCount] = useState(0);
   const [, setLoading] = useState(true);
 
   // Filters
@@ -114,23 +73,17 @@ export default function Dashboard() {
   useEffect(() => {
     const fetchLeads = async () => {
       try {
-        const [allLeads, exactLeadCount] = await Promise.all([
-          fetchAllLeads(),
-          fetchLeadCount(),
-        ]);
-        setLeads(allLeads);
-        setLeadCount(exactLeadCount);
+        const { data, error } = await supabase
+          .from('leads')
+          .select('*')
+          .order('created_at', { ascending: false });
+        if (error) throw error;
+        setLeads((data as Lead[]) || []);
         const { data: clientsData, error: clientsError } = await supabase
           .from('clients')
           .select('*');
         if (clientsError) throw clientsError;
         setClients(((clientsData as unknown) as Client[]) || []);
-        const { data: transactionsData, error: transactionsError } = await supabase
-          .from('financial_transactions')
-          .select('*');
-        if (transactionsError) throw transactionsError;
-        setTransactions((transactionsData as FinancialTransaction[]) || []);
-        setDemands(readStoredDemands());
       } catch (error) {
         console.error('Error fetching leads:', error);
       } finally {
@@ -200,7 +153,7 @@ export default function Dashboard() {
   };
 
   // KPIs
-  const totalLeads = hasActiveFilters ? filteredLeads.length : Math.max(leadCount, filteredLeads.length);
+  const totalLeads = filteredLeads.length;
   const closedLeads = filteredLeads.filter((l) => l.status === 'fechado').length;
   const meetingsHeld = filteredLeads.filter((l) => MEETING_STATUSES.includes(l.status as LeadStatus)).length;
   const respondedLeads = filteredLeads.filter((l) => l.responded === true).length;
@@ -218,27 +171,6 @@ export default function Dashboard() {
   const meetingRate = totalLeads > 0 ? (meetingsHeld / totalLeads) * 100 : 0;
   const responseRate = totalLeads > 0 ? (respondedLeads / totalLeads) * 100 : 0;
   const churn = calculateChurnRate(clients);
-  const osContext = { leads, clients, transactions, demands };
-  const transactionRevenue = getMonthlyRevenue(transactions);
-  const clientsRevenue = splitClientsRevenue(clients);
-  const monthlyRevenue = clientsRevenue.total;
-  const receivedRevenue = Math.max(clientsRevenue.received, transactionRevenue);
-  const revenueRemaining = Math.max(monthlyGoal - monthlyRevenue, 0);
-  const revenueProgress = monthlyGoal > 0 ? Math.min((monthlyRevenue / monthlyGoal) * 100, 100) : 0;
-  const executionScore = getExecutionScore(osContext);
-  const pendingFollowUps = getPendingFollowUps(leads);
-  const nextBestAction = getNextBestAction(osContext);
-  const recommendedMode = getRecommendedMode(osContext);
-  const assistantInsights = getAssistantInsights(osContext);
-
-  const saveGoal = () => {
-    const parsed = Number(goalInput.replace(/\./g, '').replace(',', '.').replace(/[^\d.]/g, ''));
-    if (!Number.isFinite(parsed) || parsed <= 0) return;
-    setMonthlyGoal(parsed);
-    saveMonthlyGoal(parsed);
-    setGoalInput(parsed.toLocaleString('pt-BR'));
-    setGoalDialogOpen(false);
-  };
 
   // Sources chart data
   const sourcesData = useMemo(() => {
@@ -257,46 +189,11 @@ export default function Dashboard() {
   }, [filteredLeads]);
 
   return (
-    <div className="p-6 space-y-6">
-      {briefingOpen && (
-        <Card className="border-warning/30 bg-gradient-to-br from-sidebar to-sidebar-accent text-sidebar-foreground shadow-lg">
-          <CardContent className="p-6 space-y-5">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-              <div>
-                <p className="text-sm font-medium text-warning">Briefing do Dia</p>
-                <h2 className="text-2xl font-bold">Antes de começar, esta é a leitura da operação.</h2>
-                <p className="text-sidebar-foreground/70">
-                  Prioridades acima de horários. O sistema aponta a melhor ação para mover faturamento e operação.
-                </p>
-              </div>
-              <Button
-                className="bg-warning text-warning-foreground hover:bg-warning/90"
-                onClick={() => {
-                  sessionStorage.setItem('fature-briefing-seen', 'yes');
-                  setBriefingOpen(false);
-                }}
-              >
-                Iniciar meu dia
-              </Button>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
-              <BriefingItem label="Meta mensal" value={`R$ ${monthlyGoal.toLocaleString('pt-BR')}`} />
-              <BriefingItem label="Faturamento previsto" value={`R$ ${monthlyRevenue.toLocaleString('pt-BR')}`} />
-              <BriefingItem label="Faltam" value={`R$ ${revenueRemaining.toLocaleString('pt-BR')}`} />
-              <BriefingItem label="Modo recomendado" value={recommendedMode} />
-              <BriefingItem label="Reuniões do dia" value={String(getTodayMeetings(leads).length)} />
-              <BriefingItem label="Follow-ups pendentes" value={String(pendingFollowUps.length)} />
-              <BriefingItem label="Missão principal" value={pendingFollowUps.length > 0 ? 'Follow-up comercial' : 'Gerar oportunidades'} />
-              <BriefingItem label="Próxima melhor ação" value={nextBestAction.title} />
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
+    <div className="app-page">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div className="page-header">
         <div>
-          <h1 className="text-2xl font-bold">
+          <h1 className="text-2xl font-semibold">
             Olá, {profile?.full_name?.split(' ')[0] || 'Usuário'}!
           </h1>
           <p className="text-muted-foreground">
@@ -311,86 +208,33 @@ export default function Dashboard() {
         />
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-        <Card className="xl:col-span-2 border-warning/30 shadow-sm">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <DollarSign className="w-5 h-5 text-warning" />
-              Radar de Faturamento
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-end justify-between gap-4">
+      <Card className="border-primary/20 bg-accent/50 shadow-sm">
+        <CardContent className="p-5">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex items-start gap-4">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                <Calendar className="h-5 w-5" />
+              </div>
               <div>
-                <p className="text-sm text-muted-foreground">Progresso da meta mensal</p>
-                <p className="text-3xl font-bold">{revenueProgress.toFixed(0)}%</p>
-              </div>
-              <div className="text-right">
-                <p className="text-sm text-muted-foreground">Meta atual</p>
-                <div className="flex items-center justify-end gap-2">
-                  <p className="text-xl font-semibold">R$ {monthlyGoal.toLocaleString('pt-BR')}</p>
-                  <Button variant="outline" size="sm" onClick={() => setGoalDialogOpen(true)} className="gap-1">
-                    <Pencil className="w-3.5 h-3.5" />
-                    Editar
-                  </Button>
-                </div>
+                <p className="metric-label text-primary">Prioridade do dia</p>
+                <h2 className="mt-1 text-xl font-semibold">
+                  {todayFollowUps > 0
+                    ? `${todayFollowUps} follow-up(s) precisam de atencao hoje`
+                    : 'Nenhum follow-up marcado para hoje'}
+                </h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Use este bloco para atacar primeiro as oportunidades com prazo no dia.
+                </p>
               </div>
             </div>
-            <div className="h-3 rounded-full bg-muted overflow-hidden">
-              <div className="h-full bg-warning transition-all" style={{ width: `${revenueProgress}%` }} />
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3">
-              <MiniMetric label="Previsto recorrente" value={`R$ ${monthlyRevenue.toLocaleString('pt-BR')}`} />
-              <MiniMetric label="Recebido" value={`R$ ${receivedRevenue.toLocaleString('pt-BR')}`} />
-              <MiniMetric label="A receber" value={`R$ ${clientsRevenue.receivable.toLocaleString('pt-BR')}`} />
-              <MiniMetric label="Faltam" value={`R$ ${revenueRemaining.toLocaleString('pt-BR')}`} />
-              <MiniMetric label="Clientes ativos" value={String(clientsRevenue.totalCount)} />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-sm">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Gauge className="w-5 h-5 text-primary" />
-              Score de Execução
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
-              <span className="text-5xl font-bold">{executionScore}</span>
-              <span className="text-muted-foreground">/100</span>
-            </div>
-            <div className="h-3 rounded-full bg-muted overflow-hidden">
-              <div className="h-full bg-primary transition-all" style={{ width: `${executionScore}%` }} />
-            </div>
-            <p className="text-sm text-muted-foreground">
-              Calculado por prospecção, follow-ups, reuniões, demandas concluídas, CRM e planejamento.
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-4">
-        <OSCard icon={ClipboardList} title="Missão do Dia" text={pendingFollowUps.length > 0 ? 'Concluir follow-ups pendentes' : 'Criar novas oportunidades comerciais'} />
-        <OSCard icon={CalendarCheck} title="Agenda Inteligente" text={getTodayMeetings(leads).length > 0 ? 'Reuniões comerciais dominam a prioridade' : 'Dia livre para execução por impacto'} />
-        <OSCard icon={Inbox} title="Operacional" text={`${demands.filter((demand) => !['concluida', 'cancelada', 'arquivada'].includes(demand.status)).length} demandas ativas`} />
-        <OSCard icon={Dumbbell} title="Academia" text="Registrar treino mantém o score do dia completo" />
-      </div>
-
-      <Card className="border-primary/20 shadow-sm">
-        <CardContent className="p-5 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <div className="flex items-center gap-2 font-semibold">
-              <Brain className="w-5 h-5 text-primary" />
-              IA Assistente
-            </div>
-            <p className="text-sm text-muted-foreground">{assistantInsights[0]?.message}</p>
+            <Button
+              variant={todayFollowUps > 0 ? 'default' : 'outline'}
+              onClick={() => navigate(todayFollowUps > 0 ? '/leads?filter=today' : '/leads')}
+              className="w-full sm:w-auto"
+            >
+              {todayFollowUps > 0 ? 'Ver follow-ups do dia' : 'Ver leads'}
+            </Button>
           </div>
-          <Button onClick={() => navigate(nextBestAction.path)} className="gap-2">
-            <Play className="w-4 h-4" />
-            {nextBestAction.title}
-          </Button>
         </CardContent>
       </Card>
 
@@ -561,71 +405,7 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       </div>
-
-      <Dialog open={goalDialogOpen} onOpenChange={setGoalDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Editar meta mensal</DialogTitle>
-            <DialogDescription>
-              Esta meta será usada no Radar de Faturamento, Briefing do Dia e IA Assistente.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-2">
-            <Label htmlFor="monthly-goal">Meta mensal</Label>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">R$</span>
-              <Input
-                id="monthly-goal"
-                inputMode="numeric"
-                value={goalInput}
-                onChange={(event) => setGoalInput(event.target.value)}
-                placeholder="15.000,00"
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setGoalDialogOpen(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={saveGoal}>Salvar meta</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
-  );
-}
-
-function BriefingItem({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-lg border border-sidebar-border bg-white/5 p-3">
-      <p className="text-xs text-sidebar-foreground/60">{label}</p>
-      <p className="font-semibold">{value}</p>
-    </div>
-  );
-}
-
-function MiniMetric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-lg border p-3">
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="font-semibold">{value}</p>
-    </div>
-  );
-}
-
-function OSCard({ icon: Icon, title, text }: { icon: any; title: string; text: string }) {
-  return (
-    <Card className="shadow-sm">
-      <CardContent className="p-4 space-y-3">
-        <div className="w-10 h-10 rounded-lg bg-warning/10 text-warning flex items-center justify-center">
-          <Icon className="w-5 h-5" />
-        </div>
-        <div>
-          <p className="font-semibold">{title}</p>
-          <p className="text-sm text-muted-foreground">{text}</p>
-        </div>
-      </CardContent>
-    </Card>
   );
 }
 

@@ -59,7 +59,7 @@
    const selectedClient = clients.find(c => c.id === selectedClientId);
  
    return (
-     <div className="space-y-6">
+     <div className="app-page">
        {/* Header */}
        <div>
          <h1 className="text-3xl font-bold">Sucesso do Cliente</h1>

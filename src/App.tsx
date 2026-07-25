@@ -7,15 +7,9 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
-import ExecutionCenter from "./pages/ExecutionCenter";
-import DemandCenter from "./pages/DemandCenter";
-import AIAssistant from "./pages/AIAssistant";
-import Indicators from "./pages/Indicators";
-import Studies from "./pages/Studies";
 import Leads from "./pages/Leads";
 import Prospecting from "./pages/Prospecting";
 import Clients from "./pages/Clients";
-import ClientDetail from "./pages/ClientDetail";
 import Financial from "./pages/Financial";
 import Funnel from "./pages/Funnel";
 import Approvals from "./pages/Approvals";
@@ -25,6 +19,7 @@ import NotFound from "./pages/NotFound";
 import CustomerSuccess from "./pages/CustomerSuccess";
 import Onboarding from "./pages/Onboarding";
 import WhatsAppFollowUps from "./pages/WhatsAppFollowUps";
+import Agenda from "./pages/Agenda";
 
 const queryClient = new QueryClient();
 
@@ -40,18 +35,13 @@ const App = () => (
             <Route path="/auth" element={<Auth />} />
             <Route element={<DashboardLayout />}>
               <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/central-execucao" element={<ExecutionCenter />} />
-              <Route path="/central-demandas" element={<DemandCenter />} />
-              <Route path="/ia-assistente" element={<AIAssistant />} />
-              <Route path="/indicadores" element={<Indicators />} />
-              <Route path="/estudos" element={<Studies />} />
               <Route path="/leads" element={<Leads />} />
               <Route path="/prospecting" element={<Prospecting />} />
               <Route path="/clients" element={<Clients />} />
-              <Route path="/clients/:id" element={<ClientDetail />} />
               <Route path="/financial" element={<Financial />} />
               <Route path="/funnel" element={<Funnel />} />
               <Route path="/whatsapp-follow-ups" element={<WhatsAppFollowUps />} />
+              <Route path="/agenda" element={<Agenda />} />
               <Route path="/customer-success" element={<CustomerSuccess />} />
               <Route path="/onboarding" element={<Onboarding />} />
               <Route path="/approvals" element={<Approvals />} />

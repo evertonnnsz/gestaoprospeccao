@@ -78,6 +78,7 @@ export function ClientForm({ open, onOpenChange, client, lead, onSuccess }: Clie
     event_type: 'onboarding' as keyof typeof CLIENT_AGENDA_TYPES,
     scheduled_date: '',
     scheduled_time: '',
+    guest_email: '',
     notes: '',
   });
   
@@ -104,6 +105,7 @@ export function ClientForm({ open, onOpenChange, client, lead, onSuccess }: Clie
         event_type: 'onboarding',
         scheduled_date: '',
         scheduled_time: '',
+        guest_email: '',
         notes: '',
       });
     } else {
@@ -125,6 +127,7 @@ export function ClientForm({ open, onOpenChange, client, lead, onSuccess }: Clie
         event_type: 'onboarding',
         scheduled_date: '',
         scheduled_time: '',
+        guest_email: '',
         notes: '',
       });
     }
@@ -267,6 +270,7 @@ export function ClientForm({ open, onOpenChange, client, lead, onSuccess }: Clie
           scheduled_date: clientAgenda.scheduled_date,
           scheduled_time: clientAgenda.scheduled_time,
           duration_minutes: 60,
+          guest_email: clientAgenda.guest_email || null,
           notes: clientAgenda.notes || null,
           status: 'scheduled',
         });
@@ -504,7 +508,7 @@ export function ClientForm({ open, onOpenChange, client, lead, onSuccess }: Clie
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div className="space-y-2">
                   <Label>Tipo</Label>
                   <Select
@@ -548,6 +552,19 @@ export function ClientForm({ open, onOpenChange, client, lead, onSuccess }: Clie
                     value={clientAgenda.scheduled_time}
                     onChange={(e) =>
                       setClientAgenda((prev) => ({ ...prev, scheduled_time: e.target.value }))
+                    }
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="client_agenda_guest_email">E-mail do convidado</Label>
+                  <Input
+                    id="client_agenda_guest_email"
+                    type="email"
+                    placeholder="cliente@email.com"
+                    value={clientAgenda.guest_email}
+                    onChange={(e) =>
+                      setClientAgenda((prev) => ({ ...prev, guest_email: e.target.value }))
                     }
                   />
                 </div>

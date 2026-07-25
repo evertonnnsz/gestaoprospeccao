@@ -94,6 +94,7 @@ function buildEvent(agendaEvent: any, lead: any | null, timeZone: string) {
     lead?.contact_name ? `Contato: ${lead.contact_name}` : null,
     lead?.whatsapp ? `WhatsApp: ${lead.whatsapp}` : null,
     lead?.segment ? `Segmento: ${lead.segment}` : null,
+    agendaEvent.guest_email ? `Convidado: ${agendaEvent.guest_email}` : null,
     agendaEvent.notes ? `Observações: ${agendaEvent.notes}` : null,
     lead?.observations ? `Observações do lead: ${lead.observations}` : null,
   ].filter(Boolean).join('\n');
@@ -103,6 +104,7 @@ function buildEvent(agendaEvent: any, lead: any | null, timeZone: string) {
     description,
     start: { dateTime: startDateTime, timeZone },
     end: { dateTime: endDateTime, timeZone },
+    attendees: agendaEvent.guest_email ? [{ email: agendaEvent.guest_email }] : undefined,
     _localStart: startDateTime,
     _localEnd: endDateTime,
   };
@@ -159,7 +161,8 @@ Deno.serve(async (req) => {
     const eventPayload = buildEvent(agendaEvent, lead, timeZone);
     const accessToken = await refreshAccessToken(connection, supabase);
     const calendarId = encodeURIComponent(connection.calendar_id || 'primary');
-    const eventResponse = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events`, {
+    const sendUpdates = eventPayload.attendees ? '?sendUpdates=all' : '';
+    const eventResponse = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events${sendUpdates}`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${accessToken}`,
@@ -170,6 +173,7 @@ Deno.serve(async (req) => {
         description: eventPayload.description,
         start: eventPayload.start,
         end: eventPayload.end,
+        attendees: eventPayload.attendees,
       }),
     });
 

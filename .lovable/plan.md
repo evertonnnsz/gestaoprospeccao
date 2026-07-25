@@ -1,13 +1,22 @@
-## Plano: Publicar edge functions do Google Agenda
+## Plano: Configurar secrets do Google Agenda e republicar funções
 
-Deploy imediato das duas funções já existentes no projeto:
+### Secrets a configurar
 
-- `supabase/functions/google-calendar-auth/index.ts`
-- `supabase/functions/google-calendar-events/index.ts`
+Valores fixos (via `set_secret`, sem interação):
+- `GOOGLE_REDIRECT_URI` = `https://zcdqmusmgefxxkkrjgad.supabase.co/functions/v1/google-calendar-auth`
+- `APP_URL` = `https://gestaoprospeccao.lovable.app`
+- `GOOGLE_OAUTH_STATE_SECRET` = `crm_google_agenda_2026_chave_segura_everton`
 
-### Passos
+Credenciais do Google (via `add_secret`, formulário seguro — os placeholders `COLE_AQUI_...` não são valores reais):
+- `GOOGLE_CLIENT_ID`
+- `GOOGLE_CLIENT_SECRET`
 
-1. Chamar o deploy das duas funções em uma única operação.
-2. Confirmar que ambas subiram sem erro.
+### Republicação
 
-Nenhum arquivo será alterado. Caso o deploy falhe, os logs serão consultados para diagnóstico.
+Após os secrets estarem salvos, redeploy de:
+- `google-calendar-auth`
+- `google-calendar-events`
+
+### Observação
+
+Confirme que o Redirect URI acima está autorizado no OAuth client do Google Cloud Console; caso contrário o callback falhará com `redirect_uri_mismatch`.

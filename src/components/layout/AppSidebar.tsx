@@ -14,6 +14,7 @@ import {
   HeartHandshake,
   ClipboardCheck,
   MessageCircle,
+  CalendarDays,
 } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -40,6 +41,7 @@ const navGroups = [
   {
     label: 'Opera\u00e7\u00e3o',
     items: [
+      { title: 'Agenda', url: '/agenda', icon: CalendarDays },
       { title: 'Sucesso do Cliente', url: '/customer-success', icon: HeartHandshake },
       { title: 'Onboarding', url: '/onboarding', icon: ClipboardCheck },
       { title: 'Financeiro', url: '/financial', icon: DollarSign },

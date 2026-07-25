@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Client, Lead, LeadStatus, STATUS_LABELS, STATUS_ORDER, LEAD_SOURCES } from '@/types/crm';
 import { calculateChurnRate } from '@/lib/utils/clientRevenue';
+import { fetchAllRows } from '@/lib/supabaseFetch';
 import { StatsCard } from '@/components/dashboard/StatsCard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -73,17 +74,13 @@ export default function Dashboard() {
   useEffect(() => {
     const fetchLeads = async () => {
       try {
-        const { data, error } = await supabase
-          .from('leads')
-          .select('*')
-          .order('created_at', { ascending: false });
-        if (error) throw error;
-        setLeads((data as Lead[]) || []);
-        const { data: clientsData, error: clientsError } = await supabase
-          .from('clients')
-          .select('*');
-        if (clientsError) throw clientsError;
-        setClients(((clientsData as unknown) as Client[]) || []);
+        const [leadsData, clientsData] = await Promise.all([
+          fetchAllRows<Lead>('leads', { orderBy: 'created_at', ascending: false }),
+          fetchAllRows<Client>('clients'),
+        ]);
+
+        setLeads(leadsData);
+        setClients(clientsData);
       } catch (error) {
         console.error('Error fetching leads:', error);
       } finally {

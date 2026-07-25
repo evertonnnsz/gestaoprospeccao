@@ -5,6 +5,7 @@ import { Bot, CheckCircle2, Loader2, MessageCircle, RefreshCw, Send } from 'luci
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Lead } from '@/types/crm';
+import { fetchAllRows } from '@/lib/supabaseFetch';
 import { LeadStatusBadge } from '@/components/leads/LeadStatusBadge';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -121,18 +122,17 @@ export default function WhatsAppFollowUps() {
 
     setLoading(true);
     try {
-      const [{ data: leadsData, error: leadsError }, { data: templatesData, error: templatesError }, { data: logsData, error: logsError }] =
+      const [leadsData, { data: templatesData, error: templatesError }, { data: logsData, error: logsError }] =
         await Promise.all([
-          supabase.from('leads').select('*').order('created_at', { ascending: false }),
+          fetchAllRows<Lead>('leads', { orderBy: 'created_at', ascending: false }),
           db.from('whatsapp_message_templates').select('*').eq('user_id', user.id).order('created_at', { ascending: true }),
           db.from('whatsapp_message_logs').select('*').eq('user_id', user.id).order('created_at', { ascending: false }).limit(100),
         ]);
 
-      if (leadsError) throw leadsError;
       if (templatesError) throw templatesError;
       if (logsError) throw logsError;
 
-      setLeads((leadsData as Lead[]) || []);
+      setLeads(leadsData);
       setLogs((logsData as WhatsAppLog[]) || []);
 
       if (!templatesData?.length) {

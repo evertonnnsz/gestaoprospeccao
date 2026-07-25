@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Lead, LeadStatus, STATUS_LABELS, STATUS_ORDER } from '@/types/crm';
+import { fetchAllRows } from '@/lib/supabaseFetch';
 import { LeadCard } from '@/components/leads/LeadCard';
 import { LeadForm } from '@/components/leads/LeadForm';
 import { Button } from '@/components/ui/button';
@@ -91,13 +92,8 @@ export default function Leads() {
 
   const fetchLeads = async () => {
     try {
-      const { data, error } = await supabase
-        .from('leads')
-        .select('*')
-        .order('created_at', { ascending: false });
-      
-      if (error) throw error;
-      setLeads((data as Lead[]) || []);
+      const data = await fetchAllRows<Lead>('leads', { orderBy: 'created_at', ascending: false });
+      setLeads(data);
     } catch (error) {
       console.error('Error fetching leads:', error);
     } finally {

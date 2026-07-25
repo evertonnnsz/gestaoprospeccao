@@ -10,6 +10,7 @@ import {
   Link2Off,
   Loader2,
   MessageCircle,
+  Plus,
   RefreshCw,
   type LucideIcon,
 } from 'lucide-react';
@@ -18,18 +19,50 @@ import { Client, Lead } from '@/types/crm';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 
 type AgendaFilter = 'today' | 'upcoming' | 'done';
+type ManualEventType = 'mentoring' | 'personal' | 'standalone_meeting' | 'operational_task' | 'other';
 
 const TIME_ZONE = 'America/Sao_Paulo';
 const EVENT_TYPE_LABELS: Record<string, string> = {
   commercial_meeting: 'Reunião comercial',
   proposal_meeting: 'Reunião de proposta',
   onboarding: 'Onboarding',
+  mentoring: 'Mentoria',
+  personal: 'Pessoal',
+  standalone_meeting: 'Reuniao avulsa',
   results_meeting: 'Reunião de resultado',
   operational_task: 'Demanda operacional',
   other: 'Outra demanda',
+};
+
+const MANUAL_EVENT_DEFAULTS = {
+  title: '',
+  event_type: 'standalone_meeting' as ManualEventType,
+  scheduled_date: '',
+  scheduled_time: '',
+  duration_minutes: '60',
+  guest_email: '',
+  notes: '',
 };
 
 interface GoogleCalendarConnection {
@@ -41,7 +74,7 @@ interface GoogleCalendarConnection {
 interface AgendaEvent {
   id: string;
   user_id: string;
-  source_type: 'lead' | 'client';
+  source_type: 'lead' | 'client' | 'manual';
   lead_id: string | null;
   client_id: string | null;
   event_type: string;
@@ -113,6 +146,9 @@ export default function Agenda() {
   const [checkingGoogle, setCheckingGoogle] = useState(true);
   const [googleConnection, setGoogleConnection] = useState<GoogleCalendarConnection>({ connected: false });
   const [filter, setFilter] = useState<AgendaFilter>('today');
+  const [manualDialogOpen, setManualDialogOpen] = useState(false);
+  const [savingManualEvent, setSavingManualEvent] = useState(false);
+  const [manualEvent, setManualEvent] = useState(MANUAL_EVENT_DEFAULTS);
 
   const fetchAgendaData = async () => {
     setLoading(true);
@@ -278,6 +314,59 @@ export default function Agenda() {
     }
   };
 
+  const createManualEvent = async () => {
+    if (!manualEvent.title.trim() || !manualEvent.scheduled_date || !manualEvent.scheduled_time) {
+      toast({
+        title: 'Preencha os campos obrigatorios',
+        description: 'Informe titulo, data e horario para criar o evento.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setSavingManualEvent(true);
+    try {
+      const { data: authData, error: authError } = await supabase.auth.getUser();
+      if (authError) throw authError;
+      if (!authData.user) throw new Error('Usuario nao autenticado');
+
+      const duration = Number(manualEvent.duration_minutes) || 60;
+      const { error } = await db.from('agenda_events').insert({
+        user_id: authData.user.id,
+        source_type: 'manual',
+        lead_id: null,
+        client_id: null,
+        event_type: manualEvent.event_type,
+        title: manualEvent.title.trim(),
+        scheduled_date: manualEvent.scheduled_date,
+        scheduled_time: manualEvent.scheduled_time,
+        duration_minutes: duration > 0 ? duration : 60,
+        guest_email: manualEvent.guest_email.trim() || null,
+        notes: manualEvent.notes.trim() || null,
+        status: 'scheduled',
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: 'Evento criado',
+        description: `${manualEvent.title.trim()} foi adicionado na Agenda.`,
+      });
+
+      setManualEvent(MANUAL_EVENT_DEFAULTS);
+      setManualDialogOpen(false);
+      fetchAgendaData();
+    } catch (error: any) {
+      toast({
+        title: 'Erro ao criar evento',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setSavingManualEvent(false);
+    }
+  };
+
   const markEventDone = async (item: AgendaItem) => {
     setSavingEventId(item.event.id);
     try {
@@ -354,18 +443,132 @@ export default function Agenda() {
             Centralize reuniões comerciais e demandas de clientes ativos.
           </p>
         </div>
-        <Button
-          variant="outline"
-          onClick={() => {
-            fetchAgendaData();
-            fetchGoogleConnection();
-          }}
-          className="gap-2"
-        >
-          <RefreshCw className="w-4 h-4" />
-          Atualizar
-        </Button>
+        <div className="flex flex-col sm:flex-row gap-2">
+          <Button onClick={() => setManualDialogOpen(true)} className="gap-2">
+            <Plus className="w-4 h-4" />
+            Criar evento
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => {
+              fetchAgendaData();
+              fetchGoogleConnection();
+            }}
+            className="gap-2"
+          >
+            <RefreshCw className="w-4 h-4" />
+            Atualizar
+          </Button>
+        </div>
       </div>
+
+      <Dialog open={manualDialogOpen} onOpenChange={setManualDialogOpen}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Criar evento</DialogTitle>
+            <DialogDescription>
+              Adicione compromissos avulsos, mentorias, tarefas pessoais ou reunioes fora do fluxo de leads.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2 md:col-span-2">
+              <Label htmlFor="manual_event_title">Titulo</Label>
+              <Input
+                id="manual_event_title"
+                placeholder="Ex: Mentoria com cliente"
+                value={manualEvent.title}
+                onChange={(event) => setManualEvent((prev) => ({ ...prev, title: event.target.value }))}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Tipo</Label>
+              <Select
+                value={manualEvent.event_type}
+                onValueChange={(value) =>
+                  setManualEvent((prev) => ({ ...prev, event_type: value as ManualEventType }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="mentoring">Mentoria</SelectItem>
+                  <SelectItem value="standalone_meeting">Reuniao avulsa</SelectItem>
+                  <SelectItem value="personal">Pessoal</SelectItem>
+                  <SelectItem value="operational_task">Demanda operacional</SelectItem>
+                  <SelectItem value="other">Outra demanda</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="manual_event_duration">Duracao em minutos</Label>
+              <Input
+                id="manual_event_duration"
+                type="number"
+                min="15"
+                step="15"
+                value={manualEvent.duration_minutes}
+                onChange={(event) => setManualEvent((prev) => ({ ...prev, duration_minutes: event.target.value }))}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="manual_event_date">Data</Label>
+              <Input
+                id="manual_event_date"
+                type="date"
+                value={manualEvent.scheduled_date}
+                onChange={(event) => setManualEvent((prev) => ({ ...prev, scheduled_date: event.target.value }))}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="manual_event_time">Horario</Label>
+              <Input
+                id="manual_event_time"
+                type="time"
+                value={manualEvent.scheduled_time}
+                onChange={(event) => setManualEvent((prev) => ({ ...prev, scheduled_time: event.target.value }))}
+              />
+            </div>
+
+            <div className="space-y-2 md:col-span-2">
+              <Label htmlFor="manual_event_guest_email">E-mail do convidado</Label>
+              <Input
+                id="manual_event_guest_email"
+                type="email"
+                placeholder="convidado@email.com"
+                value={manualEvent.guest_email}
+                onChange={(event) => setManualEvent((prev) => ({ ...prev, guest_email: event.target.value }))}
+              />
+            </div>
+
+            <div className="space-y-2 md:col-span-2">
+              <Label htmlFor="manual_event_notes">Observacoes</Label>
+              <Textarea
+                id="manual_event_notes"
+                rows={3}
+                placeholder="Detalhes do compromisso..."
+                value={manualEvent.notes}
+                onChange={(event) => setManualEvent((prev) => ({ ...prev, notes: event.target.value }))}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setManualDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={createManualEvent} disabled={savingManualEvent} className="gap-2">
+              {savingManualEvent && <Loader2 className="w-4 h-4 animate-spin" />}
+              Salvar evento
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Card className="border-primary/20 bg-accent/50">
         <CardContent className="p-5">
@@ -422,7 +625,7 @@ export default function Agenda() {
           <CalendarDays className="w-10 h-10 mx-auto text-muted-foreground mb-3" />
           <h2 className="font-semibold">Nenhuma demanda nesta visão</h2>
           <p className="text-sm text-muted-foreground mt-1">
-            Reuniões de leads e demandas de clientes ativos aparecerão aqui quando forem salvas.
+            Reuniões, demandas e eventos manuais aparecerão aqui quando forem salvos.
           </p>
         </Card>
       ) : (
@@ -437,7 +640,15 @@ export default function Agenda() {
             const companyName = item.lead?.company_name || item.event.title;
             const contactLine = item.lead
               ? `${item.lead.contact_name || 'Contato não informado'} ${item.lead.whatsapp ? `- ${item.lead.whatsapp}` : ''}`
-              : 'Cliente ativo';
+              : item.event.source_type === 'manual'
+                ? 'Evento manual'
+                : 'Cliente ativo';
+            const sourceLabel =
+              item.event.source_type === 'lead'
+                ? 'Lead'
+                : item.event.source_type === 'manual'
+                  ? 'Manual'
+                  : 'Cliente ativo';
 
             return (
               <div
@@ -465,7 +676,7 @@ export default function Agenda() {
 
                 <div>
                   <Badge variant={item.event.source_type === 'lead' ? 'outline' : 'default'}>
-                    {item.event.source_type === 'lead' ? 'Lead' : 'Cliente ativo'}
+                    {sourceLabel}
                   </Badge>
                 </div>
 

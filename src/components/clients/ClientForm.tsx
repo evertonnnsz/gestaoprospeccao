@@ -47,11 +47,19 @@ const handleCurrencyInput = (value: string): string => {
   return reais.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
 
+const CLIENT_AGENDA_TYPES = {
+  onboarding: 'Onboarding',
+  results_meeting: 'Reunião de resultado',
+  operational_task: 'Demanda operacional',
+  other: 'Outra demanda',
+} as const;
+
 export function ClientForm({ open, onOpenChange, client, lead, onSuccess }: ClientFormProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const db = supabase as any;
   
   const [formData, setFormData] = useState({
     project_value: '',
@@ -65,6 +73,12 @@ export function ClientForm({ open, onOpenChange, client, lead, onSuccess }: Clie
     status: 'active' as ClientStatus,
     churn_date: '',
     churn_reason: '',
+  });
+  const [clientAgenda, setClientAgenda] = useState({
+    event_type: 'onboarding' as keyof typeof CLIENT_AGENDA_TYPES,
+    scheduled_date: '',
+    scheduled_time: '',
+    notes: '',
   });
   
   const [whatsapp, setWhatsapp] = useState('');
@@ -86,6 +100,12 @@ export function ClientForm({ open, onOpenChange, client, lead, onSuccess }: Clie
       });
       // Carrega o WhatsApp do lead associado
       setWhatsapp(lead?.whatsapp || '');
+      setClientAgenda({
+        event_type: 'onboarding',
+        scheduled_date: '',
+        scheduled_time: '',
+        notes: '',
+      });
     } else {
       setFormData({
         project_value: '',
@@ -101,6 +121,12 @@ export function ClientForm({ open, onOpenChange, client, lead, onSuccess }: Clie
         churn_reason: '',
       });
       setWhatsapp(lead?.whatsapp || '');
+      setClientAgenda({
+        event_type: 'onboarding',
+        scheduled_date: '',
+        scheduled_time: '',
+        notes: '',
+      });
     }
   }, [client, open]);
 
@@ -152,14 +178,11 @@ export function ClientForm({ open, onOpenChange, client, lead, onSuccess }: Clie
 
       if (uploadError) throw uploadError;
 
-      // Bucket is private — generate a long-lived signed URL (1 year)
-      const { data: signed, error: signErr } = await supabase.storage
+      const { data: { publicUrl } } = supabase.storage
         .from('contracts')
-        .createSignedUrl(fileName, 60 * 60 * 24 * 365);
+        .getPublicUrl(fileName);
 
-      if (signErr) throw signErr;
-
-      setFormData(prev => ({ ...prev, contract_url: signed.signedUrl }));
+      setFormData(prev => ({ ...prev, contract_url: publicUrl }));
       
       toast({
         title: 'Sucesso',
@@ -211,6 +234,8 @@ export function ClientForm({ open, onOpenChange, client, lead, onSuccess }: Clie
         churn_reason: formData.status === 'churn' ? formData.churn_reason || null : null,
       };
 
+      let savedClientId = client?.id || '';
+
       if (client) {
         const { error } = await supabase
           .from('clients')
@@ -220,12 +245,33 @@ export function ClientForm({ open, onOpenChange, client, lead, onSuccess }: Clie
         if (error) throw error;
         toast({ title: 'Cliente atualizado com sucesso!' });
       } else {
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from('clients')
-          .insert(clientData);
+          .insert(clientData)
+          .select('id')
+          .single();
 
         if (error) throw error;
+        savedClientId = data.id;
         toast({ title: 'Cliente cadastrado com sucesso!' });
+      }
+
+      if (savedClientId && clientAgenda.scheduled_date && clientAgenda.scheduled_time) {
+        const { error: agendaError } = await db.from('agenda_events').insert({
+          user_id: user.id,
+          source_type: 'client',
+          lead_id: lead.id,
+          client_id: savedClientId,
+          event_type: clientAgenda.event_type,
+          title: `${CLIENT_AGENDA_TYPES[clientAgenda.event_type]} - ${lead.company_name}`,
+          scheduled_date: clientAgenda.scheduled_date,
+          scheduled_time: clientAgenda.scheduled_time,
+          duration_minutes: 60,
+          notes: clientAgenda.notes || null,
+          status: 'scheduled',
+        });
+
+        if (agendaError) throw agendaError;
       }
 
       onSuccess();
@@ -443,6 +489,79 @@ export function ClientForm({ open, onOpenChange, client, lead, onSuccess }: Clie
                   value={formData.churn_reason}
                   onChange={(e) =>
                     setFormData((prev) => ({ ...prev, churn_reason: e.target.value }))
+                  }
+                />
+              </div>
+            </div>
+          )}
+
+          {formData.status === 'active' && (
+            <div className="space-y-4 rounded-lg border border-primary/20 bg-primary/5 p-4">
+              <div>
+                <Label className="text-base font-semibold">Agenda do cliente</Label>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Registre onboarding, resultado ou demanda operacional para aparecer na Agenda.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label>Tipo</Label>
+                  <Select
+                    value={clientAgenda.event_type}
+                    onValueChange={(value) =>
+                      setClientAgenda((prev) => ({
+                        ...prev,
+                        event_type: value as keyof typeof CLIENT_AGENDA_TYPES,
+                      }))
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="onboarding">Onboarding</SelectItem>
+                      <SelectItem value="results_meeting">Resultado</SelectItem>
+                      <SelectItem value="operational_task">Operacional</SelectItem>
+                      <SelectItem value="other">Outra demanda</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="client_agenda_date">Data</Label>
+                  <Input
+                    id="client_agenda_date"
+                    type="date"
+                    value={clientAgenda.scheduled_date}
+                    onChange={(e) =>
+                      setClientAgenda((prev) => ({ ...prev, scheduled_date: e.target.value }))
+                    }
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="client_agenda_time">Horário</Label>
+                  <Input
+                    id="client_agenda_time"
+                    type="time"
+                    value={clientAgenda.scheduled_time}
+                    onChange={(e) =>
+                      setClientAgenda((prev) => ({ ...prev, scheduled_time: e.target.value }))
+                    }
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="client_agenda_notes">Observações da demanda</Label>
+                <Textarea
+                  id="client_agenda_notes"
+                  rows={3}
+                  placeholder="Ex: onboarding inicial, reunião de resultado, demanda operacional..."
+                  value={clientAgenda.notes}
+                  onChange={(e) =>
+                    setClientAgenda((prev) => ({ ...prev, notes: e.target.value }))
                   }
                 />
               </div>

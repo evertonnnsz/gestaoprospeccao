@@ -14,6 +14,81 @@ export type Database = {
   }
   public: {
     Tables: {
+      agenda_events: {
+        Row: {
+          client_id: string | null
+          created_at: string
+          duration_minutes: number
+          event_type: string
+          google_event_id: string | null
+          google_event_link: string | null
+          id: string
+          lead_id: string | null
+          notes: string | null
+          scheduled_date: string
+          scheduled_time: string
+          source_type: string
+          status: string
+          synced_at: string | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          client_id?: string | null
+          created_at?: string
+          duration_minutes?: number
+          event_type: string
+          google_event_id?: string | null
+          google_event_link?: string | null
+          id?: string
+          lead_id?: string | null
+          notes?: string | null
+          scheduled_date: string
+          scheduled_time: string
+          source_type: string
+          status?: string
+          synced_at?: string | null
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          client_id?: string | null
+          created_at?: string
+          duration_minutes?: number
+          event_type?: string
+          google_event_id?: string | null
+          google_event_link?: string | null
+          id?: string
+          lead_id?: string | null
+          notes?: string | null
+          scheduled_date?: string
+          scheduled_time?: string
+          source_type?: string
+          status?: string
+          synced_at?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agenda_events_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agenda_events_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       campanhas_anuncios: {
         Row: {
           campaign_name: string | null

@@ -64,12 +64,13 @@ async function refreshAccessToken(connection: any, supabase: any) {
   return refreshed.access_token;
 }
 
-function buildEvent(lead: any, startDateTime: string, endDateTime: string, timeZone: string) {
+function buildEvent(lead: any, startDateTime: string, endDateTime: string, timeZone: string, meetingNotes?: string | null) {
   const description = [
     lead.contact_name ? `Contato: ${lead.contact_name}` : null,
     lead.whatsapp ? `WhatsApp: ${lead.whatsapp}` : null,
     lead.segment ? `Segmento: ${lead.segment}` : null,
     lead.next_action ? `Proxima acao: ${lead.next_action}` : null,
+    meetingNotes ? `Observacoes da reuniao: ${meetingNotes}` : null,
     lead.observations ? `Observacoes: ${lead.observations}` : null,
   ].filter(Boolean).join('\n');
 
@@ -92,7 +93,7 @@ Deno.serve(async (req) => {
       return json({ error: 'Acao invalida' }, 400);
     }
 
-    const { leadId, startDateTime, endDateTime, timeZone = 'America/Sao_Paulo' } = body;
+    const { leadId, startDateTime, endDateTime, timeZone = 'America/Sao_Paulo', meetingNotes = null } = body;
     if (!leadId || !startDateTime || !endDateTime) {
       return json({ error: 'Lead, inicio e fim do evento sao obrigatorios' }, 400);
     }
@@ -124,7 +125,7 @@ Deno.serve(async (req) => {
         Authorization: `Bearer ${accessToken}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(buildEvent(lead, startDateTime, endDateTime, timeZone)),
+      body: JSON.stringify(buildEvent(lead, startDateTime, endDateTime, timeZone, meetingNotes)),
     });
 
     const event = await eventResponse.json();

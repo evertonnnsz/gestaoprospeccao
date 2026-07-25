@@ -1,22 +1,16 @@
-## Plano: Configurar secrets do Google Agenda e republicar funções
+## Plano
 
-### Secrets a configurar
+### 1. Migration `agenda_events`
+Rodar o SQL de `supabase/migrations/20260725120000_agenda_events.sql` no Lovable Cloud, com dois ajustes obrigatórios (o arquivo original não os inclui e sem eles a Data API bloqueia a tabela e um trigger fica faltando):
 
-Valores fixos (via `set_secret`, sem interação):
-- `GOOGLE_REDIRECT_URI` = `https://zcdqmusmgefxxkkrjgad.supabase.co/functions/v1/google-calendar-auth`
-- `APP_URL` = `https://gestaoprospeccao.lovable.app`
-- `GOOGLE_OAUTH_STATE_SECRET` = `crm_google_agenda_2026_chave_segura_everton`
+- Adicionar `GRANT SELECT, INSERT, UPDATE, DELETE ON public.agenda_events TO authenticated;` e `GRANT ALL ON public.agenda_events TO service_role;` logo após o `CREATE TABLE`.
+- Criar trigger `BEFORE UPDATE` usando a função existente `public.update_updated_at_column()` para manter `updated_at`.
 
-Credenciais do Google (via `add_secret`, formulário seguro — os placeholders `COLE_AQUI_...` não são valores reais):
-- `GOOGLE_CLIENT_ID`
-- `GOOGLE_CLIENT_SECRET`
+Estrutura preservada do arquivo: colunas, checks (`source_type`, `event_type`, `status`, vínculo lead/client), índices e as 4 políticas RLS por `auth.uid() = user_id`.
 
-### Republicação
+### 2. Republicar edge function
+Redeploy de `google-calendar-events` (já atualizada no repo para ler `agenda_events` via `agendaEventId` e gravar `google_event_id` / `google_event_link` de volta na linha do compromisso).
 
-Após os secrets estarem salvos, redeploy de:
-- `google-calendar-auth`
-- `google-calendar-events`
-
-### Observação
-
-Confirme que o Redirect URI acima está autorizado no OAuth client do Google Cloud Console; caso contrário o callback falhará com `redirect_uri_mismatch`.
+### 3. Confirmação
+- Verificar via `read_query` que `public.agenda_events` existe e tem RLS ativa.
+- Confirmar no retorno do deploy que `google-calendar-events` subiu sem erro.

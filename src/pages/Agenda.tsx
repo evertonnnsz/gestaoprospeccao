@@ -11,71 +11,26 @@ import {
   Loader2,
   MessageCircle,
   RefreshCw,
-  Video,
   type LucideIcon,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { Lead } from '@/types/crm';
-import { fetchAllRows } from '@/lib/supabaseFetch';
-import { LeadStatusBadge } from '@/components/leads/LeadStatusBadge';
+import { Client, Lead } from '@/types/crm';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 
-type AgendaFilter = 'today' | 'upcoming' | 'undated' | 'done';
+type AgendaFilter = 'today' | 'upcoming' | 'done';
 
-const AGENDA_STATUSES = ['agendou_reuniao', 'reuniao_realizada'] as const;
 const TIME_ZONE = 'America/Sao_Paulo';
-const MEETING_DATE_FIELDS = [
-  'meeting_date',
-  'commercial_meeting_date',
-  'meeting_scheduled_date',
-  'scheduled_meeting_date',
-  'reuniao_date',
-  'reuniao_data',
-  'reuniao_comercial_data',
-  'data_reuniao',
-  'data_da_reuniao',
-  'data_reuniao_comercial',
-  'meetingDate',
-  'commercialMeetingDate',
-  'scheduledMeetingDate',
-];
-const MEETING_TIME_FIELDS = [
-  'meeting_time',
-  'commercial_meeting_time',
-  'meeting_scheduled_time',
-  'scheduled_meeting_time',
-  'reuniao_time',
-  'reuniao_horario',
-  'reuniao_comercial_horario',
-  'horario_reuniao',
-  'horario_da_reuniao',
-  'horario_reuniao_comercial',
-  'meetingTime',
-  'commercialMeetingTime',
-  'scheduledMeetingTime',
-];
-const MEETING_NOTES_FIELDS = [
-  'meeting_notes',
-  'meeting_observations',
-  'commercial_meeting_notes',
-  'commercial_meeting_observations',
-  'meeting_scheduled_notes',
-  'scheduled_meeting_notes',
-  'reuniao_notes',
-  'reuniao_observacoes',
-  'reuniao_comercial_observacoes',
-  'observacoes_reuniao',
-  'observacoes_da_reuniao',
-  'observacoes_reuniao_comercial',
-  'meetingNotes',
-  'meetingObservations',
-  'commercialMeetingNotes',
-  'commercialMeetingObservations',
-  'scheduledMeetingNotes',
-];
+const EVENT_TYPE_LABELS: Record<string, string> = {
+  commercial_meeting: 'Reunião comercial',
+  proposal_meeting: 'Reunião de proposta',
+  onboarding: 'Onboarding',
+  results_meeting: 'Reunião de resultado',
+  operational_task: 'Demanda operacional',
+  other: 'Outra demanda',
+};
 
 interface GoogleCalendarConnection {
   connected: boolean;
@@ -83,74 +38,58 @@ interface GoogleCalendarConnection {
   calendar_id?: string | null;
 }
 
-type AgendaLead = Lead & Record<string, unknown>;
-
-function getFirstText(lead: AgendaLead, fields: string[]): string | null {
-  for (const field of fields) {
-    const value = lead[field];
-    if (typeof value === 'string' && value.trim()) return value.trim();
-  }
-
-  return null;
+interface AgendaEvent {
+  id: string;
+  user_id: string;
+  source_type: 'lead' | 'client';
+  lead_id: string | null;
+  client_id: string | null;
+  event_type: string;
+  title: string;
+  scheduled_date: string;
+  scheduled_time: string;
+  duration_minutes: number | null;
+  notes: string | null;
+  status: 'scheduled' | 'completed' | 'cancelled';
+  google_event_id: string | null;
+  google_event_link: string | null;
+  synced_at: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
-function normalizeMeetingDate(value: string | null): string | null {
-  if (!value) return null;
-  const dateOnly = value.split('T')[0];
-
-  if (/^\d{4}-\d{2}-\d{2}$/.test(dateOnly)) return dateOnly;
-
-  const brDate = value.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-  if (brDate) return `${brDate[3]}-${brDate[2]}-${brDate[1]}`;
-
-  return null;
+interface AgendaItem {
+  event: AgendaEvent;
+  lead: Lead | null;
+  client: Client | null;
+  date: Date;
 }
 
-function normalizeMeetingTime(value: string | null): string | null {
-  if (!value) return null;
-  const match = value.match(/^(\d{1,2}):(\d{2})/);
-  if (!match) return null;
-
-  const hours = match[1].padStart(2, '0');
-  return `${hours}:${match[2]}`;
+function parseAgendaDateTime(event: AgendaEvent): Date {
+  const time = (event.scheduled_time || '09:00').slice(0, 5);
+  const parsed = parseISO(`${event.scheduled_date}T${time}:00`);
+  return Number.isNaN(parsed.getTime()) ? new Date(`${event.scheduled_date}T09:00:00`) : parsed;
 }
 
-function getLeadMeetingDateTime(lead: AgendaLead): Date | null {
-  const date = normalizeMeetingDate(getFirstText(lead, MEETING_DATE_FIELDS));
-  const time = normalizeMeetingTime(getFirstText(lead, MEETING_TIME_FIELDS));
-
-  if (!date || !time) return null;
-
-  const parsed = parseISO(`${date}T${time}:00`);
-  return Number.isNaN(parsed.getTime()) ? null : parsed;
+function toGoogleDate(value: Date): string {
+  return value.toISOString().replace(/[-:]|\.\d{3}/g, '');
 }
 
-function getLeadMeetingNotes(lead: AgendaLead): string | null {
-  return getFirstText(lead, MEETING_NOTES_FIELDS);
-}
-
-function getGoogleCalendarUrl(lead: AgendaLead, date: Date | null): string {
-  const start = date || new Date();
+function getManualGoogleCalendarUrl(item: AgendaItem): string {
+  const start = item.date;
   const end = new Date(start);
-  end.setHours(end.getHours() + 1);
-  const meetingNotes = getLeadMeetingNotes(lead);
-
-  const formatGoogleDate = (value: Date) =>
-    value.toISOString().replace(/[-:]|\.\d{3}/g, '');
+  end.setMinutes(end.getMinutes() + (item.event.duration_minutes || 60));
 
   const params = new URLSearchParams({
     action: 'TEMPLATE',
-    text: `Reuniao - ${lead.company_name}`,
+    text: item.event.title,
     details: [
-      lead.contact_name ? `Contato: ${lead.contact_name}` : null,
-      lead.whatsapp ? `WhatsApp: ${lead.whatsapp}` : null,
-      lead.next_action ? `Proxima acao: ${lead.next_action}` : null,
-      meetingNotes ? `Observacoes da reuniao: ${meetingNotes}` : null,
-      lead.observations ? `Observacoes: ${lead.observations}` : null,
-    ]
-      .filter(Boolean)
-      .join('\n'),
-    dates: `${formatGoogleDate(start)}/${formatGoogleDate(end)}`,
+      `Tipo: ${EVENT_TYPE_LABELS[item.event.event_type] || item.event.event_type}`,
+      item.lead?.contact_name ? `Contato: ${item.lead.contact_name}` : null,
+      item.lead?.whatsapp ? `WhatsApp: ${item.lead.whatsapp}` : null,
+      item.event.notes ? `Observações: ${item.event.notes}` : null,
+    ].filter(Boolean).join('\n'),
+    dates: `${toGoogleDate(start)}/${toGoogleDate(end)}`,
   });
 
   return `https://calendar.google.com/calendar/render?${params.toString()}`;
@@ -158,19 +97,57 @@ function getGoogleCalendarUrl(lead: AgendaLead, date: Date | null): string {
 
 export default function Agenda() {
   const { toast } = useToast();
-  const [leads, setLeads] = useState<AgendaLead[]>([]);
+  const db = supabase as any;
+  const [events, setEvents] = useState<AgendaEvent[]>([]);
+  const [leads, setLeads] = useState<Lead[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
-  const [savingLeadId, setSavingLeadId] = useState<string | null>(null);
-  const [syncingLeadId, setSyncingLeadId] = useState<string | null>(null);
+  const [savingEventId, setSavingEventId] = useState<string | null>(null);
+  const [syncingEventId, setSyncingEventId] = useState<string | null>(null);
   const [checkingGoogle, setCheckingGoogle] = useState(true);
   const [googleConnection, setGoogleConnection] = useState<GoogleCalendarConnection>({ connected: false });
   const [filter, setFilter] = useState<AgendaFilter>('today');
 
-  const fetchAgendaLeads = async () => {
+  const fetchAgendaData = async () => {
     setLoading(true);
     try {
-      const data = await fetchAllRows<AgendaLead>('leads', { orderBy: 'created_at', ascending: false });
-      setLeads(data.filter((lead) => AGENDA_STATUSES.includes(lead.status as any)));
+      const { data: eventsData, error: eventsError } = await db
+        .from('agenda_events')
+        .select('*')
+        .neq('status', 'cancelled')
+        .order('scheduled_date', { ascending: true })
+        .order('scheduled_time', { ascending: true });
+
+      if (eventsError) throw eventsError;
+
+      const agendaEvents = (eventsData || []) as AgendaEvent[];
+      const leadIds = Array.from(new Set(agendaEvents.map((event) => event.lead_id).filter((id): id is string => Boolean(id))));
+      const clientIds = Array.from(new Set(agendaEvents.map((event) => event.client_id).filter((id): id is string => Boolean(id))));
+
+      const { data: leadsData, error: leadsError } = leadIds.length
+        ? await db.from('leads').select('*').in('id', leadIds)
+        : { data: [], error: null };
+
+      if (leadsError) throw leadsError;
+
+      const { data: clientsData, error: clientsError } = clientIds.length
+        ? await db.from('clients').select('*').in('id', clientIds)
+        : { data: [], error: null };
+
+      if (clientsError) throw clientsError;
+
+      const clientLeadIds = Array.from(new Set(((clientsData || []) as Client[]).map((client) => client.lead_id).filter((id): id is string => Boolean(id))));
+      const missingClientLeadIds = clientLeadIds.filter((id) => !leadIds.includes(id));
+
+      const { data: clientLeadsData, error: clientLeadsError } = missingClientLeadIds.length
+        ? await db.from('leads').select('*').in('id', missingClientLeadIds)
+        : { data: [], error: null };
+
+      if (clientLeadsError) throw clientLeadsError;
+
+      setEvents(agendaEvents);
+      setLeads([...(leadsData || []), ...(clientLeadsData || [])] as Lead[]);
+      setClients((clientsData || []) as Client[]);
     } catch (error: any) {
       toast({
         title: 'Erro ao carregar agenda',
@@ -194,8 +171,8 @@ export default function Agenda() {
     } catch (error: any) {
       setGoogleConnection({ connected: false });
       toast({
-        title: 'Google Agenda nao conectado',
-        description: error.message || 'Confira se a funcao de integracao ja foi publicada.',
+        title: 'Google Agenda não conectado',
+        description: error.message || 'Confira se a integração está publicada.',
         variant: 'destructive',
       });
     } finally {
@@ -204,88 +181,54 @@ export default function Agenda() {
   };
 
   useEffect(() => {
-    fetchAgendaLeads();
+    fetchAgendaData();
     fetchGoogleConnection();
 
     const params = new URLSearchParams(window.location.search);
     if (params.get('google_calendar') === 'connected') {
       toast({
         title: 'Google Agenda conectado',
-        description: 'Agora voce ja pode sincronizar reunioes pelo CRM.',
+        description: 'Agora você já pode sincronizar compromissos pelo CRM.',
       });
       window.history.replaceState({}, document.title, window.location.pathname);
     }
   }, []);
 
   const agendaItems = useMemo(() => {
+    const leadById = new Map(leads.map((lead) => [lead.id, lead]));
+    const clientById = new Map(clients.map((client) => [client.id, client]));
     const today = startOfDay(new Date());
 
-    return leads
-      .map((lead) => ({ lead, date: getLeadMeetingDateTime(lead) }))
-      .filter(({ lead, date }) => {
-        if (filter === 'done') return lead.status === 'reuniao_realizada';
-        if (lead.status === 'reuniao_realizada') return false;
-        if (filter === 'undated') return !date;
-        if (!date) return false;
-        if (filter === 'today') return isToday(date);
-        if (filter === 'upcoming') return isFuture(date) || startOfDay(date).getTime() === today.getTime();
+    return events
+      .map((event) => {
+        const client = event.client_id ? clientById.get(event.client_id) || null : null;
+        const lead = event.lead_id
+          ? leadById.get(event.lead_id) || null
+          : client?.lead_id
+            ? leadById.get(client.lead_id) || null
+            : null;
+
+        return { event, lead, client, date: parseAgendaDateTime(event) };
+      })
+      .filter((item) => {
+        if (filter === 'done') return item.event.status === 'completed';
+        if (item.event.status === 'completed') return false;
+        if (filter === 'today') return isToday(item.date);
+        if (filter === 'upcoming') return isFuture(item.date) || startOfDay(item.date).getTime() === today.getTime();
         return true;
       })
-      .sort((a, b) => {
-        if (!a.date && !b.date) return a.lead.company_name.localeCompare(b.lead.company_name);
-        if (!a.date) return 1;
-        if (!b.date) return -1;
-        return a.date.getTime() - b.date.getTime();
-      });
-  }, [leads, filter]);
+      .sort((a, b) => a.date.getTime() - b.date.getTime());
+  }, [events, leads, clients, filter]);
 
   const stats = useMemo(() => {
-    const mapped = leads.map((lead) => ({ lead, date: getLeadMeetingDateTime(lead) }));
+    const mapped = events.map((event) => ({ event, date: parseAgendaDateTime(event) }));
 
     return {
-      today: mapped.filter(({ lead, date }) => lead.status !== 'reuniao_realizada' && date && isToday(date)).length,
-      upcoming: mapped.filter(({ lead, date }) => lead.status !== 'reuniao_realizada' && date && isFuture(date)).length,
-      undated: mapped.filter(({ lead, date }) => lead.status !== 'reuniao_realizada' && !date).length,
-      done: mapped.filter(({ lead }) => lead.status === 'reuniao_realizada').length,
+      today: mapped.filter(({ event, date }) => event.status !== 'completed' && isToday(date)).length,
+      upcoming: mapped.filter(({ event, date }) => event.status !== 'completed' && isFuture(date)).length,
+      done: mapped.filter(({ event }) => event.status === 'completed').length,
     };
-  }, [leads]);
-
-  const markMeetingDone = async (lead: AgendaLead) => {
-    setSavingLeadId(lead.id);
-    try {
-      const today = new Date().toISOString().split('T')[0];
-      const { error } = await supabase
-        .from('leads')
-        .update({
-          status: 'reuniao_realizada',
-          last_contact: today,
-        })
-        .eq('id', lead.id);
-
-      if (error) throw error;
-
-      toast({
-        title: 'Reuniao marcada como realizada',
-        description: `${lead.company_name} foi atualizado no CRM.`,
-      });
-
-      fetchAgendaLeads();
-    } catch (error: any) {
-      toast({
-        title: 'Erro ao atualizar reuniao',
-        description: error.message,
-        variant: 'destructive',
-      });
-    } finally {
-      setSavingLeadId(null);
-    }
-  };
-
-  const openWhatsApp = (lead: AgendaLead) => {
-    if (!lead.whatsapp) return;
-    const phone = lead.whatsapp.replace(/\D/g, '');
-    window.open(`https://wa.me/${phone}`, '_blank');
-  };
+  }, [events]);
 
   const connectGoogleCalendar = async () => {
     try {
@@ -297,11 +240,11 @@ export default function Agenda() {
       });
 
       if (error) throw error;
-      if (!data?.url) throw new Error('URL de conexao nao retornada');
+      if (!data?.url) throw new Error('URL de conexão não retornada');
       window.location.href = data.url;
     } catch (error: any) {
       toast({
-        title: 'Erro ao iniciar conexao',
+        title: 'Erro ao iniciar conexão',
         description: error.message,
         variant: 'destructive',
       });
@@ -318,7 +261,7 @@ export default function Agenda() {
       setGoogleConnection({ connected: false });
       toast({
         title: 'Google Agenda desconectado',
-        description: 'A sincronizacao automatica foi pausada para sua conta.',
+        description: 'A sincronização automática foi pausada para sua conta.',
       });
     } catch (error: any) {
       toast({
@@ -329,30 +272,47 @@ export default function Agenda() {
     }
   };
 
-  const syncGoogleCalendarEvent = async (lead: AgendaLead, date: Date | null) => {
-    if (!date) {
+  const markEventDone = async (item: AgendaItem) => {
+    setSavingEventId(item.event.id);
+    try {
+      const { error } = await db
+        .from('agenda_events')
+        .update({ status: 'completed', updated_at: new Date().toISOString() })
+        .eq('id', item.event.id);
+
+      if (error) throw error;
+
       toast({
-        title: 'Reuniao sem data ou horario',
-        description: 'Preencha Data da reuniao e Horario no cadastro do cliente antes de sincronizar.',
+        title: 'Compromisso concluído',
+        description: `${item.event.title} foi marcado como concluído.`,
+      });
+
+      fetchAgendaData();
+    } catch (error: any) {
+      toast({
+        title: 'Erro ao concluir compromisso',
+        description: error.message,
         variant: 'destructive',
       });
-      return;
+    } finally {
+      setSavingEventId(null);
     }
+  };
 
-    const start = new Date(date);
-    const end = new Date(start);
-    end.setHours(end.getHours() + 1);
+  const openWhatsApp = (lead: Lead | null) => {
+    if (!lead?.whatsapp) return;
+    const phone = lead.whatsapp.replace(/\D/g, '');
+    window.open(`https://wa.me/${phone}`, '_blank');
+  };
 
-    setSyncingLeadId(lead.id);
+  const syncGoogleCalendarEvent = async (item: AgendaItem) => {
+    setSyncingEventId(item.event.id);
     try {
       const { data, error } = await supabase.functions.invoke('google-calendar-events', {
         body: {
           action: 'create',
-          leadId: lead.id,
-          startDateTime: start.toISOString(),
-          endDateTime: end.toISOString(),
+          agendaEventId: item.event.id,
           timeZone: TIME_ZONE,
-          meetingNotes: getLeadMeetingNotes(lead),
         },
       });
 
@@ -360,8 +320,10 @@ export default function Agenda() {
 
       toast({
         title: 'Evento criado no Google Agenda',
-        description: `${lead.company_name} foi sincronizado com sua agenda.`,
+        description: `${item.event.title} foi sincronizado com sua agenda.`,
       });
+
+      fetchAgendaData();
 
       if (data?.html_link) {
         window.open(data.html_link, '_blank');
@@ -373,7 +335,7 @@ export default function Agenda() {
         variant: 'destructive',
       });
     } finally {
-      setSyncingLeadId(null);
+      setSyncingEventId(null);
     }
   };
 
@@ -383,13 +345,13 @@ export default function Agenda() {
         <div>
           <h1 className="text-2xl font-semibold">Agenda</h1>
           <p className="text-muted-foreground">
-            Acompanhe reunioes pela data e horario salvos no cadastro do cliente.
+            Centralize reuniões comerciais e demandas de clientes ativos.
           </p>
         </div>
         <Button
           variant="outline"
           onClick={() => {
-            fetchAgendaLeads();
+            fetchAgendaData();
             fetchGoogleConnection();
           }}
           className="gap-2"
@@ -409,12 +371,12 @@ export default function Agenda() {
               <div>
                 <p className="metric-label text-primary">Google Agenda</p>
                 <h2 className="mt-1 text-xl font-semibold">
-                  {googleConnection.connected ? 'Google Agenda conectado' : 'Conecte sua agenda para sincronizar reunioes'}
+                  {googleConnection.connected ? 'Google Agenda conectado' : 'Conecte sua agenda para sincronizar compromissos'}
                 </h2>
                 <p className="mt-1 text-sm text-muted-foreground">
                   {googleConnection.connected
-                    ? `Eventos serao criados na agenda ${googleConnection.google_email || 'principal da sua conta'}.`
-                    : 'A conexao e individual: cada usuario conecta a propria conta quando for usar essa funcionalidade.'}
+                    ? `Eventos serão criados na agenda ${googleConnection.google_email || 'principal da sua conta'}.`
+                    : 'A conexão é individual: cada usuário conecta a própria conta quando for usar essa funcionalidade.'}
                 </p>
               </div>
             </div>
@@ -439,11 +401,10 @@ export default function Agenda() {
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         <AgendaStat title="Hoje" value={stats.today} icon={CalendarCheck} active={filter === 'today'} onClick={() => setFilter('today')} />
-        <AgendaStat title="Proximas" value={stats.upcoming} icon={Clock} active={filter === 'upcoming'} onClick={() => setFilter('upcoming')} />
-        <AgendaStat title="Sem data" value={stats.undated} icon={Video} active={filter === 'undated'} onClick={() => setFilter('undated')} />
-        <AgendaStat title="Realizadas" value={stats.done} icon={CheckCircle2} active={filter === 'done'} onClick={() => setFilter('done')} />
+        <AgendaStat title="Próximas" value={stats.upcoming} icon={Clock} active={filter === 'upcoming'} onClick={() => setFilter('upcoming')} />
+        <AgendaStat title="Concluídas" value={stats.done} icon={CheckCircle2} active={filter === 'done'} onClick={() => setFilter('done')} />
       </div>
 
       {loading ? (
@@ -453,87 +414,96 @@ export default function Agenda() {
       ) : agendaItems.length === 0 ? (
         <Card className="p-8 text-center">
           <CalendarDays className="w-10 h-10 mx-auto text-muted-foreground mb-3" />
-          <h2 className="font-semibold">Nenhuma demanda nesta visao</h2>
+          <h2 className="font-semibold">Nenhuma demanda nesta visão</h2>
           <p className="text-sm text-muted-foreground mt-1">
-            Quando um lead estiver como Agendou Reuniao e tiver data e horario preenchidos, ele aparece aqui.
+            Reuniões de leads e demandas de clientes ativos aparecerão aqui quando forem salvas.
           </p>
         </Card>
       ) : (
         <Card className="overflow-hidden">
-          <div className="grid grid-cols-[1.4fr_160px_180px_220px] gap-4 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground border-b bg-muted/40">
+          <div className="grid grid-cols-[1.4fr_180px_160px_260px] gap-4 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground border-b bg-muted/40">
             <span>Contato</span>
-            <span>Reuniao</span>
-            <span>Status</span>
-            <span className="text-right">Acoes</span>
+            <span>Agenda</span>
+            <span>Origem</span>
+            <span className="text-right">Ações</span>
           </div>
-          {agendaItems.map(({ lead, date }) => (
-            <div
-              key={lead.id}
-              className="grid grid-cols-1 lg:grid-cols-[1.4fr_160px_180px_220px] gap-3 lg:gap-4 px-4 py-3 border-b last:border-b-0 items-center hover:bg-accent/30"
-            >
-              <div className="min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h2 className="font-semibold truncate">{lead.company_name}</h2>
-                  {lead.next_action && <Badge variant="outline">{lead.next_action}</Badge>}
+          {agendaItems.map((item) => {
+            const companyName = item.lead?.company_name || item.event.title;
+            const contactLine = item.lead
+              ? `${item.lead.contact_name || 'Contato não informado'} ${item.lead.whatsapp ? `- ${item.lead.whatsapp}` : ''}`
+              : 'Cliente ativo';
+
+            return (
+              <div
+                key={item.event.id}
+                className="grid grid-cols-1 lg:grid-cols-[1.4fr_180px_160px_260px] gap-3 lg:gap-4 px-4 py-3 border-b last:border-b-0 items-center hover:bg-accent/30"
+              >
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h2 className="font-semibold truncate">{companyName}</h2>
+                    <Badge variant="secondary">{EVENT_TYPE_LABELS[item.event.event_type] || item.event.event_type}</Badge>
+                    {item.event.google_event_id && <Badge variant="outline">Google</Badge>}
+                  </div>
+                  <p className="text-sm text-muted-foreground truncate">{contactLine}</p>
+                  {item.event.notes && <p className="text-xs text-muted-foreground truncate mt-1">{item.event.notes}</p>}
                 </div>
-                <p className="text-sm text-muted-foreground truncate">
-                  {lead.contact_name || 'Contato nao informado'} {lead.whatsapp ? `- ${lead.whatsapp}` : ''}
-                </p>
-              </div>
 
-              <div className="text-sm text-muted-foreground">
-                {date ? format(date, "dd/MM/yyyy 'as' HH:mm", { locale: ptBR }) : 'Sem data/horario'}
-              </div>
+                <div className="text-sm text-muted-foreground">
+                  {format(item.date, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                </div>
 
-              <div>
-                <LeadStatusBadge status={lead.status} size="sm" />
-              </div>
+                <div>
+                  <Badge variant={item.event.source_type === 'lead' ? 'outline' : 'default'}>
+                    {item.event.source_type === 'lead' ? 'Lead' : 'Cliente ativo'}
+                  </Badge>
+                </div>
 
-              <div className="flex flex-col sm:flex-row justify-end gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() =>
-                    googleConnection.connected
-                      ? syncGoogleCalendarEvent(lead, date)
-                      : window.open(getGoogleCalendarUrl(lead, date), '_blank')
-                  }
-                  disabled={googleConnection.connected && (!date || syncingLeadId === lead.id)}
-                  className="gap-2"
-                >
-                  {syncingLeadId === lead.id ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : googleConnection.connected ? (
-                    <CalendarCheck className="w-4 h-4" />
-                  ) : (
-                    <ExternalLink className="w-4 h-4" />
-                  )}
-                  {googleConnection.connected ? 'Sincronizar' : 'Google'}
-                </Button>
-                {lead.whatsapp && (
-                  <Button variant="outline" size="sm" onClick={() => openWhatsApp(lead)} className="gap-2">
-                    <MessageCircle className="w-4 h-4" />
-                    WhatsApp
-                  </Button>
-                )}
-                {lead.status === 'agendou_reuniao' && (
+                <div className="flex flex-col sm:flex-row justify-end gap-2">
                   <Button
+                    variant="outline"
                     size="sm"
-                    onClick={() => markMeetingDone(lead)}
-                    disabled={savingLeadId === lead.id}
+                    onClick={() =>
+                      googleConnection.connected
+                        ? syncGoogleCalendarEvent(item)
+                        : window.open(getManualGoogleCalendarUrl(item), '_blank')
+                    }
+                    disabled={syncingEventId === item.event.id}
                     className="gap-2"
                   >
-                    {savingLeadId === lead.id ? (
+                    {syncingEventId === item.event.id ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : googleConnection.connected ? (
+                      <CalendarCheck className="w-4 h-4" />
                     ) : (
-                      <CheckCircle2 className="w-4 h-4" />
+                      <ExternalLink className="w-4 h-4" />
                     )}
-                    Realizada
+                    {item.event.google_event_id ? 'Reenviar' : 'Sincronizar'}
                   </Button>
-                )}
+                  {item.lead?.whatsapp && (
+                    <Button variant="outline" size="sm" onClick={() => openWhatsApp(item.lead)} className="gap-2">
+                      <MessageCircle className="w-4 h-4" />
+                      WhatsApp
+                    </Button>
+                  )}
+                  {item.event.status === 'scheduled' && (
+                    <Button
+                      size="sm"
+                      onClick={() => markEventDone(item)}
+                      disabled={savingEventId === item.event.id}
+                      className="gap-2"
+                    >
+                      {savingEventId === item.event.id ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <CheckCircle2 className="w-4 h-4" />
+                      )}
+                      Concluir
+                    </Button>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </Card>
       )}
     </div>

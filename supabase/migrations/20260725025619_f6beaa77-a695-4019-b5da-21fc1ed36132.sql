@@ -1,25 +1,4 @@
-## Objetivo
-Aplicar no Lovable Cloud a migration do arquivo `supabase/20260724180000_google_calendar_integration.sql`, criando as tabelas de integração com Google Agenda com RLS e GRANTs.
 
-## O que será feito
-
-1. **Executar a migration** com o SQL do arquivo, ajustado para incluir os `GRANT` obrigatórios (que faltavam no arquivo original) e as políticas de INSERT/UPDATE que também estão ausentes — sem elas, edge functions e o próprio usuário não conseguem gravar tokens/links.
-
-2. **Tabelas criadas** (usando `IF NOT EXISTS`, sem recriar nem apagar nada):
-   - `public.google_calendar_connections` — armazena tokens OAuth do Google por usuário (access_token, refresh_token, expires_at, email, calendar_id).
-   - `public.google_calendar_event_links` — vincula leads a eventos criados no Google Agenda.
-
-3. **Segurança (RLS)**:
-   - RLS ativa nas duas tabelas.
-   - Usuários leem/apagam apenas seus próprios registros (`auth.uid() = user_id`).
-   - `service_role` (usada pelas edge functions `google-calendar-auth` e `google-calendar-events`) tem acesso total para inserir/atualizar tokens e eventos.
-   - `authenticated` recebe `SELECT/DELETE`; escrita direta pelo cliente não é necessária (fluxo passa pelas edge functions).
-
-4. **Índices** em `user_id` e `lead_id` de `google_calendar_event_links` conforme o arquivo.
-
-## SQL final da migration
-
-```sql
 create table if not exists public.google_calendar_connections (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
@@ -78,8 +57,3 @@ create index if not exists google_calendar_event_links_user_id_idx
 
 create index if not exists google_calendar_event_links_lead_id_idx
   on public.google_calendar_event_links(lead_id);
-```
-
-## Notas
-- O arquivo original está fora da pasta `supabase/migrations/` e sem GRANTs — por isso a migration é reenviada aqui em versão corrigida.
-- Nenhum código de frontend/edge function precisa mudar; `Agenda.tsx` e as functions `google-calendar-auth`/`google-calendar-events` já esperam esse schema.

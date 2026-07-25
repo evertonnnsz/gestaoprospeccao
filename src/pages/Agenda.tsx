@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   Clock,
   ExternalLink,
+  Link2Off,
   Loader2,
   MessageCircle,
   RefreshCw,
@@ -19,12 +20,19 @@ import { fetchAllRows } from '@/lib/supabaseFetch';
 import { LeadStatusBadge } from '@/components/leads/LeadStatusBadge';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 
 type AgendaFilter = 'today' | 'upcoming' | 'undated' | 'done';
 
 const AGENDA_STATUSES = ['agendou_reuniao', 'reuniao_realizada'] as const;
+const TIME_ZONE = 'America/Sao_Paulo';
+
+interface GoogleCalendarConnection {
+  connected: boolean;
+  google_email?: string | null;
+  calendar_id?: string | null;
+}
 
 function getLeadAgendaDate(lead: Lead): Date | null {
   const candidates = [lead.follow_up_1, lead.follow_up_2, lead.follow_up_3, lead.last_contact]
@@ -66,6 +74,9 @@ export default function Agenda() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [savingLeadId, setSavingLeadId] = useState<string | null>(null);
+  const [syncingLeadId, setSyncingLeadId] = useState<string | null>(null);
+  const [checkingGoogle, setCheckingGoogle] = useState(true);
+  const [googleConnection, setGoogleConnection] = useState<GoogleCalendarConnection>({ connected: false });
   const [filter, setFilter] = useState<AgendaFilter>('today');
 
   const fetchAgendaLeads = async () => {
@@ -84,8 +95,39 @@ export default function Agenda() {
     }
   };
 
+  const fetchGoogleConnection = async () => {
+    setCheckingGoogle(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('google-calendar-auth', {
+        body: { action: 'status' },
+      });
+
+      if (error) throw error;
+      setGoogleConnection(data || { connected: false });
+    } catch (error: any) {
+      setGoogleConnection({ connected: false });
+      toast({
+        title: 'Google Agenda nao conectado',
+        description: error.message || 'Confira se a funcao de integracao ja foi publicada.',
+        variant: 'destructive',
+      });
+    } finally {
+      setCheckingGoogle(false);
+    }
+  };
+
   useEffect(() => {
     fetchAgendaLeads();
+    fetchGoogleConnection();
+
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('google_calendar') === 'connected') {
+      toast({
+        title: 'Google Agenda conectado',
+        description: 'Agora voce ja pode sincronizar reunioes pelo CRM.',
+      });
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
   }, []);
 
   const agendaItems = useMemo(() => {
@@ -158,6 +200,96 @@ export default function Agenda() {
     window.open(`https://wa.me/${phone}`, '_blank');
   };
 
+  const connectGoogleCalendar = async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke('google-calendar-auth', {
+        body: {
+          action: 'auth-url',
+          returnTo: `${window.location.origin}/agenda`,
+        },
+      });
+
+      if (error) throw error;
+      if (!data?.url) throw new Error('URL de conexao nao retornada');
+      window.location.href = data.url;
+    } catch (error: any) {
+      toast({
+        title: 'Erro ao iniciar conexao',
+        description: error.message,
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const disconnectGoogleCalendar = async () => {
+    try {
+      const { error } = await supabase.functions.invoke('google-calendar-auth', {
+        body: { action: 'disconnect' },
+      });
+
+      if (error) throw error;
+      setGoogleConnection({ connected: false });
+      toast({
+        title: 'Google Agenda desconectado',
+        description: 'A sincronizacao automatica foi pausada para sua conta.',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Erro ao desconectar',
+        description: error.message,
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const syncGoogleCalendarEvent = async (lead: Lead, date: Date | null) => {
+    if (!date) {
+      toast({
+        title: 'Lead sem data',
+        description: 'Defina uma data de reuniao no lead antes de sincronizar com o Google Agenda.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const start = new Date(date);
+    start.setHours(start.getHours() || 9, start.getMinutes(), 0, 0);
+    const end = new Date(start);
+    end.setHours(end.getHours() + 1);
+
+    setSyncingLeadId(lead.id);
+    try {
+      const { data, error } = await supabase.functions.invoke('google-calendar-events', {
+        body: {
+          action: 'create',
+          leadId: lead.id,
+          startDateTime: start.toISOString(),
+          endDateTime: end.toISOString(),
+          timeZone: TIME_ZONE,
+        },
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: 'Evento criado no Google Agenda',
+        description: `${lead.company_name} foi sincronizado com sua agenda.`,
+      });
+
+      if (data?.html_link) {
+        window.open(data.html_link, '_blank');
+      }
+    } catch (error: any) {
+      toast({
+        title: 'Erro ao sincronizar evento',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setSyncingLeadId(null);
+    }
+  };
+
   return (
     <div className="app-page">
       <div className="page-header">
@@ -167,7 +299,14 @@ export default function Agenda() {
             Acompanhe reunioes e demandas agendadas a partir dos leads do CRM.
           </p>
         </div>
-        <Button variant="outline" onClick={fetchAgendaLeads} className="gap-2">
+        <Button
+          variant="outline"
+          onClick={() => {
+            fetchAgendaLeads();
+            fetchGoogleConnection();
+          }}
+          className="gap-2"
+        >
           <RefreshCw className="w-4 h-4" />
           Atualizar
         </Button>
@@ -182,15 +321,33 @@ export default function Agenda() {
               </div>
               <div>
                 <p className="metric-label text-primary">Google Agenda</p>
-                <h2 className="mt-1 text-xl font-semibold">Central preparada para sincronizacao</h2>
+                <h2 className="mt-1 text-xl font-semibold">
+                  {googleConnection.connected ? 'Google Agenda conectado' : 'Conecte sua agenda para sincronizar reunioes'}
+                </h2>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Nesta etapa, voce acompanha as reunioes no CRM e pode abrir o Google Agenda para criar o evento.
+                  {googleConnection.connected
+                    ? `Eventos serao criados na agenda ${googleConnection.google_email || 'principal da sua conta'}.`
+                    : 'A conexao e individual: cada usuario conecta a propria conta quando for usar essa funcionalidade.'}
                 </p>
               </div>
             </div>
-            <Button variant="outline" disabled className="w-full sm:w-auto">
-              Conectar Google Agenda
-            </Button>
+            <div className="flex flex-col sm:flex-row gap-2">
+              {googleConnection.connected && (
+                <Button variant="outline" onClick={disconnectGoogleCalendar} className="gap-2">
+                  <Link2Off className="w-4 h-4" />
+                  Desconectar
+                </Button>
+              )}
+              <Button
+                variant={googleConnection.connected ? 'secondary' : 'default'}
+                onClick={connectGoogleCalendar}
+                disabled={checkingGoogle}
+                className="w-full sm:w-auto gap-2"
+              >
+                {checkingGoogle ? <Loader2 className="w-4 h-4 animate-spin" /> : <CalendarDays className="w-4 h-4" />}
+                {googleConnection.connected ? 'Reconectar Google' : 'Conectar Google Agenda'}
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -249,11 +406,22 @@ export default function Agenda() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => window.open(getGoogleCalendarUrl(lead, date), '_blank')}
+                  onClick={() =>
+                    googleConnection.connected
+                      ? syncGoogleCalendarEvent(lead, date)
+                      : window.open(getGoogleCalendarUrl(lead, date), '_blank')
+                  }
+                  disabled={googleConnection.connected && (!date || syncingLeadId === lead.id)}
                   className="gap-2"
                 >
-                  <ExternalLink className="w-4 h-4" />
-                  Google
+                  {syncingLeadId === lead.id ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : googleConnection.connected ? (
+                    <CalendarCheck className="w-4 h-4" />
+                  ) : (
+                    <ExternalLink className="w-4 h-4" />
+                  )}
+                  {googleConnection.connected ? 'Sincronizar' : 'Google'}
                 </Button>
                 {lead.whatsapp && (
                   <Button variant="outline" size="sm" onClick={() => openWhatsApp(lead)} className="gap-2">

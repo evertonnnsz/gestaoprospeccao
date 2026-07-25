@@ -49,6 +49,7 @@ interface AgendaEvent {
   scheduled_date: string;
   scheduled_time: string;
   duration_minutes: number | null;
+  guest_email: string | null;
   notes: string | null;
   status: 'scheduled' | 'completed' | 'cancelled';
   google_event_id: string | null;
@@ -87,10 +88,15 @@ function getManualGoogleCalendarUrl(item: AgendaItem): string {
       `Tipo: ${EVENT_TYPE_LABELS[item.event.event_type] || item.event.event_type}`,
       item.lead?.contact_name ? `Contato: ${item.lead.contact_name}` : null,
       item.lead?.whatsapp ? `WhatsApp: ${item.lead.whatsapp}` : null,
+      item.event.guest_email ? `Convidado: ${item.event.guest_email}` : null,
       item.event.notes ? `Observações: ${item.event.notes}` : null,
     ].filter(Boolean).join('\n'),
     dates: `${toGoogleDate(start)}/${toGoogleDate(end)}`,
   });
+
+  if (item.event.guest_email) {
+    params.set('add', item.event.guest_email);
+  }
 
   return `https://calendar.google.com/calendar/render?${params.toString()}`;
 }
@@ -445,6 +451,11 @@ export default function Agenda() {
                     {item.event.google_event_id && <Badge variant="outline">Google</Badge>}
                   </div>
                   <p className="text-sm text-muted-foreground truncate">{contactLine}</p>
+                  {item.event.guest_email && (
+                    <p className="text-xs text-muted-foreground truncate mt-1">
+                      Convidado: {item.event.guest_email}
+                    </p>
+                  )}
                   {item.event.notes && <p className="text-xs text-muted-foreground truncate mt-1">{item.event.notes}</p>}
                 </div>
 

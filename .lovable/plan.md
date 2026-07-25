@@ -1,19 +1,22 @@
 ## Plano
 
-A função `supabase/functions/google-calendar-events/index.ts` **já contém** a lógica solicitada:
+Sincronizar o projeto com o GitHub e aplicar migrations pendentes envolve duas ações separadas:
 
-- `buildEvent` retorna `attendees: agendaEvent.guest_email ? [{ email: agendaEvent.guest_email }] : undefined`.
-- A requisição para Google Calendar inclui `attendees: eventPayload.attendees` no body.
-- A URL adiciona `?sendUpdates=all` quando `eventPayload.attendees` está presente.
+### 1. Sincronização com GitHub (main)
 
-Portanto, a única ação necessária é **republicar a função de borda** para garantir que a versão atual com suporte a `guest_email` esteja ativa no Lovable Cloud.
+A sincronização de código entre o repositório GitHub e o Lovable é feita automaticamente pela integração nativa de Git sync do Lovable — não é algo que eu execute via comandos no chat. Se algum commit da `main` ainda não apareceu no projeto, isso é resolvido no painel do próprio Lovable (workspace → Git settings) ou aguardando o sync automático.
+
+### 2. Migrations pendentes
+
+Vou verificar a pasta `supabase/migrations/` e comparar com o que já foi aplicado no banco para identificar arquivos SQL ainda não executados. Para cada migration pendente encontrada, aplico via a ferramenta de migration (com aprovação sua a cada uma).
 
 ### Passos
 
-1. Verificar rapidamente o estado atual da função (já confirmado: lógica correta).
-2. Executar o deploy da edge function `google-calendar-events`.
-3. Validar que o deploy foi bem-sucedido (logs/status).
+1. Listar arquivos em `supabase/migrations/`.
+2. Consultar o histórico de migrations aplicadas no banco.
+3. Para cada arquivo pendente: apresentar o SQL e aplicar após aprovação.
+4. Informar sobre o status do Git sync (que é gerenciado pela plataforma, não por mim).
 
-### Resultado esperado
+### Observação
 
-Eventos criados no Google Agenda a partir da aba Agenda do CRM enviarão convite por e-mail para o `guest_email` quando preenchido, graças ao `sendUpdates=all`.
+Se você quer que eu foque só nas migrations (assumindo que o Git sync já está funcionando), confirme e eu sigo direto para o passo 1.

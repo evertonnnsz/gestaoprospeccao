@@ -58,6 +58,7 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
     event_type: 'commercial_meeting' as keyof typeof COMMERCIAL_AGENDA_TYPES,
     scheduled_date: '',
     scheduled_time: '',
+    guest_email: '',
     notes: '',
   });
 
@@ -96,6 +97,7 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
         event_type: 'commercial_meeting',
         scheduled_date: '',
         scheduled_time: '',
+        guest_email: '',
         notes: '',
       });
 
@@ -142,6 +144,7 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
                 event_type: data.event_type,
                 scheduled_date: data.scheduled_date || '',
                 scheduled_time: (data.scheduled_time || '').slice(0, 5),
+                guest_email: data.guest_email || '',
                 notes: data.notes || '',
               });
             });
@@ -214,6 +217,7 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
           title: `${COMMERCIAL_AGENDA_TYPES[commercialAgenda.event_type]} - ${formData.company_name}`,
           scheduled_date: commercialAgenda.scheduled_date,
           scheduled_time: commercialAgenda.scheduled_time,
+          guest_email: commercialAgenda.guest_email || null,
           duration_minutes: 60,
           notes: commercialAgenda.notes || null,
           status: 'scheduled',
@@ -446,7 +450,7 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
                 Reunião comercial
               </Label>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div className="space-y-2">
                   <Label>Tipo</Label>
                   <Select
@@ -488,6 +492,19 @@ export function LeadForm({ open, onOpenChange, lead, onSuccess }: LeadFormProps)
                     value={commercialAgenda.scheduled_time}
                     onChange={(e) =>
                       setCommercialAgenda((prev) => ({ ...prev, scheduled_time: e.target.value }))
+                    }
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="commercial_guest_email">E-mail do convidado</Label>
+                  <Input
+                    id="commercial_guest_email"
+                    type="email"
+                    placeholder="cliente@email.com"
+                    value={commercialAgenda.guest_email}
+                    onChange={(e) =>
+                      setCommercialAgenda((prev) => ({ ...prev, guest_email: e.target.value }))
                     }
                   />
                 </div>

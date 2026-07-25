@@ -1,36 +1,85 @@
-# Plano: Adicionar campos de reunião à tabela leads
-
 ## Objetivo
-Garantir que o banco de dados aceite e persista os campos `meeting_date`, `meeting_time` e `meeting_notes` já utilizados no formulário de leads, e atualizar o schema cache do Supabase para que o app consiga salvá-los.
+Aplicar no Lovable Cloud a migration do arquivo `supabase/20260724180000_google_calendar_integration.sql`, criando as tabelas de integração com Google Agenda com RLS e GRANTs.
 
 ## O que será feito
 
-1. **Migration no banco de dados**
-   - Adicionar três colunas novas à tabela `public.leads`:
-     - `meeting_date` do tipo `DATE`, nullable
-     - `meeting_time` do tipo `TIME`, nullable
-     - `meeting_notes` do tipo `TEXT`, nullable
-   - Usar `ADD COLUMN IF NOT EXISTS` para evitar erro caso as colunas já existam.
-   - Nenhuma tabela existente será recriada ou apagada.
+1. **Executar a migration** com o SQL do arquivo, ajustado para incluir os `GRANT` obrigatórios (que faltavam no arquivo original) e as políticas de INSERT/UPDATE que também estão ausentes — sem elas, edge functions e o próprio usuário não conseguem gravar tokens/links.
 
-2. **Atualização do schema cache**
-   - Após a migration ser aprovada e executada, regenerar os tipos do Supabase (`src/integrations/supabase/types.ts`) para refletir as novas colunas.
-   - Isso permite que o client do Supabase envie e receba os campos sem erros de schema.
+2. **Tabelas criadas** (usando `IF NOT EXISTS`, sem recriar nem apagar nada):
+   - `public.google_calendar_connections` — armazena tokens OAuth do Google por usuário (access_token, refresh_token, expires_at, email, calendar_id).
+   - `public.google_calendar_event_links` — vincula leads a eventos criados no Google Agenda.
 
-3. **Verificação**
-   - Validar que o build do projeto continua passando após a atualização dos tipos.
+3. **Segurança (RLS)**:
+   - RLS ativa nas duas tabelas.
+   - Usuários leem/apagam apenas seus próprios registros (`auth.uid() = user_id`).
+   - `service_role` (usada pelas edge functions `google-calendar-auth` e `google-calendar-events`) tem acesso total para inserir/atualizar tokens e eventos.
+   - `authenticated` recebe `SELECT/DELETE`; escrita direta pelo cliente não é necessária (fluxo passa pelas edge functions).
 
-## Notas técnicas
+4. **Índices** em `user_id` e `lead_id` de `google_calendar_event_links` conforme o arquivo.
 
-- Os campos já estão presentes na interface `Lead` (`src/types/crm.ts`) e no `LeadForm` (`src/components/leads/LeadForm.tsx`), então nenhuma mudança de frontend é necessária além da regeneração dos tipos.
-- A tabela `leads` já possui RLS ativa; adicionar colunas não afeta as políticas existentes.
-- A migration usará apenas `ALTER TABLE`; nenhum dado existente será modificado.
-
-## SQL da migration
+## SQL final da migration
 
 ```sql
-ALTER TABLE public.leads
-  ADD COLUMN IF NOT EXISTS meeting_date DATE,
-  ADD COLUMN IF NOT EXISTS meeting_time TIME,
-  ADD COLUMN IF NOT EXISTS meeting_notes TEXT;
+create table if not exists public.google_calendar_connections (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  google_email text,
+  access_token text not null,
+  refresh_token text not null,
+  expires_at timestamptz not null,
+  scope text,
+  token_type text default 'Bearer',
+  calendar_id text not null default 'primary',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique(user_id)
+);
+
+create table if not exists public.google_calendar_event_links (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  lead_id uuid not null references public.leads(id) on delete cascade,
+  google_event_id text not null,
+  google_event_link text,
+  starts_at timestamptz not null,
+  ends_at timestamptz not null,
+  status text not null default 'created',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique(user_id, lead_id, google_event_id)
+);
+
+grant select, delete on public.google_calendar_connections to authenticated;
+grant all on public.google_calendar_connections to service_role;
+grant select, delete on public.google_calendar_event_links to authenticated;
+grant all on public.google_calendar_event_links to service_role;
+
+alter table public.google_calendar_connections enable row level security;
+alter table public.google_calendar_event_links enable row level security;
+
+create policy "Users read own gcal connection"
+  on public.google_calendar_connections for select
+  using (auth.uid() = user_id);
+
+create policy "Users delete own gcal connection"
+  on public.google_calendar_connections for delete
+  using (auth.uid() = user_id);
+
+create policy "Users read own gcal event links"
+  on public.google_calendar_event_links for select
+  using (auth.uid() = user_id);
+
+create policy "Users delete own gcal event links"
+  on public.google_calendar_event_links for delete
+  using (auth.uid() = user_id);
+
+create index if not exists google_calendar_event_links_user_id_idx
+  on public.google_calendar_event_links(user_id);
+
+create index if not exists google_calendar_event_links_lead_id_idx
+  on public.google_calendar_event_links(lead_id);
 ```
+
+## Notas
+- O arquivo original está fora da pasta `supabase/migrations/` e sem GRANTs — por isso a migration é reenviada aqui em versão corrigida.
+- Nenhum código de frontend/edge function precisa mudar; `Agenda.tsx` e as functions `google-calendar-auth`/`google-calendar-events` já esperam esse schema.

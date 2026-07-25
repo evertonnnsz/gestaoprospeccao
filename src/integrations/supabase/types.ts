@@ -22,6 +22,7 @@ export type Database = {
           event_type: string
           google_event_id: string | null
           google_event_link: string | null
+          guest_email: string | null
           id: string
           lead_id: string | null
           notes: string | null
@@ -41,6 +42,7 @@ export type Database = {
           event_type: string
           google_event_id?: string | null
           google_event_link?: string | null
+          guest_email?: string | null
           id?: string
           lead_id?: string | null
           notes?: string | null
@@ -60,6 +62,7 @@ export type Database = {
           event_type?: string
           google_event_id?: string | null
           google_event_link?: string | null
+          guest_email?: string | null
           id?: string
           lead_id?: string | null
           notes?: string | null

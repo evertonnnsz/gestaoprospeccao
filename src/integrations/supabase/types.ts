@@ -222,7 +222,6 @@ export type Database = {
           created_at: string
           id: string
           lead_id: string
-          meta_ads_account_id: string | null
           monthly_payment_status: string | null
           notes: string | null
           payment_due_date: string | null
@@ -241,7 +240,6 @@ export type Database = {
           created_at?: string
           id?: string
           lead_id: string
-          meta_ads_account_id?: string | null
           monthly_payment_status?: string | null
           notes?: string | null
           payment_due_date?: string | null
@@ -260,7 +258,6 @@ export type Database = {
           created_at?: string
           id?: string
           lead_id?: string
-          meta_ads_account_id?: string | null
           monthly_payment_status?: string | null
           notes?: string | null
           payment_due_date?: string | null
@@ -277,44 +274,6 @@ export type Database = {
             columns: ["lead_id"]
             isOneToOne: true
             referencedRelation: "leads"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      vencimento_notifications: {
-        Row: {
-          alert_type: string
-          channel: string
-          client_id: string
-          id: string
-          reference_date: string
-          sent_at: string
-          user_id: string
-        }
-        Insert: {
-          alert_type: string
-          channel?: string
-          client_id: string
-          id?: string
-          reference_date: string
-          sent_at?: string
-          user_id: string
-        }
-        Update: {
-          alert_type?: string
-          channel?: string
-          client_id?: string
-          id?: string
-          reference_date?: string
-          sent_at?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "vencimento_notifications_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
             referencedColumns: ["id"]
           },
         ]

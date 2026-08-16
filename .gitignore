@@ -12,9 +12,13 @@ dist
 dist-ssr
 *.local
 
-# Variáveis de ambiente locais — nunca comitar (mesmo sendo chaves "publicáveis" do Supabase,
-# é uma prática ruim manter isso no histórico do repositório; use .env.example como referência)
-.env
+# IMPORTANTE: .env fica versionado de propósito neste projeto — o build do
+# Lovable lê VITE_SUPABASE_URL/KEY diretamente deste arquivo (não há um
+# mecanismo separado de variáveis de ambiente configurado na plataforma).
+# Removê-lo do controle de versão quebra o build em produção
+# ("Error: supabaseUrl is required"). Só contém chaves "publicáveis" do
+# Supabase (anon key), que já ficam expostas no bundle do navegador de
+# qualquer forma — o risco de mantê-las aqui é baixo.
 .env.local
 
 # Editor directories and files

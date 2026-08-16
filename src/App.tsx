@@ -10,6 +10,7 @@ import Dashboard from "./pages/Dashboard";
 import Leads from "./pages/Leads";
 import Prospecting from "./pages/Prospecting";
 import Clients from "./pages/Clients";
+import ClientDetail from "./pages/ClientDetail";
 import Financial from "./pages/Financial";
 import Funnel from "./pages/Funnel";
 import Approvals from "./pages/Approvals";
@@ -38,6 +39,7 @@ const App = () => (
               <Route path="/leads" element={<Leads />} />
               <Route path="/prospecting" element={<Prospecting />} />
               <Route path="/clients" element={<Clients />} />
+              <Route path="/clients/:id" element={<ClientDetail />} />
               <Route path="/financial" element={<Financial />} />
               <Route path="/funnel" element={<Funnel />} />
               <Route path="/whatsapp-follow-ups" element={<WhatsAppFollowUps />} />

@@ -12,6 +12,11 @@ dist
 dist-ssr
 *.local
 
+# Variáveis de ambiente locais — nunca comitar (mesmo sendo chaves "publicáveis" do Supabase,
+# é uma prática ruim manter isso no histórico do repositório; use .env.example como referência)
+.env
+.env.local
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

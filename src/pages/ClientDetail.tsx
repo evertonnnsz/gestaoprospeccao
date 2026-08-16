@@ -14,7 +14,12 @@ import {
   History,
   Inbox,
   LineChart,
+  Loader2,
+  MousePointerClick,
   Phone,
+  RefreshCw,
+  Target,
+  TrendingUp,
   User,
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -40,6 +45,18 @@ export default function ClientDetail() {
   const [campaigns, setCampaigns] = useState<any[]>([]);
   const [demands, setDemands] = useState<OSDemand[]>([]);
   const [loading, setLoading] = useState(true);
+  const [metaInsights, setMetaInsights] = useState<{
+    investimento: number;
+    impressoes: number;
+    cliques: number;
+    cpc: number | null;
+    resultados: number | null;
+    custo_por_resultado: number | null;
+    period_start: string | null;
+    period_end: string | null;
+  } | null>(null);
+  const [metaLoading, setMetaLoading] = useState(false);
+  const [metaError, setMetaError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchClient = async () => {
@@ -61,6 +78,31 @@ export default function ClientDetail() {
 
     fetchClient();
   }, [id]);
+
+  const fetchMetaInsights = async () => {
+    if (!id || !client?.meta_ads_account_id) return;
+    setMetaLoading(true);
+    setMetaError(null);
+    try {
+      const { data, error } = await supabase.functions.invoke('meta-ads-insights', {
+        body: { client_id: id, date_preset: 'last_30d' },
+      });
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || 'Erro ao buscar resultados da Meta');
+      setMetaInsights(data.data);
+    } catch (err: any) {
+      setMetaError(err.message || 'Não foi possível buscar os resultados da Meta agora.');
+    } finally {
+      setMetaLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (client?.meta_ads_account_id) {
+      fetchMetaInsights();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [client?.meta_ads_account_id]);
 
   const clientName = client?.lead?.company_name || 'Cliente';
   const clientDemands = useMemo(
@@ -279,10 +321,49 @@ export default function ClientDetail() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="campanhas">
+        <TabsContent value="campanhas" className="space-y-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between gap-2">
+              <CardTitle className="flex items-center gap-2">
+                <Target className="w-5 h-5 text-primary" />
+                Resultados reais — Gerenciador de Anúncios (Meta)
+              </CardTitle>
+              {client.meta_ads_account_id && (
+                <Button variant="outline" size="sm" className="gap-2" onClick={fetchMetaInsights} disabled={metaLoading}>
+                  {metaLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                  Atualizar
+                </Button>
+              )}
+            </CardHeader>
+            <CardContent>
+              {!client.meta_ads_account_id ? (
+                <p className="text-sm text-muted-foreground">
+                  Nenhuma conta de anúncios da Meta vinculada a este cliente ainda. Edite o cadastro do cliente e informe o ID da conta (ex: <code>act_1234567890</code>) para ver os resultados reais aqui.
+                </p>
+              ) : metaLoading && !metaInsights ? (
+                <p className="text-sm text-muted-foreground flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" /> Buscando resultados na Meta...
+                </p>
+              ) : metaError ? (
+                <p className="text-sm text-destructive">{metaError}</p>
+              ) : metaInsights ? (
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  <Info label="Investimento (30d)" value={formatCurrency(metaInsights.investimento)} icon={DollarSign} />
+                  <Info label="Cliques" value={String(metaInsights.cliques)} icon={MousePointerClick} />
+                  <Info label="Impressões" value={String(metaInsights.impressoes)} icon={TrendingUp} />
+                  <Info label="CPC médio" value={metaInsights.cpc ? formatCurrency(metaInsights.cpc) : '-'} />
+                  <Info label="Resultados" value={metaInsights.resultados !== null ? String(metaInsights.resultados) : '-'} />
+                  <Info label="Custo por resultado" value={metaInsights.custo_por_resultado ? formatCurrency(metaInsights.custo_por_resultado) : '-'} />
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">Sem dados ainda — clique em Atualizar.</p>
+              )}
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader>
-              <CardTitle>Campanhas e performance</CardTitle>
+              <CardTitle>Campanhas registradas manualmente</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               {campaigns.length === 0 ? (

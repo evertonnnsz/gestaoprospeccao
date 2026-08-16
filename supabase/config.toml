@@ -8,3 +8,9 @@ verify_jwt = false
 
 [functions.empresaqui-enrich]
 verify_jwt = false
+
+[functions.meta-ads-insights]
+verify_jwt = true
+
+[functions.whatsapp-vencimento-alert]
+verify_jwt = false

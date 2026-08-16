@@ -281,44 +281,6 @@ export type Database = {
           },
         ]
       }
-      vencimento_notifications: {
-        Row: {
-          alert_type: string
-          channel: string
-          client_id: string
-          id: string
-          reference_date: string
-          sent_at: string
-          user_id: string
-        }
-        Insert: {
-          alert_type: string
-          channel?: string
-          client_id: string
-          id?: string
-          reference_date: string
-          sent_at?: string
-          user_id: string
-        }
-        Update: {
-          alert_type?: string
-          channel?: string
-          client_id?: string
-          id?: string
-          reference_date?: string
-          sent_at?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "vencimento_notifications_client_id_fkey"
-            columns: ["client_id"]
-            isOneToOne: false
-            referencedRelation: "clients"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       financial_transactions: {
         Row: {
           amount: number
@@ -726,6 +688,44 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      vencimento_notifications: {
+        Row: {
+          alert_type: string
+          channel: string
+          client_id: string
+          id: string
+          reference_date: string
+          sent_at: string
+          user_id: string
+        }
+        Insert: {
+          alert_type: string
+          channel?: string
+          client_id: string
+          id?: string
+          reference_date: string
+          sent_at?: string
+          user_id: string
+        }
+        Update: {
+          alert_type?: string
+          channel?: string
+          client_id?: string
+          id?: string
+          reference_date?: string
+          sent_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vencimento_notifications_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       whatsapp_message_logs: {
         Row: {

@@ -73,6 +73,7 @@ export function ClientForm({ open, onOpenChange, client, lead, onSuccess }: Clie
     status: 'active' as ClientStatus,
     churn_date: '',
     churn_reason: '',
+    meta_ads_account_id: '',
   });
   const [clientAgenda, setClientAgenda] = useState({
     event_type: 'onboarding' as keyof typeof CLIENT_AGENDA_TYPES,
@@ -98,6 +99,7 @@ export function ClientForm({ open, onOpenChange, client, lead, onSuccess }: Clie
         status: (client.status as ClientStatus) || 'active',
         churn_date: client.churn_date || '',
         churn_reason: client.churn_reason || '',
+        meta_ads_account_id: client.meta_ads_account_id || '',
       });
       // Carrega o WhatsApp do lead associado
       setWhatsapp(lead?.whatsapp || '');
@@ -121,6 +123,7 @@ export function ClientForm({ open, onOpenChange, client, lead, onSuccess }: Clie
         status: 'active',
         churn_date: '',
         churn_reason: '',
+        meta_ads_account_id: '',
       });
       setWhatsapp(lead?.whatsapp || '');
       setClientAgenda({
@@ -229,6 +232,7 @@ export function ClientForm({ open, onOpenChange, client, lead, onSuccess }: Clie
         contract_duration_months: formData.contract_duration_months ? parseInt(formData.contract_duration_months) : null,
         notes: formData.notes || null,
         monthly_payment_status: formData.monthly_payment_status,
+        meta_ads_account_id: formData.meta_ads_account_id.trim() || null,
         status: formData.status,
         churn_date:
           formData.status === 'churn'
@@ -382,6 +386,20 @@ export function ClientForm({ open, onOpenChange, client, lead, onSuccess }: Clie
               value={formData.services}
               onChange={(e) => setFormData(prev => ({ ...prev, services: e.target.value }))}
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="meta_ads_account_id">Conta de Anúncios (Meta Ads)</Label>
+            <Input
+              id="meta_ads_account_id"
+              type="text"
+              placeholder="act_1234567890"
+              value={formData.meta_ads_account_id}
+              onChange={(e) => setFormData(prev => ({ ...prev, meta_ads_account_id: e.target.value }))}
+            />
+            <p className="text-xs text-muted-foreground">
+              ID da conta de anúncios da Meta deste cliente. Necessário para o dashboard trazer os resultados reais do Gerenciador de Anúncios.
+            </p>
           </div>
 
           <div className="space-y-2">

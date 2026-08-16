@@ -62,6 +62,7 @@ export interface Client {
   contract_duration_months: number | null;
   notes: string | null;
   monthly_payment_status: MonthlyPaymentStatus | null;
+  meta_ads_account_id: string | null;
   status: ClientStatus;
   churn_date: string | null;
   churn_reason: string | null;

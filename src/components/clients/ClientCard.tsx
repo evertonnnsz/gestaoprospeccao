@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import { Client, ClientStatus, MonthlyPaymentStatus } from '@/types/crm';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -30,8 +31,9 @@ import {
   UserMinus,
   ChevronDown,
   PlayCircle,
+  LayoutDashboard,
 } from 'lucide-react';
-import { format, addMonths, isBefore, isAfter } from 'date-fns';
+import { format, addMonths, addDays, isBefore, isAfter } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 const PAYMENT_STATUS_CONFIG: Record<MonthlyPaymentStatus, { label: string; icon: typeof CheckCircle2; className: string }> = {
@@ -55,6 +57,7 @@ interface ClientCardProps {
 
 export function ClientCard({ client, onEdit, onDelete, onChange }: ClientCardProps) {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const currentStatus: ClientStatus = (client.status as ClientStatus) || 'active';
   const statusConfig = CLIENT_STATUS_CONFIG[currentStatus];
   const StatusIcon = statusConfig.icon;
@@ -108,7 +111,22 @@ export function ClientCard({ client, onEdit, onDelete, onChange }: ClientCardPro
     return isAfter(endDate, today) && isBefore(endDate, oneMonthFromNow);
   };
 
+  // Fim do contrato = início + duração contratada (data diferente do vencimento do pagamento mensal)
+  const contractEndDate = client.project_start_date && client.contract_duration_months
+    ? addMonths(new Date(client.project_start_date), client.contract_duration_months)
+    : null;
+
+  // Vencimento do pagamento mensal vencendo nos próximos 7 dias
+  const isPaymentDueSoon = () => {
+    if (!client.payment_due_date) return false;
+    const today = new Date();
+    const in7Days = addDays(today, 7);
+    const dueDate = new Date(client.payment_due_date);
+    return isAfter(dueDate, today) && isBefore(dueDate, in7Days);
+  };
+
   const contractExpiringSoon = isContractExpiringSoon();
+  const paymentDueSoon = isPaymentDueSoon();
   const isInactive = currentStatus !== 'active';
 
   return (
@@ -137,8 +155,22 @@ export function ClientCard({ client, onEdit, onDelete, onChange }: ClientCardPro
                 <span className="text-xs font-medium">Contrato vencendo em breve!</span>
               </div>
             )}
+            {paymentDueSoon && (
+              <div className="flex items-center gap-1.5 mt-1 text-warning">
+                <AlertTriangle className="w-4 h-4" />
+                <span className="text-xs font-medium">Pagamento vencendo em breve!</span>
+              </div>
+            )}
           </div>
           <div className="flex gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              title="Ver dashboard do cliente"
+              onClick={() => navigate(`/clients/${client.id}`)}
+            >
+              <LayoutDashboard className="w-4 h-4" />
+            </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" className={`gap-1 ${statusConfig.className}`}>
@@ -220,15 +252,26 @@ export function ClientCard({ client, onEdit, onDelete, onChange }: ClientCardPro
 
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1">
-            <p className="text-xs text-muted-foreground">Início</p>
+            <p className="text-xs text-muted-foreground">Início do projeto</p>
             <div className="flex items-center gap-1 text-sm">
               <Calendar className="w-3 h-3" />
               {formatDate(client.project_start_date)}
             </div>
           </div>
           <div className="space-y-1">
-            <p className="text-xs text-muted-foreground">Vencimento</p>
-            <div className="flex items-center gap-1 text-sm">
+            <p className={`text-xs ${contractExpiringSoon ? 'text-warning font-medium' : 'text-muted-foreground'}`}>
+              Fim do contrato
+            </p>
+            <div className={`flex items-center gap-1 text-sm ${contractExpiringSoon ? 'text-warning font-medium' : ''}`}>
+              <Calendar className="w-3 h-3" />
+              {contractEndDate ? format(contractEndDate, 'dd/MM/yyyy', { locale: ptBR }) : '-'}
+            </div>
+          </div>
+          <div className="space-y-1 col-span-2">
+            <p className={`text-xs ${paymentDueSoon ? 'text-warning font-medium' : 'text-muted-foreground'}`}>
+              Vencimento do pagamento mensal
+            </p>
+            <div className={`flex items-center gap-1 text-sm ${paymentDueSoon ? 'text-warning font-medium' : ''}`}>
               <Calendar className="w-3 h-3" />
               {formatDate(client.payment_due_date)}
             </div>

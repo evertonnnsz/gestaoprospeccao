@@ -1,5 +1,5 @@
 // Busca resultados reais de uma conta de anúncios da Meta (Gerenciador de Anúncios).
-// Retorna: agregado da conta, lista de campanhas com insights e série temporal diária.
+// Retorna: agregado, campanhas (com engajamento/vídeo), série temporal diária e melhor criativo.
 // Requer o secret META_SYSTEM_USER_TOKEN (System User com ads_read).
 
 const corsHeaders = {
@@ -15,6 +15,137 @@ interface ResultInfo {
   value: number | null;
   label: string;
   cost: number | null;
+}
+
+const num = (v: unknown): number => Number(v || 0);
+
+const actionValue = (actions: ActionRow[] | undefined, type: string): number | null => {
+  if (!Array.isArray(actions)) return null;
+  const found = actions.find((a) => a.action_type === type);
+  return found ? num(found.value) : null;
+};
+
+// Escolhe o PRIMEIRO tipo disponível (nunca soma tipos sobrepostos)
+const firstAction = (actions: ActionRow[] | undefined, types: string[]): number | null => {
+  for (const t of types) {
+    const v = actionValue(actions, t);
+    if (v !== null) return v;
+  }
+  return null;
+};
+
+const MESSAGING_TYPES = [
+  'onsite_conversion.messaging_conversation_started_7d',
+  'onsite_conversion.messaging_conversation_started',
+  'onsite_conversion.messaging_first_reply',
+  'onsite_conversion.total_messaging_connection',
+];
+const LEAD_TYPES = ['lead', 'onsite_conversion.lead_grouped', 'offsite_conversion.fb_pixel_lead', 'onsite_conversion.lead'];
+const PURCHASE_TYPES = ['omni_purchase', 'purchase', 'offsite_conversion.fb_pixel_purchase', 'onsite_conversion.purchase'];
+const LINK_CLICK_TYPES = ['link_click'];
+const ENGAGEMENT_TYPES = ['post_engagement', 'page_engagement', 'video_view'];
+
+const isMessagingSetup = (optimizationGoals: string[], destinations: string[]): boolean => {
+  const all = [...optimizationGoals, ...destinations].map((v) => (v || '').toUpperCase());
+  return all.some((v) =>
+    v.includes('CONVERSATION') || v.includes('MESSAG') || v.includes('WHATSAPP') || v.includes('MESSENGER') || v.includes('INSTAGRAM_DIRECT'),
+  );
+};
+
+interface ObjectiveContext {
+  objective?: string | null;
+  optimizationGoals?: string[];
+  destinations?: string[];
+}
+
+function resolveResult(ctx: ObjectiveContext, row: any): ResultInfo {
+  const actions: ActionRow[] = row?.actions || [];
+  const obj = (ctx.objective || '').toUpperCase();
+  const spend = num(row?.spend);
+
+  const build = (value: number | null, label: string): ResultInfo => ({
+    value,
+    label,
+    cost: value && value > 0 ? spend / value : null,
+  });
+
+  // Destino/otimização por mensagens tem prioridade sobre o objetivo declarado
+  if (isMessagingSetup(ctx.optimizationGoals || [], ctx.destinations || [])) {
+    const msgs = firstAction(actions, MESSAGING_TYPES);
+    if (msgs !== null) return build(msgs, 'Conversas iniciadas');
+  }
+
+  if (obj.includes('MESSAGE') || obj.includes('MESSAGING')) {
+    return build(firstAction(actions, MESSAGING_TYPES), 'Conversas iniciadas');
+  }
+  if (obj.includes('LEAD')) {
+    return build(firstAction(actions, LEAD_TYPES), 'Leads');
+  }
+  if (obj.includes('CONVERSION') || obj.includes('SALES') || obj.includes('CATALOG') || obj.includes('PRODUCT')) {
+    const purchases = firstAction(actions, PURCHASE_TYPES);
+    if (purchases !== null) return build(purchases, 'Compras / conversões');
+  }
+  if (obj.includes('TRAFFIC') || obj.includes('LINK_CLICKS')) {
+    const clicks = firstAction(actions, LINK_CLICK_TYPES);
+    if (clicks !== null) return build(clicks, 'Cliques no link');
+  }
+  if (obj.includes('AWARENESS') || obj.includes('REACH') || obj.includes('BRAND')) {
+    const reach = row?.reach ? num(row.reach) : null;
+    if (reach !== null) return build(reach, 'Alcance');
+  }
+  if (obj.includes('ENGAGEMENT') || obj.includes('VIDEO_VIEWS') || obj.includes('POST_ENGAGEMENT')) {
+    const eng = firstAction(actions, ENGAGEMENT_TYPES);
+    if (eng !== null) return build(eng, 'Engajamento');
+  }
+
+  // Fallback (sempre aplicado, inclusive quando há campanha filtrada)
+  const fallbacks: Array<[string[], string]> = [
+    [PURCHASE_TYPES, 'Compras / conversões'],
+    [LEAD_TYPES, 'Leads'],
+    [MESSAGING_TYPES, 'Conversas iniciadas'],
+    [LINK_CLICK_TYPES, 'Cliques no link'],
+    [ENGAGEMENT_TYPES, 'Engajamento'],
+  ];
+  for (const [types, label] of fallbacks) {
+    const value = firstAction(actions, types);
+    if (value !== null) return build(value, label);
+  }
+  const reach = row?.reach ? num(row.reach) : null;
+  if (reach) return build(reach, 'Alcance');
+  return build(null, 'Resultados');
+}
+
+function buildEngagement(row: any) {
+  const actions: ActionRow[] = row?.actions || [];
+  const data = {
+    reacoes: actionValue(actions, 'post_reaction'),
+    comentarios: actionValue(actions, 'comment'),
+    compartilhamentos: actionValue(actions, 'post'),
+    salvamentos: actionValue(actions, 'onsite_conversion.post_save'),
+    engajamento_publicacao: actionValue(actions, 'post_engagement'),
+    engajamento_pagina: actionValue(actions, 'page_engagement'),
+    cliques_link: actionValue(actions, 'link_click'),
+    visitas_pagina: actionValue(actions, 'landing_page_view'),
+  };
+  const hasAny = Object.values(data).some((v) => v !== null && v !== 0);
+  return hasAny ? data : null;
+}
+
+const firstValue = (arr: any): number | null =>
+  Array.isArray(arr) && arr.length > 0 ? num(arr[0]?.value) : null;
+
+function buildVideo(row: any) {
+  const data = {
+    thruplay: firstValue(row?.video_thruplay_watched_actions),
+    views_3s: firstValue(row?.video_play_actions),
+    p25: firstValue(row?.video_p25_watched_actions),
+    p50: firstValue(row?.video_p50_watched_actions),
+    p75: firstValue(row?.video_p75_watched_actions),
+    p100: firstValue(row?.video_p100_watched_actions),
+    tempo_medio: firstValue(row?.video_avg_time_watched_actions),
+  };
+  const hasAny = Object.values(data).some((v) => v !== null && v !== 0);
+  return hasAny ? data : null;
 }
 
 interface Metrics {
@@ -33,83 +164,20 @@ interface Metrics {
   period_end: string | null;
 }
 
-const sumActions = (actions: ActionRow[] | undefined, types: string[]): number | null => {
-  if (!Array.isArray(actions)) return null;
-  const matched = actions.filter((a) => types.includes(a.action_type));
-  if (matched.length === 0) return null;
-  return matched.reduce((sum, a) => sum + Number(a.value || 0), 0);
-};
-
-// Mapa objetivo -> action_types + rótulo
-function resolveResult(objective: string | null | undefined, row: any): ResultInfo {
-  const actions: ActionRow[] = row?.actions || [];
-  const obj = (objective || '').toUpperCase();
-  const spend = Number(row?.spend || 0);
-
-  const build = (value: number | null, label: string): ResultInfo => ({
-    value,
-    label,
-    cost: value && value > 0 ? spend / value : null,
-  });
-
-  const messaging = [
-    'onsite_conversion.messaging_conversation_started_7d',
-    'onsite_conversion.total_messaging_connection',
-  ];
-  const leads = ['lead', 'onsite_conversion.lead_grouped', 'offsite_conversion.fb_pixel_lead'];
-  const purchases = ['purchase', 'offsite_conversion.fb_pixel_purchase', 'omni_purchase'];
-  const linkClicks = ['link_click'];
-  const engagement = ['post_engagement', 'page_engagement', 'video_view'];
-
-  if (obj.includes('MESSAGE') || obj.includes('MESSAGING')) {
-    return build(sumActions(actions, messaging), 'Conversas iniciadas');
-  }
-  if (obj.includes('LEAD')) {
-    return build(sumActions(actions, leads), 'Leads');
-  }
-  if (obj.includes('CONVERSION') || obj.includes('SALES') || obj.includes('CATALOG') || obj.includes('PRODUCT')) {
-    return build(sumActions(actions, purchases), 'Compras / conversões');
-  }
-  if (obj.includes('TRAFFIC') || obj.includes('LINK_CLICKS')) {
-    return build(sumActions(actions, linkClicks), 'Cliques no link');
-  }
-  if (obj.includes('AWARENESS') || obj.includes('REACH') || obj.includes('BRAND')) {
-    const reach = row?.reach ? Number(row.reach) : null;
-    return build(reach, 'Alcance');
-  }
-  if (obj.includes('ENGAGEMENT') || obj.includes('VIDEO_VIEWS') || obj.includes('POST_ENGAGEMENT')) {
-    return build(sumActions(actions, engagement), 'Engajamento');
-  }
-
-  // Fallback: escolhe a melhor ação disponível na ordem de valor de negócio
-  const fallbacks: Array<[string[], string]> = [
-    [purchases, 'Compras / conversões'],
-    [leads, 'Leads'],
-    [messaging, 'Conversas iniciadas'],
-    [linkClicks, 'Cliques no link'],
-    [engagement, 'Engajamento'],
-  ];
-  for (const [types, label] of fallbacks) {
-    const value = sumActions(actions, types);
-    if (value !== null) return build(value, label);
-  }
-  return build(null, 'Resultados');
-}
-
-function toMetrics(row: any, objective?: string | null): Metrics {
-  const result = resolveResult(objective, row);
-  const impressoes = Number(row?.impressions || 0);
-  const spend = Number(row?.spend || 0);
-  const reach = row?.reach ? Number(row.reach) : null;
+function toMetrics(row: any, ctx: ObjectiveContext): Metrics {
+  const result = resolveResult(ctx, row);
+  const impressoes = num(row?.impressions);
+  const spend = num(row?.spend);
+  const reach = row?.reach ? num(row.reach) : null;
   return {
     investimento: spend,
     impressoes,
     alcance: reach,
-    frequencia: row?.frequency ? Number(row.frequency) : (reach && reach > 0 ? impressoes / reach : null),
-    cliques: Number(row?.clicks || 0),
-    cpc: row?.cpc ? Number(row.cpc) : null,
-    cpm: row?.cpm ? Number(row.cpm) : (impressoes > 0 ? (spend / impressoes) * 1000 : null),
-    ctr: row?.ctr ? Number(row.ctr) : null,
+    frequencia: row?.frequency ? num(row.frequency) : (reach && reach > 0 ? impressoes / reach : null),
+    cliques: num(row?.clicks),
+    cpc: row?.cpc ? num(row.cpc) : null,
+    cpm: row?.cpm ? num(row.cpm) : (impressoes > 0 ? (spend / impressoes) * 1000 : null),
+    ctr: row?.ctr ? num(row.ctr) : null,
     resultado: result.value,
     resultado_label: result.label,
     custo_por_resultado: result.cost,
@@ -135,7 +203,8 @@ const emptyMetrics = (): Metrics => ({
 });
 
 const ALLOWED_PRESETS = ['last_7d', 'last_14d', 'last_30d', 'last_90d'];
-const INSIGHT_FIELDS = 'spend,impressions,reach,frequency,clicks,cpc,cpm,ctr,actions,date_start,date_stop';
+const VIDEO_FIELDS = 'video_thruplay_watched_actions,video_play_actions,video_p25_watched_actions,video_p50_watched_actions,video_p75_watched_actions,video_p100_watched_actions,video_avg_time_watched_actions';
+const INSIGHT_FIELDS = `spend,impressions,reach,frequency,clicks,cpc,cpm,ctr,actions,date_start,date_stop,${VIDEO_FIELDS}`;
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -203,12 +272,14 @@ Deno.serve(async (req) => {
       ? client.meta_ads_account_id
       : `act_${client.meta_ads_account_id}`;
 
-    // Janela de datas: intervalo customizado tem prioridade sobre o preset
     const isCustom = Boolean(since && until);
     const preset = ALLOWED_PRESETS.includes(date_preset) ? date_preset : 'last_30d';
     const rangeParam = isCustom
       ? `time_range=${encodeURIComponent(JSON.stringify({ since, until }))}`
       : `date_preset=${preset}`;
+    const nestedRange = isCustom
+      ? `time_range(${encodeURIComponent(JSON.stringify({ since, until }))})`
+      : `date_preset(${preset})`;
 
     const base = `https://graph.facebook.com/${META_GRAPH_VERSION}`;
     const auth = `access_token=${metaToken}`;
@@ -216,7 +287,9 @@ Deno.serve(async (req) => {
 
     const accountUrl = `${base}/${insightsNode}/insights?fields=${INSIGHT_FIELDS}&${rangeParam}&${auth}`;
     const seriesUrl = `${base}/${insightsNode}/insights?fields=spend,impressions,clicks,reach&${rangeParam}&time_increment=1&limit=200&${auth}`;
-    const campaignsUrl = `${base}/${accountId}/campaigns?fields=id,name,objective,status,insights.${isCustom ? `time_range(${encodeURIComponent(JSON.stringify({ since, until }))})` : `date_preset(${preset})`}{${INSIGHT_FIELDS}}&limit=200&${auth}`;
+    const campaignsUrl = `${base}/${accountId}/campaigns?fields=id,name,objective,status,insights.${nestedRange}{${INSIGHT_FIELDS}}&limit=200&${auth}`;
+    const adsetsUrl = `${base}/${accountId}/adsets?fields=id,campaign_id,optimization_goal,destination_type&limit=500&${auth}`;
+    const adsUrl = `${base}/${insightsNode}/insights?level=ad&fields=ad_id,ad_name,campaign_id,campaign_name,spend,impressions,clicks,actions&${rangeParam}&limit=200&${auth}`;
 
     const fetchJson = async (url: string) => {
       const res = await fetch(url);
@@ -224,10 +297,12 @@ Deno.serve(async (req) => {
       return { ok: res.ok, status: res.status, data };
     };
 
-    const [accountRes, seriesRes, campaignsRes] = await Promise.all([
+    const [accountRes, seriesRes, campaignsRes, adsetsRes, adsRes] = await Promise.all([
       fetchJson(accountUrl),
       fetchJson(seriesUrl),
       fetchJson(campaignsUrl),
+      fetchJson(adsetsUrl),
+      fetchJson(adsUrl),
     ]);
 
     if (!accountRes.ok) {
@@ -238,6 +313,26 @@ Deno.serve(async (req) => {
       }, 502);
     }
 
+    // Otimização / destino por campanha (via conjuntos de anúncios)
+    const setupByCampaign = new Map<string, { goals: string[]; destinations: string[] }>();
+    if (adsetsRes.ok) {
+      for (const s of adsetsRes.data?.data || []) {
+        const key = s.campaign_id;
+        if (!key) continue;
+        const entry = setupByCampaign.get(key) || { goals: [], destinations: [] };
+        if (s.optimization_goal) entry.goals.push(s.optimization_goal);
+        if (s.destination_type) entry.destinations.push(s.destination_type);
+        setupByCampaign.set(key, entry);
+      }
+    } else {
+      console.error('Meta adsets error:', adsetsRes.data);
+    }
+
+    const ctxFor = (campaignId: string | null | undefined, objective: string | null | undefined): ObjectiveContext => {
+      const setup = campaignId ? setupByCampaign.get(campaignId) : undefined;
+      return { objective, optimizationGoals: setup?.goals || [], destinations: setup?.destinations || [] };
+    };
+
     const campaignRows = campaignsRes.ok ? (campaignsRes.data?.data || []) : [];
     if (!campaignsRes.ok) {
       console.error('Meta campaigns error:', campaignsRes.data);
@@ -245,26 +340,35 @@ Deno.serve(async (req) => {
 
     const campaigns = campaignRows.map((c: any) => {
       const insightRow = c?.insights?.data?.[0];
-      const metrics = insightRow ? toMetrics(insightRow, c.objective) : emptyMetrics();
+      const ctx = ctxFor(c.id, c.objective);
+      const metrics = insightRow ? toMetrics(insightRow, ctx) : emptyMetrics();
       return {
         id: c.id,
         name: c.name,
         objective: c.objective || null,
         status: c.status || null,
         ...metrics,
-        raw_actions: body?.debug ? (insightRow?.actions || []) : undefined,
+        engajamento: insightRow ? buildEngagement(insightRow) : null,
+        video: insightRow ? buildVideo(insightRow) : null,
       };
     });
 
-    // Agregado: se filtrou campanha, usa o objetivo dela; senão usa o objetivo dominante (maior investimento)
     const selectedCampaign = campaign_id ? campaignRows.find((c: any) => c.id === campaign_id) : null;
     const dominant = [...campaigns].sort((a, b) => b.investimento - a.investimento)[0];
+    const aggregateCampaignId = campaign_id || dominant?.id || null;
     const aggregateObjective = selectedCampaign?.objective || dominant?.objective || null;
+    const aggregateCtx = ctxFor(aggregateCampaignId, aggregateObjective);
 
     const accountRow = accountRes.data?.data?.[0];
-    const account = accountRow ? toMetrics(accountRow, aggregateObjective) : emptyMetrics();
+    const account: Metrics & { engajamento?: unknown; video?: unknown } = accountRow
+      ? toMetrics(accountRow, aggregateCtx)
+      : emptyMetrics();
+    if (accountRow) {
+      account.engajamento = buildEngagement(accountRow);
+      account.video = buildVideo(accountRow);
+    }
 
-    // Quando não há campanha filtrada, o resultado correto é a soma por objetivo de cada campanha
+    // Sem campanha filtrada: soma dos resultados corretos de cada campanha
     if (!campaign_id && campaigns.length > 0) {
       const withResults = campaigns.filter((c) => c.resultado !== null);
       if (withResults.length > 0) {
@@ -278,15 +382,55 @@ Deno.serve(async (req) => {
 
     const timeseries = (seriesRes.ok ? (seriesRes.data?.data || []) : []).map((row: any) => ({
       date: row.date_start,
-      investimento: Number(row.spend || 0),
-      impressoes: Number(row.impressions || 0),
-      cliques: Number(row.clicks || 0),
-      alcance: row.reach ? Number(row.reach) : 0,
+      investimento: num(row.spend),
+      impressoes: num(row.impressions),
+      cliques: num(row.clicks),
+      alcance: row.reach ? num(row.reach) : 0,
     }));
+
+    // ===== Melhor criativo: menor custo por resultado entre os anúncios do período =====
+    let best_creative: Record<string, unknown> | null = null;
+    if (adsRes.ok) {
+      const objectiveByCampaign = new Map<string, string | null>(
+        campaignRows.map((c: any) => [c.id, c.objective || null]),
+      );
+      const scored = (adsRes.data?.data || [])
+        .map((row: any) => {
+          const ctx = ctxFor(row.campaign_id, objectiveByCampaign.get(row.campaign_id) || null);
+          const result = resolveResult(ctx, row);
+          return {
+            ad_id: row.ad_id,
+            ad_name: row.ad_name,
+            campaign_id: row.campaign_id,
+            campaign_name: row.campaign_name,
+            investimento: num(row.spend),
+            impressoes: num(row.impressions),
+            cliques: num(row.clicks),
+            resultado: result.value,
+            resultado_label: result.label,
+            custo_por_resultado: result.cost,
+          };
+        })
+        .filter((a: any) => a.resultado && a.resultado > 0 && a.custo_por_resultado !== null)
+        .sort((a: any, b: any) => (a.custo_por_resultado || 0) - (b.custo_por_resultado || 0));
+
+      const winner = scored[0];
+      if (winner) {
+        const creativeUrl = `${base}/${winner.ad_id}?fields=name,creative{thumbnail_url,image_url,object_story_spec,effective_object_story_id}&${auth}`;
+        const creativeRes = await fetchJson(creativeUrl);
+        const creative = creativeRes.ok ? creativeRes.data?.creative : null;
+        best_creative = {
+          ...winner,
+          thumbnail_url: creative?.thumbnail_url || creative?.image_url || null,
+          is_video: Boolean(creative?.object_story_spec?.video_data),
+        };
+      }
+    } else {
+      console.error('Meta ads insights error:', adsRes.data);
+    }
 
     return json({
       success: true,
-      // compatibilidade com a versão anterior do painel
       data: {
         investimento: account.investimento,
         impressoes: account.impressoes,
@@ -301,6 +445,7 @@ Deno.serve(async (req) => {
       account,
       campaigns,
       timeseries,
+      best_creative,
     });
   } catch (error) {
     console.error('Error in meta-ads-insights:', error);

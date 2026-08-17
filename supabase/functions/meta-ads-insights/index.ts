@@ -252,6 +252,7 @@ Deno.serve(async (req) => {
         objective: c.objective || null,
         status: c.status || null,
         ...metrics,
+        raw_actions: body?.debug ? (insightRow?.actions || []) : undefined,
       };
     });
 

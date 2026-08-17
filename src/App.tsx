@@ -21,6 +21,7 @@ import CustomerSuccess from "./pages/CustomerSuccess";
 import Onboarding from "./pages/Onboarding";
 import WhatsAppFollowUps from "./pages/WhatsAppFollowUps";
 import Agenda from "./pages/Agenda";
+import AdsDashboard from "./pages/AdsDashboard";
 
 const queryClient = new QueryClient();
 
@@ -45,6 +46,7 @@ const App = () => (
               <Route path="/whatsapp-follow-ups" element={<WhatsAppFollowUps />} />
               <Route path="/agenda" element={<Agenda />} />
               <Route path="/customer-success" element={<CustomerSuccess />} />
+              <Route path="/ads-dashboard" element={<AdsDashboard />} />
               <Route path="/onboarding" element={<Onboarding />} />
               <Route path="/approvals" element={<Approvals />} />
               <Route path="/users" element={<Users />} />

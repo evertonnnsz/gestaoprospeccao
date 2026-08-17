@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { format, subDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -457,6 +457,55 @@ export default function AdsDashboard() {
 
           <Card>
             <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-primary" />
+                Melhor criativo {selectedCampaign ? 'da campanha' : 'da conta'}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {!bestCreative ? (
+                <p className="text-sm text-muted-foreground">
+                  Nenhum anúncio com resultado no período selecionado.
+                </p>
+              ) : (
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <div className="w-full sm:w-40 h-40 rounded-lg overflow-hidden bg-muted flex items-center justify-center shrink-0">
+                    {bestCreative.thumbnail_url ? (
+                      <img
+                        src={bestCreative.thumbnail_url}
+                        alt={`Criativo do anúncio ${bestCreative.ad_name}`}
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                      />
+                    ) : bestCreative.is_video ? (
+                      <Film className="w-8 h-8 text-muted-foreground" />
+                    ) : (
+                      <ImageIcon className="w-8 h-8 text-muted-foreground" />
+                    )}
+                  </div>
+                  <div className="flex-1 space-y-2">
+                    <div>
+                      <p className="font-medium flex items-center gap-2">
+                        {bestCreative.is_video ? <Film className="w-4 h-4" /> : <ImageIcon className="w-4 h-4" />}
+                        {bestCreative.ad_name}
+                      </p>
+                      <p className="text-xs text-muted-foreground">{bestCreative.campaign_name}</p>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                      <MiniStat label="Investimento" value={formatCurrency(bestCreative.investimento)} />
+                      <MiniStat label={bestCreative.resultado_label} value={formatNumber(bestCreative.resultado)} />
+                      <MiniStat label="Custo por resultado" value={formatCurrency(bestCreative.custo_por_resultado)} />
+                      <MiniStat label="Impressões" value={formatNumber(bestCreative.impressoes)} />
+                      <MiniStat label="Cliques" value={formatNumber(bestCreative.cliques)} />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
               <CardTitle>Campanhas da conta</CardTitle>
             </CardHeader>
             <CardContent>
@@ -476,12 +525,22 @@ export default function AdsDashboard() {
                   </TableHeader>
                   <TableBody>
                     {sortedCampaigns.map((campaign) => (
+                      <Fragment key={campaign.id}>
                       <TableRow
                         key={campaign.id}
-                        className="cursor-pointer"
-                        onClick={() => setCampaignId(campaign.id)}
+                        className={`cursor-pointer ${campaignId === campaign.id ? 'bg-muted/60' : ''}`}
+                        onClick={() => setExpanded(expanded === campaign.id ? null : campaign.id)}
                       >
-                        <TableCell className="font-medium">{campaign.name}</TableCell>
+                        <TableCell className="font-medium">
+                          <span className="flex items-center gap-2">
+                            {expanded === campaign.id ? (
+                              <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                            ) : (
+                              <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                            )}
+                            {campaign.name}
+                          </span>
+                        </TableCell>
                         <TableCell>{objectiveLabel(campaign.objective)}</TableCell>
                         <TableCell>
                           <Badge variant={campaign.status === 'ACTIVE' ? 'default' : 'secondary'}>
@@ -495,6 +554,73 @@ export default function AdsDashboard() {
                         </TableCell>
                         <TableCell className="text-right">{formatCurrency(campaign.custo_por_resultado)}</TableCell>
                       </TableRow>
+                      {expanded === campaign.id && (
+                        <TableRow key={`${campaign.id}-detail`} className="bg-muted/30 hover:bg-muted/30">
+                          <TableCell colSpan={6}>
+                            <div className="space-y-4 py-2">
+                              <div>
+                                <p className="text-xs uppercase tracking-wide text-muted-foreground mb-2">Desempenho</p>
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                  <MiniStat label="Investimento" value={formatCurrency(campaign.investimento)} />
+                                  <MiniStat label="Impressões" value={formatNumber(campaign.impressoes)} />
+                                  <MiniStat label="Alcance" value={formatNumber(campaign.alcance)} />
+                                  <MiniStat label="Frequência" value={formatNumber(campaign.frequencia, 2)} />
+                                  <MiniStat label="CTR" value={campaign.ctr !== null ? `${formatNumber(campaign.ctr, 2)}%` : '—'} />
+                                  <MiniStat label="CPC" value={formatCurrency(campaign.cpc)} />
+                                  <MiniStat label="CPM" value={formatCurrency(campaign.cpm)} />
+                                  <MiniStat label={campaign.resultado_label} value={formatNumber(campaign.resultado)} />
+                                </div>
+                              </div>
+
+                              {campaign.engajamento && (
+                                <div>
+                                  <p className="text-xs uppercase tracking-wide text-muted-foreground mb-2">Engajamento</p>
+                                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                    <MiniStat label="Reações" value={formatNumber(campaign.engajamento.reacoes)} />
+                                    <MiniStat label="Comentários" value={formatNumber(campaign.engajamento.comentarios)} />
+                                    <MiniStat label="Compartilhamentos" value={formatNumber(campaign.engajamento.compartilhamentos)} />
+                                    <MiniStat label="Salvamentos" value={formatNumber(campaign.engajamento.salvamentos)} />
+                                    <MiniStat label="Engajamento com a publicação" value={formatNumber(campaign.engajamento.engajamento_publicacao)} />
+                                    <MiniStat label="Engajamento com a página" value={formatNumber(campaign.engajamento.engajamento_pagina)} />
+                                    <MiniStat label="Cliques no link" value={formatNumber(campaign.engajamento.cliques_link)} />
+                                    <MiniStat label="Visitas à página de destino" value={formatNumber(campaign.engajamento.visitas_pagina)} />
+                                  </div>
+                                </div>
+                              )}
+
+                              {campaign.video && (
+                                <div>
+                                  <p className="text-xs uppercase tracking-wide text-muted-foreground mb-2">Vídeo</p>
+                                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                    <MiniStat label="ThruPlay" value={formatNumber(campaign.video.thruplay)} />
+                                    <MiniStat label="Views de 3s" value={formatNumber(campaign.video.views_3s)} />
+                                    <MiniStat label="25% assistido" value={formatNumber(campaign.video.p25)} />
+                                    <MiniStat label="50% assistido" value={formatNumber(campaign.video.p50)} />
+                                    <MiniStat label="75% assistido" value={formatNumber(campaign.video.p75)} />
+                                    <MiniStat label="100% assistido" value={formatNumber(campaign.video.p100)} />
+                                    <MiniStat
+                                      label="Tempo médio"
+                                      value={campaign.video.tempo_medio !== null ? `${formatNumber(campaign.video.tempo_medio, 1)}s` : '—'}
+                                    />
+                                  </div>
+                                </div>
+                              )}
+
+                              <Button
+                                size="sm"
+                                variant={campaignId === campaign.id ? 'secondary' : 'outline'}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setCampaignId(campaignId === campaign.id ? '__all__' : campaign.id);
+                                }}
+                              >
+                                {campaignId === campaign.id ? 'Remover filtro desta campanha' : 'Filtrar dashboard nesta campanha'}
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                      </Fragment>
                     ))}
                   </TableBody>
                 </Table>
@@ -503,6 +629,15 @@ export default function AdsDashboard() {
           </Card>
         </>
       )}
+    </div>
+  );
+}
+
+function MiniStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-md border bg-card px-3 py-2">
+      <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className="text-sm font-semibold mt-0.5">{value}</p>
     </div>
   );
 }

@@ -1,22 +1,48 @@
-## Plano
+# Dashboard de Anúncios (Meta Ads)
 
-Sincronizar o projeto com o GitHub e aplicar migrations pendentes envolve duas ações separadas:
+## 1. Edge function `meta-ads-insights`
+Passa a aceitar um parâmetro `mode` e devolver dados bem mais ricos, mantendo a validação atual (JWT + dono do cliente).
 
-### 1. Sincronização com GitHub (main)
+Parâmetros aceitos:
+- `client_id` (obrigatório)
+- `date_preset` (`last_7d`, `last_14d`, `last_30d`, `last_90d`) **ou** `since`/`until` para datas customizadas
+- `campaign_id` (opcional, filtra o agregado numa campanha)
 
-A sincronização de código entre o repositório GitHub e o Lovable é feita automaticamente pela integração nativa de Git sync do Lovable — não é algo que eu execute via comandos no chat. Se algum commit da `main` ainda não apareceu no projeto, isso é resolvido no painel do próprio Lovable (workspace → Git settings) ou aguardando o sync automático.
+Respostas:
+- **account**: agregado da conta (ou da campanha filtrada) com investimento, impressões, alcance, frequência, CPM, CPC, CTR, resultado correto e custo por resultado
+- **campaigns**: lista de campanhas da conta (`name`, `objective`, `status`) já cruzada com insights por campanha
+- **timeseries**: insights por dia (`time_increment=1`) para o gráfico de evolução
 
-### 2. Migrations pendentes
+### Mapa objetivo → action_type (o "Resultados" correto)
+| Objetivo da campanha | Resultado contado |
+|---|---|
+| Mensagens (MESSAGES / conversas) | conversas iniciadas (`onsite_conversion.messaging_conversation_started_7d`) |
+| Geração de leads (LEAD_GENERATION) | leads (`lead`, `onsite_conversion.lead_grouped`) |
+| Conversões / vendas (CONVERSIONS, SALES, CATALOG) | compras / conversões do pixel (`purchase`, `offsite_conversion.fb_pixel_purchase`) |
+| Tráfego (TRAFFIC / LINK_CLICKS) | cliques no link (`link_click`) |
+| Reconhecimento / alcance (AWARENESS, REACH) | alcance |
+| Engajamento / vídeo | engajamento com a publicação / views |
+| Desconhecido | fallback: melhor ação disponível, com rótulo explícito |
 
-Vou verificar a pasta `supabase/migrations/` e comparar com o que já foi aplicado no banco para identificar arquivos SQL ainda não executados. Para cada migration pendente encontrada, aplico via a ferramenta de migration (com aprovação sua a cada uma).
+Cada resultado volta com `label` (ex.: "Conversas iniciadas") para a tela exibir o nome certo, e o custo por resultado é calculado só em cima dele.
 
-### Passos
+## 2. Banco de dados
+Nenhuma mudança necessária — usa `clients.meta_ads_account_id` que já existe. Sem novas tabelas (dados vêm ao vivo da Meta).
 
-1. Listar arquivos em `supabase/migrations/`.
-2. Consultar o histórico de migrations aplicadas no banco.
-3. Para cada arquivo pendente: apresentar o SQL e aplicar após aprovação.
-4. Informar sobre o status do Git sync (que é gerenciado pela plataforma, não por mim).
+## 3. Nova página: Dashboard de Anúncios
+Rota `/ads-dashboard`, item no menu lateral (grupo Operação), aceitando `?client=<id>` para abrir já filtrada.
 
-### Observação
+Estrutura:
+- Barra de filtros: cliente (só os que têm conta Meta cadastrada), período (7/14/30/90 dias ou intervalo customizado) e campanha (carregada após escolher o cliente)
+- Cards de KPI: Investimento, Impressões, Alcance, Frequência, CPM, CPC, CTR, Resultado (rótulo dinâmico) e Custo por resultado
+- Gráfico de linha/área: investimento e impressões por dia no período
+- Tabela de campanhas: nome, objetivo, status (badge), investimento, resultado (tipo certo), custo por resultado — ordenável por investimento, clicável para filtrar o dashboard naquela campanha
+- Estados de carregando / erro da Meta / conta sem dados no período
 
-Se você quer que eu foque só nas migrations (assumindo que o Git sync já está funcionando), confirme e eu sigo direto para o passo 1.
+## 4. Ficha do cliente (aba Campanhas)
+Enxuga o bloco atual: mantém só os KPIs principais (Investimento, Impressões, Cliques, CTR, CPC, Resultado + custo por resultado), remove qualquer detalhamento pesado e adiciona o botão "Ver dashboard completo" que leva para `/ads-dashboard?client=<id>`.
+
+## Observações técnicas
+- Chamadas à Graph API v21.0 em paralelo (agregado, campanhas, série temporal) para manter a resposta rápida
+- Tratamento de erro da Meta preservado (mensagem clara em vez de 500 genérico)
+- Formatação em pt-BR / BRL, seguindo os componentes e tokens já usados no CRM

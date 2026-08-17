@@ -248,6 +248,10 @@ export default function AdsDashboard() {
     [campaigns, campaignId],
   );
 
+  const toggleCampaignDetails = (campaignIdToToggle: string) => {
+    setExpanded((current) => current === campaignIdToToggle ? null : campaignIdToToggle);
+  };
+
   const chartData = useMemo(
     () =>
       series.map((point) => ({
@@ -529,17 +533,33 @@ export default function AdsDashboard() {
                       <TableRow
                         key={campaign.id}
                         className={`cursor-pointer ${campaignId === campaign.id ? 'bg-muted/60' : ''}`}
-                        onClick={() => setExpanded(expanded === campaign.id ? null : campaign.id)}
+                         onClick={() => toggleCampaignDetails(campaign.id)}
+                         aria-expanded={expanded === campaign.id}
+                         aria-controls={`campaign-details-${campaign.id}`}
                       >
                         <TableCell className="font-medium">
-                          <span className="flex items-center gap-2">
-                            {expanded === campaign.id ? (
-                              <ChevronDown className="w-4 h-4 text-muted-foreground" />
-                            ) : (
-                              <ChevronRight className="w-4 h-4 text-muted-foreground" />
-                            )}
-                            {campaign.name}
-                          </span>
+                           <span className="flex items-center gap-2">
+                             <Button
+                               type="button"
+                               variant="ghost"
+                               size="icon"
+                               className="h-8 w-8 shrink-0"
+                               aria-label={`${expanded === campaign.id ? 'Recolher' : 'Expandir'} detalhes da campanha ${campaign.name}`}
+                               aria-expanded={expanded === campaign.id}
+                               aria-controls={`campaign-details-${campaign.id}`}
+                               onClick={(event) => {
+                                 event.stopPropagation();
+                                 toggleCampaignDetails(campaign.id);
+                               }}
+                             >
+                               {expanded === campaign.id ? (
+                                 <ChevronDown className="w-4 h-4" aria-hidden="true" />
+                               ) : (
+                                 <ChevronRight className="w-4 h-4" aria-hidden="true" />
+                               )}
+                             </Button>
+                             <span>{campaign.name}</span>
+                           </span>
                         </TableCell>
                         <TableCell>{objectiveLabel(campaign.objective)}</TableCell>
                         <TableCell>
@@ -555,7 +575,11 @@ export default function AdsDashboard() {
                         <TableCell className="text-right">{formatCurrency(campaign.custo_por_resultado)}</TableCell>
                       </TableRow>
                       {expanded === campaign.id && (
-                        <TableRow key={`${campaign.id}-detail`} className="bg-muted/30 hover:bg-muted/30">
+                         <TableRow
+                           id={`campaign-details-${campaign.id}`}
+                           key={`${campaign.id}-detail`}
+                           className="bg-muted/30 hover:bg-muted/30"
+                         >
                           <TableCell colSpan={6}>
                             <div className="space-y-4 py-2">
                               <div>

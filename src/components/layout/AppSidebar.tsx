@@ -15,6 +15,7 @@ import {
   ClipboardCheck,
   MessageCircle,
   CalendarDays,
+  BarChart3,
 } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -43,6 +44,7 @@ const navGroups = [
     items: [
       { title: 'Agenda', url: '/agenda', icon: CalendarDays },
       { title: 'Sucesso do Cliente', url: '/customer-success', icon: HeartHandshake },
+      { title: 'Dashboard de An\u00fancios', url: '/ads-dashboard', icon: BarChart3 },
       { title: 'Onboarding', url: '/onboarding', icon: ClipboardCheck },
       { title: 'Financeiro', url: '/financial', icon: DollarSign },
     ],

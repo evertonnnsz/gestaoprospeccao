@@ -14,6 +14,12 @@ import {
 } from 'recharts';
 import {
   BarChart3,
+  ChevronDown,
+  ChevronRight,
+  Film,
+  Image as ImageIcon,
+  Sparkles,
+  X,
   DollarSign,
   Eye,
   Loader2,
@@ -55,11 +61,48 @@ type Metrics = {
   period_end: string | null;
 };
 
+type Engagement = {
+  reacoes: number | null;
+  comentarios: number | null;
+  compartilhamentos: number | null;
+  salvamentos: number | null;
+  engajamento_publicacao: number | null;
+  engajamento_pagina: number | null;
+  cliques_link: number | null;
+  visitas_pagina: number | null;
+};
+
+type VideoMetrics = {
+  thruplay: number | null;
+  views_3s: number | null;
+  p25: number | null;
+  p50: number | null;
+  p75: number | null;
+  p100: number | null;
+  tempo_medio: number | null;
+};
+
 type CampaignRow = Metrics & {
   id: string;
   name: string;
   objective: string | null;
   status: string | null;
+  engajamento: Engagement | null;
+  video: VideoMetrics | null;
+};
+
+type BestCreative = {
+  ad_id: string;
+  ad_name: string;
+  campaign_name: string;
+  investimento: number;
+  impressoes: number;
+  cliques: number;
+  resultado: number | null;
+  resultado_label: string;
+  custo_por_resultado: number | null;
+  thumbnail_url: string | null;
+  is_video: boolean;
 };
 
 type SeriesPoint = {
@@ -124,6 +167,8 @@ export default function AdsDashboard() {
   const [account, setAccount] = useState<Metrics | null>(null);
   const [campaigns, setCampaigns] = useState<CampaignRow[]>([]);
   const [series, setSeries] = useState<SeriesPoint[]>([]);
+  const [bestCreative, setBestCreative] = useState<BestCreative | null>(null);
+  const [expanded, setExpanded] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -170,11 +215,13 @@ export default function AdsDashboard() {
       setAccount(data.account);
       setCampaigns(data.campaigns || []);
       setSeries(data.timeseries || []);
+      setBestCreative(data.best_creative || null);
     } catch (err: any) {
       setError(err.message || 'Não foi possível buscar os dados da Meta agora.');
       setAccount(null);
       setCampaigns([]);
       setSeries([]);
+      setBestCreative(null);
     } finally {
       setLoading(false);
     }
@@ -194,6 +241,11 @@ export default function AdsDashboard() {
   const sortedCampaigns = useMemo(
     () => [...campaigns].sort((a, b) => b.investimento - a.investimento),
     [campaigns],
+  );
+
+  const selectedCampaign = useMemo(
+    () => campaigns.find((c) => c.id === campaignId) || null,
+    [campaigns, campaignId],
   );
 
   const chartData = useMemo(
@@ -219,6 +271,7 @@ export default function AdsDashboard() {
           </h1>
           <p className="text-sm text-muted-foreground">
             Resultados reais do Gerenciador de Anúncios da Meta{periodLabel ? ` · ${periodLabel}` : ''}
+            {selectedCampaign ? ` · Campanha: ${selectedCampaign.name}` : ''}
           </p>
         </div>
         <Button variant="outline" className="gap-2" onClick={fetchInsights} disabled={loading || !clientId}>
@@ -290,6 +343,13 @@ export default function AdsDashboard() {
               ))}
             </SelectContent>
           </Select>
+
+          {campaignId !== '__all__' && (
+            <Button variant="ghost" className="gap-2" onClick={() => setCampaignId('__all__')}>
+              <X className="w-4 h-4" />
+              Limpar filtro de campanha
+            </Button>
+          )}
         </CardContent>
       </Card>
 
@@ -340,7 +400,14 @@ export default function AdsDashboard() {
             </CardHeader>
             <CardContent className="h-[320px]">
               {chartData.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Sem dados diários no período selecionado.</p>
+                <p className="text-sm text-muted-foreground">
+                  Sem dados diários no período selecionado{selectedCampaign ? ' para esta campanha' : ''}.
+                </p>
+              ) : chartData.length === 1 ? (
+                <p className="text-sm text-muted-foreground">
+                  Só houve veiculação em {chartData[0].label}: {formatCurrency(chartData[0].investimento)} investidos e{' '}
+                  {formatNumber(chartData[0].impressoes)} impressões. Amplie o período para ver a evolução.
+                </p>
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={chartData}>

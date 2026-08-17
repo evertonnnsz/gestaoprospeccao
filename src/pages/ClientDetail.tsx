@@ -347,13 +347,19 @@ export default function ClientDetail() {
               ) : metaError ? (
                 <p className="text-sm text-destructive">{metaError}</p>
               ) : metaInsights ? (
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                  <Info label="Investimento (30d)" value={formatCurrency(metaInsights.investimento)} icon={DollarSign} />
-                  <Info label="Cliques" value={String(metaInsights.cliques)} icon={MousePointerClick} />
-                  <Info label="Impressões" value={String(metaInsights.impressoes)} icon={TrendingUp} />
-                  <Info label="CPC médio" value={metaInsights.cpc ? formatCurrency(metaInsights.cpc) : '-'} />
-                  <Info label="Resultados" value={metaInsights.resultados !== null ? String(metaInsights.resultados) : '-'} />
-                  <Info label="Custo por resultado" value={metaInsights.custo_por_resultado ? formatCurrency(metaInsights.custo_por_resultado) : '-'} />
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    <Info label="Investimento (30d)" value={formatCurrency(metaInsights.investimento)} icon={DollarSign} />
+                    <Info label="Cliques" value={String(metaInsights.cliques)} icon={MousePointerClick} />
+                    <Info label="Impressões" value={String(metaInsights.impressoes)} icon={TrendingUp} />
+                    <Info label="CPC médio" value={metaInsights.cpc ? formatCurrency(metaInsights.cpc) : '-'} />
+                    <Info label="Resultados" value={metaInsights.resultados !== null ? String(metaInsights.resultados) : '-'} />
+                    <Info label="Custo por resultado" value={metaInsights.custo_por_resultado ? formatCurrency(metaInsights.custo_por_resultado) : '-'} />
+                  </div>
+                  <Button variant="outline" className="gap-2" onClick={() => navigate(`/ads-dashboard?client=${id}`)}>
+                    <LineChart className="w-4 h-4" />
+                    Ver dashboard completo
+                  </Button>
                 </div>
               ) : (
                 <p className="text-sm text-muted-foreground">Sem dados ainda — clique em Atualizar.</p>

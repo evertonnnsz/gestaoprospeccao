@@ -14,6 +14,9 @@ import {
 } from 'recharts';
 import {
   BarChart3,
+  Check,
+  Copy,
+  Share2,
   ChevronDown,
   ChevronRight,
   Film,
@@ -34,6 +37,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { useToast } from '@/hooks/use-toast';
+import { buildAdsReportText } from '@/lib/adsReportText';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
@@ -171,6 +178,10 @@ export default function AdsDashboard() {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [shareText, setShareText] = useState('');
+  const [copied, setCopied] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
     const loadClients = async () => {
@@ -265,6 +276,37 @@ export default function AdsDashboard() {
     ? `${format(new Date(account.period_start + 'T00:00:00'), 'dd/MM/yy')} a ${format(new Date(account.period_end + 'T00:00:00'), 'dd/MM/yy')}`
     : null;
 
+  const openShare = () => {
+    if (!account) return;
+    setShareText(
+      buildAdsReportText({
+        clientName: clients.find((c) => c.id === clientId)?.name || 'Cliente',
+        periodLabel,
+        campaignName: selectedCampaign?.name,
+        account,
+        campaigns: sortedCampaigns,
+        bestCreative,
+      }),
+    );
+    setCopied(false);
+    setShareOpen(true);
+  };
+
+  const copyShareText = async () => {
+    try {
+      await navigator.clipboard.writeText(shareText);
+    } catch {
+      const textarea = document.createElement('textarea');
+      textarea.value = shareText;
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand('copy');
+      textarea.remove();
+    }
+    setCopied(true);
+    toast({ title: 'Relatório copiado!', description: 'Agora é só colar no grupo do cliente no WhatsApp.' });
+  };
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -278,11 +320,48 @@ export default function AdsDashboard() {
             {selectedCampaign ? ` · Campanha: ${selectedCampaign.name}` : ''}
           </p>
         </div>
-        <Button variant="outline" className="gap-2" onClick={fetchInsights} disabled={loading || !clientId}>
-          {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-          Atualizar
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button className="gap-2" onClick={openShare} disabled={!account || loading}>
+            <Share2 className="w-4 h-4" />
+            Compartilhar relatório
+          </Button>
+          <Button variant="outline" className="gap-2" onClick={fetchInsights} disabled={loading || !clientId}>
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+            Atualizar
+          </Button>
+        </div>
       </div>
+
+      <Dialog open={shareOpen} onOpenChange={setShareOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Share2 className="w-5 h-5 text-primary" />
+              Compartilhar relatório
+            </DialogTitle>
+            <DialogDescription>
+              Texto pronto para o WhatsApp do cliente. Você pode ajustar antes de copiar.
+            </DialogDescription>
+          </DialogHeader>
+          <Textarea
+            value={shareText}
+            onChange={(e) => {
+              setShareText(e.target.value);
+              setCopied(false);
+            }}
+            className="min-h-[420px] font-mono text-xs"
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShareOpen(false)}>
+              Fechar
+            </Button>
+            <Button className="gap-2" onClick={copyShareText}>
+              {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+              {copied ? 'Copiado!' : 'Copiar texto'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Card>
         <CardContent className="pt-6 flex flex-wrap gap-3">

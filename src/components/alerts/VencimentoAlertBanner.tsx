@@ -3,17 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { CalendarClock, DollarSign, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { addMonths, addDays, isBefore, isAfter } from 'date-fns';
-import { Tables } from '@/integrations/supabase/types';
-
-type Client = Tables<'clients'>;
-
-// Janela de alerta: "vencendo em breve" quando faltam até estes dias.
-// Mantém o mesmo critério usado no alerta oficial por WhatsApp (edge function
-// whatsapp-vencimento-alert), para que o banner do CRM e o WhatsApp nunca
-// fiquem dessincronizados.
-const CONTRACT_ALERT_WINDOW_DAYS = 30;
-const PAYMENT_ALERT_WINDOW_DAYS = 7;
+import {
+  CONTRACT_ALERT_WINDOW_DAYS,
+  PAYMENT_ALERT_WINDOW_DAYS,
+  isContractExpiringSoon,
+  isPaymentDueSoon,
+} from '@/lib/utils/dailyRules';
 
 export function VencimentoAlertBanner() {
   const { user } = useAuth();
@@ -34,21 +29,8 @@ export function VencimentoAlertBanner() {
 
       if (!clients) return;
 
-      const today = new Date();
-      const contractWindowEnd = addDays(today, CONTRACT_ALERT_WINDOW_DAYS);
-      const paymentWindowEnd = addDays(today, PAYMENT_ALERT_WINDOW_DAYS);
-
-      const contractsExpiring = clients.filter((client: Client) => {
-        if (!client.project_start_date || !client.contract_duration_months) return false;
-        const endDate = addMonths(new Date(client.project_start_date), client.contract_duration_months);
-        return isAfter(endDate, today) && isBefore(endDate, contractWindowEnd);
-      }).length;
-
-      const paymentsDue = clients.filter((client: Client) => {
-        if (!client.payment_due_date) return false;
-        const dueDate = new Date(client.payment_due_date);
-        return isAfter(dueDate, today) && isBefore(dueDate, paymentWindowEnd);
-      }).length;
+      const contractsExpiring = clients.filter((client) => isContractExpiringSoon(client)).length;
+      const paymentsDue = clients.filter((client) => isPaymentDueSoon(client)).length;
 
       setExpiringContracts(contractsExpiring);
       setDuePayments(paymentsDue);

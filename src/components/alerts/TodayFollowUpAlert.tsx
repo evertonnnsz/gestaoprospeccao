@@ -3,17 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { Bell, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { parseISO, startOfDay } from 'date-fns';
-import { Tables } from '@/integrations/supabase/types';
+import { fetchAllRows } from '@/lib/supabaseFetch';
+import { hasTodayFollowUp } from '@/lib/utils/dailyRules';
+import type { Lead } from '@/types/crm';
 
-// Helper function to compare dates without timezone issues
-const isSameDay = (dateStr: string): boolean => {
-  const date = parseISO(dateStr);
-  const today = startOfDay(new Date());
-  return startOfDay(date).getTime() === today.getTime();
-};
-
-type Lead = Tables<'leads'>;
+// Recalcula periodicamente para virar o dia corretamente com a aba aberta.
+const REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 
 export function TodayFollowUpAlert() {
   const { user } = useAuth();
@@ -25,29 +20,17 @@ export function TodayFollowUpAlert() {
     if (!user) return;
 
     const fetchTodayFollowUps = async () => {
-      const { data: leads } = await supabase
-        .from('leads')
-        .select('*')
-        .eq('user_id', user.id);
-
-      if (leads) {
-        const count = leads.filter((lead: Lead) => {
-          // Don't count for lost leads or those without interest
-          if (lead.status === 'lead_perdido' || lead.status === 'sem_interesse') {
-            return false;
-          }
-          
-          const followUps = [lead.follow_up_1, lead.follow_up_2, lead.follow_up_3].filter(Boolean);
-          return followUps.some(date => date && isSameDay(date));
-        }).length;
-        
-        setTodayCount(count);
-      }
+      // Paginado: um select simples para em 1.000 linhas e fazia o banner
+      // mostrar menos follow-ups que o Dashboard.
+      const leads = await fetchAllRows<Lead>('leads', {
+        select: 'id, status, follow_up_1, follow_up_2, follow_up_3',
+      });
+      setTodayCount(leads.filter(hasTodayFollowUp).length);
     };
 
     fetchTodayFollowUps();
+    const interval = window.setInterval(fetchTodayFollowUps, REFRESH_INTERVAL_MS);
 
-    // Subscribe to changes
     const channel = supabase
       .channel('leads-today-followups')
       .on(
@@ -65,6 +48,7 @@ export function TodayFollowUpAlert() {
       .subscribe();
 
     return () => {
+      window.clearInterval(interval);
       supabase.removeChannel(channel);
     };
   }, [user]);

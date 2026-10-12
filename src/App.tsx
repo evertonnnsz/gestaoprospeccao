@@ -22,6 +22,7 @@ import Onboarding from "./pages/Onboarding";
 import WhatsAppFollowUps from "./pages/WhatsAppFollowUps";
 import Agenda from "./pages/Agenda";
 import AdsDashboard from "./pages/AdsDashboard";
+import DailyActivities from "./pages/DailyActivities";
 
 const queryClient = new QueryClient();
 
@@ -37,6 +38,7 @@ const App = () => (
             <Route path="/auth" element={<Auth />} />
             <Route element={<DashboardLayout />}>
               <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/atividades" element={<DailyActivities />} />
               <Route path="/leads" element={<Leads />} />
               <Route path="/prospecting" element={<Prospecting />} />
               <Route path="/clients" element={<Clients />} />

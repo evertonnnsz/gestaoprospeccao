@@ -22,15 +22,10 @@ import {
   FileText,
   UserMinus,
 } from 'lucide-react';
-import { parseISO, startOfDay, format } from 'date-fns';
+import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-
-const isSameDay = (dateStr: string): boolean => {
-  const date = parseISO(dateStr);
-  const today = startOfDay(new Date());
-  return startOfDay(date).getTime() === today.getTime();
-};
+import { hasTodayFollowUp } from '@/lib/utils/dailyRules';
 
 const SOURCE_COLORS: Record<string, string> = {
   'Tráfego': 'hsl(217, 91%, 60%)',
@@ -88,6 +83,16 @@ export default function Dashboard() {
       }
     };
     fetchLeads();
+
+    // Mantém o Dashboard sincronizado com o banner de follow-ups (que também escuta em tempo real).
+    const channel = supabase
+      .channel('dashboard-leads-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'leads' }, () => fetchLeads())
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   // Available segments for filter dropdown
@@ -158,11 +163,7 @@ export default function Dashboard() {
     PROPOSAL_OR_BEYOND.includes(l.status as LeadStatus)
   ).length;
 
-  const todayFollowUps = leads.filter((lead) => {
-    if (lead.status === 'lead_perdido' || lead.status === 'sem_interesse') return false;
-    const followUps = [lead.follow_up_1, lead.follow_up_2, lead.follow_up_3].filter(Boolean);
-    return followUps.some((date) => date && isSameDay(date));
-  }).length;
+  const todayFollowUps = leads.filter(hasTodayFollowUp).length;
 
   const closeRate = totalLeads > 0 ? (closedLeads / totalLeads) * 100 : 0;
   const meetingRate = totalLeads > 0 ? (meetingsHeld / totalLeads) * 100 : 0;

@@ -5,6 +5,7 @@ import { AppSidebar } from './AppSidebar';
 import { TodayFollowUpAlert } from '@/components/alerts/TodayFollowUpAlert';
 import { VencimentoAlertBanner } from '@/components/alerts/VencimentoAlertBanner';
 import { OnboardingPendingAlert } from '@/components/alerts/OnboardingPendingAlert';
+import { DailySummaryDialog } from '@/components/activities/DailySummaryDialog';
 import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -62,6 +63,7 @@ export function DashboardLayout() {
       <TodayFollowUpAlert />
       <VencimentoAlertBanner />
       <OnboardingPendingAlert />
+      <DailySummaryDialog />
       <div className="flex flex-1">
         <AppSidebar />
         <main className="flex-1 overflow-auto bg-background">

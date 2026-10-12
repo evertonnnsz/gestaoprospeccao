@@ -16,6 +16,7 @@ import {
   MessageCircle,
   CalendarDays,
   BarChart3,
+  ListChecks,
 } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -28,6 +29,7 @@ const navGroups = [
     label: 'Vis\u00e3o geral',
     items: [
       { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
+      { title: 'Atividades do Dia', url: '/atividades', icon: ListChecks },
       { title: 'Funil', url: '/funnel', icon: Target },
     ],
   },

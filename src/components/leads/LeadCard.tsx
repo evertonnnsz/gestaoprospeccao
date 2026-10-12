@@ -20,6 +20,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { generateFollowUpDates, generateNextFollowUpFromContact } from '@/lib/utils/followUpDates';
+import { hasOverdueFollowUp as isOverdueFollowUp, hasTodayFollowUp as isTodayFollowUp } from '@/lib/utils/dailyRules';
 
 // Helper functions to compare dates without timezone issues
 const isSameDay = (dateStr: string): boolean => {
@@ -45,28 +46,9 @@ interface LeadCardProps {
 export function LeadCard({ lead, onEdit, onDelete, onUpdate, hasCheckbox }: LeadCardProps) {
   const { toast } = useToast();
 
-  const hasOverdueFollowUp = () => {
-    // Don't show overdue for lost leads or those without interest
-    if (lead.status === 'lead_perdido' || lead.status === 'sem_interesse') {
-      return false;
-    }
-    
-    // Don't show overdue if all three follow-ups are filled
-    if (lead.follow_up_1 && lead.follow_up_2 && lead.follow_up_3) {
-      return false;
-    }
-    
-    const followUps = [lead.follow_up_1, lead.follow_up_2, lead.follow_up_3].filter(Boolean);
-    return followUps.some(date => date && isDatePast(date));
-  };
+  const hasOverdueFollowUp = () => isOverdueFollowUp(lead);
 
-  const hasTodayFollowUp = () => {
-    if (lead.status === 'lead_perdido' || lead.status === 'sem_interesse') {
-      return false;
-    }
-    const followUps = [lead.follow_up_1, lead.follow_up_2, lead.follow_up_3].filter(Boolean);
-    return followUps.some(date => date && isSameDay(date));
-  };
+  const hasTodayFollowUp = () => isTodayFollowUp(lead);
 
   const getNextFollowUp = () => {
     const today = startOfDay(new Date());

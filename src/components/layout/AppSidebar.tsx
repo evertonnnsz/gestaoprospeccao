@@ -155,7 +155,7 @@ export function AppSidebar() {
           <div className="space-y-1">
             {!collapsed && (
               <p className="px-3 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-wide text-sidebar-foreground/45">
-                Administra\u00e7\u00e3o
+                Administração
               </p>
             )}
             {adminItems.map((item) => (

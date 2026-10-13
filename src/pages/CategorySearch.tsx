@@ -39,6 +39,12 @@ const tooltipStyle = {
   color: 'hsl(var(--foreground))',
 };
 
+// Um rótulo por mês no eixo X (os dados do Trends são semanais).
+const monthTicks = (points: Record<string, number | string>[]) =>
+  points
+    .map((p) => String(p.date))
+    .filter((date, i, all) => /^\d{4}-\d{2}/.test(date) && (i === 0 || date.slice(0, 7) !== all[i - 1].slice(0, 7)));
+
 async function invoke(body: Record<string, unknown>) {
   const { data, error } = await supabase.functions.invoke('gbp-analyze', { body });
   if (error) {
@@ -303,6 +309,7 @@ export default function CategorySearch() {
                         <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
                         <XAxis
                           dataKey="date"
+                          ticks={monthTicks(trends.points)}
                           stroke="hsl(var(--muted-foreground))"
                           fontSize={11}
                           tickFormatter={(v: string) => (/^\d{4}-\d{2}-\d{2}$/.test(v) ? format(parseISO(v), 'MMM/yy', { locale: ptBR }) : v)}

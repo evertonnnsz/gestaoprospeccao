@@ -138,9 +138,13 @@ type RawData = {
   agenda: AgendaRow[];
   onboarding: { client_id: string }[];
   tasks: TaskRow[];
+  // Tarefas avulsas ainda abertas, de qualquer data (atrasadas e agendadas).
+  pending: TaskRow[];
 };
 
-const EMPTY: RawData = { leads: [], clients: [], agenda: [], onboarding: [], tasks: [] };
+const EMPTY: RawData = { leads: [], clients: [], agenda: [], onboarding: [], tasks: [], pending: [] };
+
+export type ScheduledTask = { id: string; title: string; taskDate: string; priority: ActivityPriority };
 
 const whatsappLink = (phone: string | null) => {
   const normalized = normalizeWhatsAppPhone(phone);
@@ -331,6 +335,29 @@ function buildItems(data: RawData, date: Date, dateStr: string): ActivityItem[] 
       });
     });
 
+  // Tarefas avulsas que passaram da data sem conclusão continuam aparecendo em "hoje".
+  if (viewingToday) {
+    data.pending
+      .filter((t) => t.task_date < dateStr)
+      .forEach((task) => {
+        items.push({
+          key: `manual:${task.id}`,
+          kind: 'manual',
+          sourceType: 'manual',
+          title: task.title,
+          subtitle: `Atrasada desde ${shortDate(task.task_date)}${task.notes ? ` · ${task.notes}` : ''}`,
+          notes: task.notes,
+          priority: task.priority,
+          status: task.status,
+          taskId: task.id,
+          sourceRef: task.source_ref,
+          taskDate: task.task_date,
+          leadId: task.lead_id,
+          clientId: task.client_id,
+        });
+      });
+  }
+
   data.tasks
     .filter((t) => t.source_type === 'manual')
     .forEach((task) => {
@@ -395,7 +422,7 @@ export function useDailyActivities(date: Date) {
     if (!user) return;
     setLoading(true);
     try {
-      const [leads, clientsRes, agendaRes, onboardingRes, tasksRes] = await Promise.all([
+      const [leads, clientsRes, agendaRes, onboardingRes, tasksRes, pendingRes] = await Promise.all([
         fetchAllRows<LeadRow>('leads', {
           select: 'id, company_name, contact_name, whatsapp, status, follow_up_1, follow_up_2, follow_up_3',
         }),
@@ -419,6 +446,13 @@ export function useDailyActivities(date: Date) {
           .from('daily_tasks')
           .select('*')
           .or(`task_date.eq.${dateStr},source_type.in.(contrato,pagamento),recurrence.neq.nenhuma`),
+        db
+          .from('daily_tasks')
+          .select('*')
+          .eq('source_type', 'manual')
+          .eq('recurrence', 'nenhuma')
+          .neq('status', 'concluida')
+          .order('task_date'),
       ]);
 
       setTableMissing(Boolean(tasksRes.error && isMissingTableError(tasksRes.error)));
@@ -428,6 +462,7 @@ export function useDailyActivities(date: Date) {
         agenda: (agendaRes.data as AgendaRow[]) || [],
         onboarding: onboardingRes.data || [],
         tasks: (tasksRes.data as TaskRow[]) || [],
+        pending: (pendingRes.data as TaskRow[]) || [],
       });
     } catch (error) {
       console.error('Erro ao carregar atividades do dia:', error);
@@ -442,11 +477,31 @@ export function useDailyActivities(date: Date) {
 
   const items = useMemo(() => buildItems(data, date, dateStr), [data, date, dateStr]);
 
+  // Próximos dias com tarefas avulsas em aberto (o painel mostra para planejar a semana).
+  const todayStr = format(new Date(), 'yyyy-MM-dd');
+  const scheduled = useMemo<ScheduledTask[]>(
+    () =>
+      data.pending
+        .filter((t) => t.task_date > todayStr)
+        .map((t) => ({ id: t.id, title: t.title, taskDate: t.task_date, priority: t.priority })),
+    [data.pending, todayStr],
+  );
+
   const patchTask = (row: TaskRow) =>
-    setData((current) => ({
-      ...current,
-      tasks: [...current.tasks.filter((t) => t.id !== row.id), row],
-    }));
+    setData((current) => {
+      const isOpenManual = row.source_type === 'manual' && row.recurrence === 'nenhuma';
+      const inPending = current.pending.some((t) => t.id === row.id);
+      return {
+        ...current,
+        tasks: [...current.tasks.filter((t) => t.id !== row.id), row],
+        // Mantém o item atrasado visível (como concluído) até recarregar a página.
+        pending: inPending
+          ? current.pending.map((t) => (t.id === row.id ? row : t))
+          : isOpenManual && row.status !== 'concluida'
+            ? [...current.pending, row].sort((a, b) => a.task_date.localeCompare(b.task_date))
+            : current.pending,
+      };
+    });
 
   // Concluir o follow-up no painel faz o mesmo que o botão do card do lead:
   // registra o contato de hoje e agenda o próximo follow-up.
@@ -558,8 +613,12 @@ export function useDailyActivities(date: Date) {
     if (!id) return;
     const { error } = await db.from('daily_tasks').delete().eq('id', id);
     if (error) throw error;
-    setData((current) => ({ ...current, tasks: current.tasks.filter((t) => t.id !== id) }));
+    setData((current) => ({
+      ...current,
+      tasks: current.tasks.filter((t) => t.id !== id),
+      pending: current.pending.filter((t) => t.id !== id),
+    }));
   };
 
-  return { items, loading, tableMissing, reload: load, setStatus, createTask, updatePriority, deleteTask };
+  return { items, scheduled, loading, tableMissing, reload: load, setStatus, createTask, updatePriority, deleteTask };
 }

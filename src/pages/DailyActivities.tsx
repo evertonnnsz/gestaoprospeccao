@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { addDays, format, isToday } from 'date-fns';
+import { addDays, differenceInCalendarDays, format, isToday, parseISO, startOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import {
   AlertTriangle,
   ArrowUpRight,
+  CalendarClock,
   CheckCircle2,
   ChevronDown,
   ChevronLeft,
@@ -48,6 +49,7 @@ import {
   PRIORITY_LABELS,
   RECURRENCE_LABELS,
   ActivityRecurrence,
+  ScheduledTask,
   STATUS_LABELS,
   useDailyActivities,
 } from '@/hooks/useDailyActivities';
@@ -55,13 +57,23 @@ import { KIND_STYLES, PRIORITY_STYLES, STATUS_STYLES } from '@/components/activi
 
 const STATUS_ORDER: ActivityStatus[] = ['a_fazer', 'em_andamento', 'concluida'];
 
+const longDate = (value: string) => format(parseISO(value), "EEEE, dd 'de' MMMM", { locale: ptBR });
+
+// "Amanhã", "Em 3 dias"... para o card de próximos agendamentos.
+const relativeDay = (value: string) => {
+  const days = differenceInCalendarDays(parseISO(value), startOfDay(new Date()));
+  if (days === 0) return 'Hoje';
+  if (days === 1) return 'Amanhã';
+  return `Em ${days} dias`;
+};
+
 const KIND_FILTERS: ActivityKind[] = ['follow_up_atrasado', 'follow_up', 'agenda', 'contrato', 'pagamento', 'onboarding', 'manual'];
 
 export default function DailyActivities() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [date, setDate] = useState(() => new Date());
-  const { items, loading, tableMissing, setStatus, createTask, updatePriority, deleteTask } = useDailyActivities(date);
+  const { items, scheduled, loading, tableMissing, setStatus, createTask, updatePriority, deleteTask } = useDailyActivities(date);
 
   const [view, setView] = useState<'list' | 'board'>('list');
   const [search, setSearch] = useState('');
@@ -143,6 +155,7 @@ export default function DailyActivities() {
 
   const submitNewTask = () => {
     if (!newTask.title.trim()) return;
+    const target = newTask.date || format(date, 'yyyy-MM-dd');
     guard(async () => {
       await createTask({
         title: newTask.title.trim(),
@@ -153,8 +166,21 @@ export default function DailyActivities() {
       });
       setNewTaskOpen(false);
       setNewTask({ title: '', notes: '', priority: 'normal', date: '', recurrence: 'nenhuma' });
-    }, 'Tarefa criada');
+      // Leva o painel para o dia escolhido, para a tarefa ficar visível na hora.
+      if (target !== format(date, 'yyyy-MM-dd')) setDate(parseISO(target));
+      toast({ title: 'Tarefa agendada', description: longDate(target) });
+    });
   };
+
+  const scheduledByDay = useMemo(() => {
+    const days = new Map<string, ScheduledTask[]>();
+    scheduled.forEach((task) => days.set(task.taskDate, [...(days.get(task.taskDate) || []), task]));
+    return [...days.entries()].slice(0, 6);
+  }, [scheduled]);
+
+  const todayStr = format(new Date(), 'yyyy-MM-dd');
+  const newTaskDate = newTask.date;
+  const setNewTaskDate = (value: string) => setNewTask((t) => ({ ...t, date: value }));
 
   const openNewTask = () => {
     setNewTask({ title: '', notes: '', priority: 'normal', date: format(date, 'yyyy-MM-dd'), recurrence: 'nenhuma' });
@@ -301,6 +327,47 @@ export default function DailyActivities() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Próximos agendamentos */}
+      {scheduledByDay.length > 0 && (
+        <Card>
+          <CardContent className="pt-5 space-y-3">
+            <div className="flex items-center gap-2">
+              <CalendarClock className="w-4 h-4 text-primary" />
+              <p className="text-sm font-semibold">Próximos agendamentos</p>
+              <span className="text-xs text-muted-foreground">{scheduled.length}</span>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {scheduledByDay.map(([day, tasks]) => (
+                <button
+                  key={day}
+                  onClick={() => setDate(parseISO(day))}
+                  className={cn(
+                    'lift rounded-lg border p-3 text-left transition-colors hover:border-primary/50',
+                    day === format(date, 'yyyy-MM-dd') && 'border-primary bg-primary/5',
+                  )}
+                >
+                  <div className="flex items-baseline justify-between gap-2">
+                    <span className="text-xs font-semibold uppercase tracking-wide text-primary">{relativeDay(day)}</span>
+                    <span className="text-xs text-muted-foreground first-letter:uppercase">
+                      {format(parseISO(day), 'EEE, dd/MM', { locale: ptBR })}
+                    </span>
+                  </div>
+                  <ul className="mt-1.5 space-y-0.5">
+                    {tasks.slice(0, 3).map((task) => (
+                      <li key={task.id} className="flex items-center gap-1.5 text-sm truncate">
+                        <Flag className={cn('w-3 h-3 shrink-0', PRIORITY_STYLES[task.priority])} />
+                        <span className="truncate">{task.title}</span>
+                      </li>
+                    ))}
+                    {tasks.length > 3 && <li className="text-xs text-muted-foreground">+{tasks.length - 3} tarefas</li>}
+                  </ul>
+                </button>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Barra de visualização */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b">
@@ -610,11 +677,39 @@ export default function DailyActivities() {
                 <Input
                   id="task-date"
                   type="date"
-                  value={newTask.date}
-                  onChange={(e) => setNewTask((t) => ({ ...t, date: e.target.value }))}
+                  value={newTaskDate}
+                  onChange={(e) => setNewTaskDate(e.target.value)}
                 />
               </div>
             </div>
+            <div className="-mt-1 flex flex-wrap items-center gap-2">
+              {[
+                { label: 'Hoje', value: todayStr },
+                { label: 'Amanhã', value: format(addDays(new Date(), 1), 'yyyy-MM-dd') },
+                { label: 'Em 1 semana', value: format(addDays(new Date(), 7), 'yyyy-MM-dd') },
+              ].map((option) => (
+                <button
+                  key={option.label}
+                  type="button"
+                  onClick={() => setNewTaskDate(option.value)}
+                  className={cn(
+                    'rounded-full border px-3 py-1 text-xs font-medium transition-colors',
+                    newTaskDate === option.value
+                      ? 'border-primary bg-primary text-primary-foreground'
+                      : 'text-muted-foreground hover:border-primary/50 hover:text-foreground',
+                  )}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+            {newTaskDate && (
+              <p className={cn('text-xs first-letter:uppercase', newTaskDate < todayStr ? 'text-destructive' : 'text-muted-foreground')}>
+                {newTaskDate < todayStr
+                  ? `Atenção: ${longDate(newTaskDate)} já passou.`
+                  : `Vai aparecer em ${longDate(newTaskDate)}.`}
+              </p>
+            )}
             <div className="space-y-2">
               <Label>Repetir</Label>
               <Select

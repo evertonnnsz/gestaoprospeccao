@@ -773,6 +773,117 @@ export type Database = {
         }
         Relationships: []
       }
+      quotes: {
+        Row: {
+          client_id: string | null
+          client_name: string
+          created_at: string
+          discount_type: string
+          discount_value: number
+          id: string
+          installments: number | null
+          items: Json
+          lead_id: string | null
+          notes: string | null
+          number: number
+          status: string
+          total_monthly: number
+          total_one_time: number
+          updated_at: string
+          user_id: string
+          valid_until: string | null
+        }
+        Insert: {
+          client_id?: string | null
+          client_name: string
+          created_at?: string
+          discount_type?: string
+          discount_value?: number
+          id?: string
+          installments?: number | null
+          items?: Json
+          lead_id?: string | null
+          notes?: string | null
+          number?: never
+          status?: string
+          total_monthly?: number
+          total_one_time?: number
+          updated_at?: string
+          user_id: string
+          valid_until?: string | null
+        }
+        Update: {
+          client_id?: string | null
+          client_name?: string
+          created_at?: string
+          discount_type?: string
+          discount_value?: number
+          id?: string
+          installments?: number | null
+          items?: Json
+          lead_id?: string | null
+          notes?: string | null
+          number?: never
+          status?: string
+          total_monthly?: number
+          total_one_time?: number
+          updated_at?: string
+          user_id?: string
+          valid_until?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quotes_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quotes_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      services: {
+        Row: {
+          active: boolean
+          billing: string
+          created_at: string
+          description: string | null
+          id: string
+          price: number
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          active?: boolean
+          billing?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          price?: number
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          active?: boolean
+          billing?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          price?: number
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       staging_leads: {
         Row: {
           cnpj: string | null

@@ -11,7 +11,6 @@ import {
   DollarSign,
   ExternalLink,
   FileText,
-  Inbox,
   LineChart,
   Loader2,
   MousePointerClick,
@@ -24,7 +23,6 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { Client, MonthlyPaymentStatus } from '@/types/crm';
 import { FinancialTransaction } from '@/types/financial';
-import { readStoredDemands, type OSDemand } from '@/lib/fatureOS';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -43,7 +41,6 @@ export default function ClientDetail() {
   const [client, setClient] = useState<Client | null>(null);
   const [transactions, setTransactions] = useState<FinancialTransaction[]>([]);
   const [campaigns, setCampaigns] = useState<any[]>([]);
-  const [demands, setDemands] = useState<OSDemand[]>([]);
   const [loading, setLoading] = useState(true);
   const [metaInsights, setMetaInsights] = useState<{
     investimento: number;
@@ -72,7 +69,6 @@ export default function ClientDetail() {
       setClient((clientData as Client) || null);
       setTransactions((transactionData || []) as FinancialTransaction[]);
       setCampaigns(campaignData || []);
-      setDemands(readStoredDemands());
       setLoading(false);
     };
 
@@ -105,14 +101,6 @@ export default function ClientDetail() {
   }, [client?.meta_ads_account_id]);
 
   const clientName = client?.lead?.company_name || 'Cliente';
-  const clientDemands = useMemo(
-    () =>
-      demands.filter((demand) =>
-        demand.clientName?.toLowerCase().trim() === clientName.toLowerCase().trim(),
-      ),
-    [clientName, demands],
-  );
-
   const contractEndDate = useMemo(() => {
     if (!client?.project_start_date || !client.contract_duration_months) return null;
     return addMonths(new Date(client.project_start_date), client.contract_duration_months);
@@ -152,7 +140,7 @@ export default function ClientDetail() {
           </Button>
           <h1 className="text-2xl font-bold">{clientName}</h1>
           <p className="text-muted-foreground">
-            Página individual com financeiro, contrato, demandas, campanhas e histórico.
+            Página individual com financeiro, contrato, campanhas e atividade.
           </p>
         </div>
         <Badge className={client.status === 'active' ? 'bg-success text-success-foreground' : 'bg-muted text-muted-foreground'}>
@@ -164,7 +152,7 @@ export default function ClientDetail() {
         <Metric title="Valor mensal" value={formatCurrency(client.project_value)} icon={DollarSign} />
         <Metric title="Vencimento" value={formatDate(client.payment_due_date)} icon={Calendar} />
         <Metric title="Pagamento do mês" value={client.monthly_payment_status ? paymentLabels[client.monthly_payment_status] : '-'} icon={CheckCircle2} />
-        <Metric title="Demandas vinculadas" value={String(clientDemands.length)} icon={Inbox} />
+        <Metric title="Fim do contrato" value={contractEndDate ? formatDate(contractEndDate.toISOString()) : '-'} icon={Clock} />
       </div>
 
       <Tabs defaultValue="resumo" className="space-y-4">
@@ -172,7 +160,6 @@ export default function ClientDetail() {
           <TabsTrigger value="resumo">Resumo</TabsTrigger>
           <TabsTrigger value="financeiro">Financeiro</TabsTrigger>
           <TabsTrigger value="contrato">Contrato</TabsTrigger>
-          <TabsTrigger value="demandas">Demandas</TabsTrigger>
           <TabsTrigger value="campanhas">Campanhas</TabsTrigger>
           <TabsTrigger value="historico">Atividade</TabsTrigger>
         </TabsList>
@@ -201,7 +188,6 @@ export default function ClientDetail() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <Info label="Demandas ativas" value={String(clientDemands.filter((demand) => !['concluida', 'arquivada', 'cancelada'].includes(demand.status)).length)} />
                 <Info label="Campanhas registradas" value={String(campaigns.length)} />
                 <Info label="Última campanha" value={campaigns[0]?.campaign_name || campaigns[0]?.name || '-'} />
               </CardContent>
@@ -264,29 +250,6 @@ export default function ClientDetail() {
                   <p className="text-sm text-muted-foreground">Nenhum contrato anexado.</p>
                 )}
               </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="demandas">
-          <Card>
-            <CardHeader>
-              <CardTitle>Demandas do cliente</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {clientDemands.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Nenhuma demanda vinculada a este cliente.</p>
-              ) : (
-                clientDemands.map((demand) => (
-                  <div key={demand.id} className="rounded-lg border p-3">
-                    <div className="flex items-center justify-between gap-3">
-                      <p className="font-medium">{demand.title}</p>
-                      <Badge variant="outline">{demand.status}</Badge>
-                    </div>
-                    <p className="text-sm text-muted-foreground mt-1">{demand.description}</p>
-                  </div>
-                ))
-              )}
             </CardContent>
           </Card>
         </TabsContent>

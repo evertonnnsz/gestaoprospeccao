@@ -15,6 +15,7 @@ import {
   BarChart3,
   ListChecks,
   MapPin,
+  FileText,
 } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -38,6 +39,7 @@ const navGroups = [
       { title: 'Prospec\u00e7\u00e3o', url: '/prospecting', icon: Sparkles },
       { title: 'Clientes', url: '/clients', icon: Briefcase },
       { title: 'Google Meu Negócio', url: '/google-meu-negocio', icon: MapPin },
+      { title: 'Orçamentos', url: '/orcamentos', icon: FileText },
     ],
   },
   {

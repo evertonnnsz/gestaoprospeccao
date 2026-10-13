@@ -11,6 +11,7 @@ import { useNavigate } from 'react-router-dom';
 import { 
   Building2, 
   MapPin,
+  FileText,
   Calendar, 
   MessageCircle, 
   Instagram, 
@@ -242,6 +243,15 @@ export function LeadCard({ lead, onEdit, onDelete, onUpdate, hasCheckbox }: Lead
           >
             <MapPin className="w-4 h-4" />
             Diagnóstico Google
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-2"
+            onClick={() => navigate(`/orcamentos?lead=${lead.id}&nome=${encodeURIComponent(lead.company_name)}`)}
+          >
+            <FileText className="w-4 h-4" />
+            Criar orçamento
           </Button>
         </div>
 

@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import Auth from "./pages/Auth";
+import LegalPage from "./pages/LegalPage";
 import Dashboard from "./pages/Dashboard";
 import Leads from "./pages/Leads";
 import Prospecting from "./pages/Prospecting";
@@ -34,6 +35,8 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/auth" element={<Auth />} />
+            <Route path="/privacidade" element={<LegalPage kind="privacy" />} />
+            <Route path="/termos" element={<LegalPage kind="terms" />} />
             <Route element={<DashboardLayout />}>
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/atividades" element={<DailyActivities />} />

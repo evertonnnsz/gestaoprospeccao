@@ -40,11 +40,17 @@ export function hasFollowUpOn(lead: FollowUpLead, day: Date = new Date()): boole
 
 export const hasTodayFollowUp = (lead: FollowUpLead) => hasFollowUpOn(lead, new Date());
 
+// Follow-ups vencidos antes desta data são legado e não contam como atrasados.
+// Mantenha igual em supabase/functions/whatsapp-daily-summary.
+export const OVERDUE_TRACKING_START = '2026-10-13';
+
 export function hasOverdueFollowUp(lead: FollowUpLead, today: Date = new Date()): boolean {
   if (!isFollowUpEligible(lead)) return false;
   if (lead.follow_up_1 && lead.follow_up_2 && lead.follow_up_3) return false;
   const todayKey = dayKey(today);
-  return followUpDates(lead).some((date) => dayKey(parseISO(date)) < todayKey);
+  return followUpDates(lead).some(
+    (date) => date.slice(0, 10) >= OVERDUE_TRACKING_START && dayKey(parseISO(date)) < todayKey,
+  );
 }
 
 export function getContractEndDate(client: DueClient): Date | null {

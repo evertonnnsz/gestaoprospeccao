@@ -6,7 +6,7 @@ compromissos da agenda e tarefas pendentes.
 
 Exemplo de mensagem:
 
-> ☀️ Bom dia! Seu resumo de hoje no CRM: 📞 3 follow-up(s) hoje (Studio Bella, Mercado Bom Preço, Clínica Sorriso) · ⚠️ 1 atrasado(s) (Ótica Visão) · 📄 1 contrato(s) vencendo (Pizzaria Forno a Lenha) · ✅ 2 tarefa(s) (Gravar criativos, Relatório semanal)
+> ☀️ Bom dia! Seu resumo de hoje no CRM: 📞 30 follow-up(s) hoje · ⚠️ 10 follow-up(s) atrasado(s) · 📄 1 contrato(s) vencendo · ✅ 2 tarefa(s)
 
 Ela usa a mesma conexão (WhatsApp Cloud API) do alerta de vencimentos. Se esse alerta já
 funciona, faltam só os passos 1, 2 e 4.

@@ -16,7 +16,8 @@ const META_GRAPH_VERSION = 'v21.0';
 const CONTRACT_ALERT_WINDOW_DAYS = 30;
 const PAYMENT_ALERT_WINDOW_DAYS = 7;
 const NO_FOLLOW_UP_STATUSES = ['fechado', 'lead_perdido', 'sem_interesse'];
-const MAX_NAMES = 4;
+// Follow-ups vencidos antes desta data são legado (igual a OVERDUE_TRACKING_START em src/lib/utils/dailyRules.ts).
+const OVERDUE_TRACKING_START = '2026-10-13';
 const PAGE_SIZE = 1000;
 
 type Lead = {
@@ -72,9 +73,6 @@ function occursOn(task: Task, today: string): boolean {
       return task.task_date === today;
   }
 }
-
-const names = (list: string[]) =>
-  list.length === 0 ? '' : ` (${list.slice(0, MAX_NAMES).join(', ')}${list.length > MAX_NAMES ? ` +${list.length - MAX_NAMES}` : ''})`;
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
@@ -132,7 +130,7 @@ Deno.serve(async (req) => {
       (l) =>
         !dates(l).includes(today) &&
         !(l.follow_up_1 && l.follow_up_2 && l.follow_up_3) &&
-        dates(l).some((d) => d < today),
+        dates(l).some((d) => d >= OVERDUE_TRACKING_START && d < today),
     );
 
     const clients: Client[] = clientsRes.data || [];
@@ -161,18 +159,15 @@ Deno.serve(async (req) => {
     });
 
     const agenda: { title: string; scheduled_time: string }[] = agendaRes.data || [];
-    const company = (c: Client) => c.lead?.company_name || 'Cliente';
 
-    // Template da Meta não aceita quebra de linha na variável: tudo em uma linha.
+    // Só totais (sem nomes). Template da Meta não aceita quebra de linha na variável: tudo em uma linha.
     const parts = [
-      `📞 ${followUpsToday.length} follow-up(s) hoje${names(followUpsToday.map((l) => l.company_name))}`,
-      overdue.length ? `⚠️ ${overdue.length} atrasado(s)${names(overdue.map((l) => l.company_name))}` : null,
-      contracts.length ? `📄 ${contracts.length} contrato(s) vencendo${names(contracts.map(company))}` : null,
-      payments.length ? `💰 ${payments.length} pagamento(s) vencendo${names(payments.map(company))}` : null,
-      agenda.length
-        ? `📅 ${agenda.length} compromisso(s)${names(agenda.map((e) => `${e.scheduled_time?.slice(0, 5)} ${e.title}`))}`
-        : null,
-      pendingTasks.length ? `✅ ${pendingTasks.length} tarefa(s)${names(pendingTasks.map((t) => t.title))}` : null,
+      `📞 ${followUpsToday.length} follow-up(s) hoje`,
+      overdue.length ? `⚠️ ${overdue.length} follow-up(s) atrasado(s)` : null,
+      contracts.length ? `📄 ${contracts.length} contrato(s) vencendo` : null,
+      payments.length ? `💰 ${payments.length} pagamento(s) vencendo` : null,
+      agenda.length ? `📅 ${agenda.length} compromisso(s)` : null,
+      pendingTasks.length ? `✅ ${pendingTasks.length} tarefa(s)` : null,
     ].filter(Boolean);
     const summaryText = parts.join(' · ');
 

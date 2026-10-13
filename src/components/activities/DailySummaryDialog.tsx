@@ -2,15 +2,22 @@ import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { AlertTriangle, CalendarClock, CalendarDays, Circle, CheckCircle2, Flag, ListChecks, MessageCircle } from 'lucide-react';
+import {
+  AlertTriangle,
+  CalendarClock,
+  CalendarDays,
+  CheckCircle2,
+  ClipboardCheck,
+  DollarSign,
+  ListChecks,
+  MessageCircle,
+  UserRound,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
-import { KIND_LABELS, useDailyActivities } from '@/hooks/useDailyActivities';
-import { KIND_STYLES, PRIORITY_STYLES } from './activityStyles';
-
-const MAX_ITEMS = 6;
+import { useDailyActivities } from '@/hooks/useDailyActivities';
 
 const greeting = () => {
   const hour = new Date().getHours();
@@ -43,7 +50,7 @@ export function DailySummaryDialog() {
   const navigate = useNavigate();
   const location = useLocation();
   const [today] = useState(() => new Date());
-  const { items, loading, setStatus } = useDailyActivities(today);
+  const { items, loading } = useDailyActivities(today);
   const [open, setOpen] = useState(false);
 
   const pending = useMemo(() => items.filter((i) => i.status !== 'concluida'), [items]);
@@ -58,12 +65,16 @@ export function DailySummaryDialog() {
   }, [user, loading]);
 
   const count = (kinds: string[]) => pending.filter((i) => kinds.includes(i.kind)).length;
+  // Só totais: a lista detalhada fica no painel do dia.
   const stats = [
     { label: 'Follow-ups hoje', value: count(['follow_up']), icon: MessageCircle, tone: 'text-emerald-600' },
-    { label: 'Atrasados', value: count(['follow_up_atrasado']), icon: AlertTriangle, tone: 'text-red-500' },
-    { label: 'Vencimentos', value: count(['contrato', 'pagamento']), icon: CalendarClock, tone: 'text-amber-600' },
-    { label: 'Agenda', value: count(['agenda']), icon: CalendarDays, tone: 'text-violet-600' },
-  ];
+    { label: 'Follow-ups atrasados', value: count(['follow_up_atrasado']), icon: AlertTriangle, tone: 'text-red-500' },
+    { label: 'Contratos vencendo', value: count(['contrato']), icon: CalendarClock, tone: 'text-amber-600' },
+    { label: 'Pagamentos vencendo', value: count(['pagamento']), icon: DollarSign, tone: 'text-orange-600' },
+    { label: 'Compromissos', value: count(['agenda']), icon: CalendarDays, tone: 'text-violet-600' },
+    { label: 'Onboarding', value: count(['onboarding']), icon: ClipboardCheck, tone: 'text-sky-600' },
+    { label: 'Tarefas', value: count(['manual']), icon: UserRound, tone: 'text-slate-600' },
+  ].filter((stat) => stat.value > 0);
 
   const { text, emoji } = greeting();
   const firstName = profile?.full_name?.split(' ')[0];
@@ -87,60 +98,21 @@ export function DailySummaryDialog() {
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-          {stats.map((stat) => (
-            <div key={stat.label} className="rounded-lg border bg-muted/30 p-3">
-              <stat.icon className={cn('w-4 h-4', stat.tone)} />
-              <p className="text-2xl font-semibold mt-1">{stat.value}</p>
-              <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{stat.label}</p>
-            </div>
-          ))}
-        </div>
-
-        <div className="space-y-1">
-          <p className="text-xs uppercase tracking-wide text-muted-foreground mb-1">Prioridades</p>
-          {pending.slice(0, MAX_ITEMS).map((item) => {
-            const KindIcon = KIND_STYLES[item.kind].icon;
-            return (
-              <div key={item.key} className="flex items-center gap-3 rounded-md px-2 py-1.5 hover:bg-muted/50">
-                <button
-                  onClick={() => setStatus(item, 'concluida').catch(() => undefined)}
-                  className="text-muted-foreground hover:text-emerald-600 shrink-0"
-                  aria-label="Marcar como concluída"
-                >
-                  <Circle className="w-4 h-4" />
-                </button>
-                <Flag className={cn('w-3.5 h-3.5 shrink-0', PRIORITY_STYLES[item.priority])} />
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium truncate">
-                    {item.time && <span className="text-primary mr-1">{item.time}</span>}
-                    {item.title}
-                  </p>
-                  {item.subtitle && <p className="text-xs text-muted-foreground truncate">{item.subtitle}</p>}
-                </div>
-                <span
-                  className={cn(
-                    'hidden sm:inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium shrink-0',
-                    KIND_STYLES[item.kind].badge,
-                  )}
-                >
-                  <KindIcon className="w-3 h-3" />
-                  {KIND_LABELS[item.kind]}
-                </span>
+        {stats.length > 0 ? (
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            {stats.map((stat) => (
+              <div key={stat.label} className="rounded-lg border bg-muted/30 p-3">
+                <stat.icon className={cn('w-4 h-4', stat.tone)} />
+                <p className="text-2xl font-semibold mt-1">{stat.value}</p>
+                <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{stat.label}</p>
               </div>
-            );
-          })}
-          {pending.length > MAX_ITEMS && (
-            <p className="text-xs text-muted-foreground px-2 pt-1">
-              + {pending.length - MAX_ITEMS} outra{pending.length - MAX_ITEMS === 1 ? '' : 's'} no painel do dia
-            </p>
-          )}
-          {pending.length === 0 && (
-            <p className="flex items-center gap-2 text-sm text-emerald-600 px-2">
-              <CheckCircle2 className="w-4 h-4" /> Tudo em dia!
-            </p>
-          )}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <p className="flex items-center gap-2 text-sm text-emerald-600">
+            <CheckCircle2 className="w-4 h-4" /> Tudo em dia!
+          </p>
+        )}
 
         <DialogFooter className="gap-2">
           <Button variant="outline" onClick={() => setOpen(false)}>

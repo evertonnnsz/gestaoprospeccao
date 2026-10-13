@@ -565,3 +565,101 @@ export function normalizeTrends(data: any, terms: string[]) {
   });
   return { terms, points, averages };
 }
+
+// ---------- Ranking por palavra-chave ----------
+
+export type MapsLinkInfo = {
+  place_id: string | null;
+  data_id: string | null;
+  lat: number | null;
+  lng: number | null;
+  name: string | null;
+};
+
+// Extrai identificadores e coordenadas de um link do Google Maps (já expandido).
+export function parseMapsUrl(raw: string): MapsLinkInfo {
+  let url = raw;
+  try {
+    // Página de consentimento do Google: o link original vem em "continue".
+    const parsed = new URL(raw);
+    const cont = parsed.searchParams.get('continue');
+    if (/consent\./.test(parsed.hostname) && cont) url = cont;
+  } catch {
+    // não é uma URL completa; segue com o texto
+  }
+  const decoded = decodeURIComponent(url);
+  const dataId = decoded.match(/!1s(0x[0-9a-f]+:0x[0-9a-f]+)/i)?.[1] || decoded.match(/(0x[0-9a-f]{6,}:0x[0-9a-f]{6,})/i)?.[1] || null;
+  const precise = decoded.match(/!3d(-?\d+(?:\.\d+)?)!4d(-?\d+(?:\.\d+)?)/);
+  const viewport = decoded.match(/@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/);
+  const coords = precise || viewport;
+  const placeId =
+    decoded.match(/place_id:([A-Za-z0-9_-]{20,})/)?.[1] ||
+    decoded.match(/[?&](?:query_)?place_id=([A-Za-z0-9_-]{20,})/)?.[1] ||
+    null;
+  const name = decoded.match(/\/maps\/place\/([^/@?]+)/)?.[1]?.replace(/\+/g, ' ') || null;
+  return {
+    place_id: placeId,
+    data_id: dataId,
+    lat: coords ? Number(coords[1]) : null,
+    lng: coords ? Number(coords[2]) : null,
+    name,
+  };
+}
+
+// "Estr. do Arraial, 2948 - Casa Amarela, Recife - PE, 52070-230" -> "Recife"
+export function extractCity(address: string | null): string | null {
+  if (!address) return null;
+  const match = address.match(/,\s*([^,]+?)\s*-\s*[A-Z]{2}\b/);
+  return match ? match[1].trim() : null;
+}
+
+export function suggestTerms(categories: string[], address: string | null): string[] {
+  const city = extractCity(address);
+  const main = categories[0]?.toLowerCase();
+  const terms: string[] = [];
+  if (main) {
+    terms.push(main);
+    if (city) terms.push(`${main} em ${city}`);
+    terms.push(`${main} perto de mim`);
+  }
+  if (categories[1]) terms.push(categories[1].toLowerCase());
+  return [...new Set(terms)].slice(0, 5);
+}
+
+// Grade size x size centrada no negócio, com spacingKm entre os pontos.
+export function gridPoints(lat: number, lng: number, size: number, spacingKm: number) {
+  const half = Math.floor(size / 2);
+  const dLat = spacingKm / 111.32;
+  const dLng = spacingKm / (111.32 * Math.cos((lat * Math.PI) / 180));
+  const points: { row: number; col: number; lat: number; lng: number }[] = [];
+  for (let row = -half; row <= half; row++) {
+    for (let col = -half; col <= half; col++) {
+      points.push({
+        row: row + half,
+        col: col + half,
+        lat: Math.round((lat - row * dLat) * 1e6) / 1e6,
+        lng: Math.round((lng + col * dLng) * 1e6) / 1e6,
+      });
+    }
+  }
+  return points;
+}
+
+// Posição (1-based) do perfil numa lista de resultados, ou null se não aparece.
+export function findPosition(results: any[], target: { place_id: string | null; data_id: string | null }, offset = 0) {
+  const index = results.findIndex(
+    (r) => (target.place_id && r.place_id === target.place_id) || (target.data_id && r.data_id === target.data_id),
+  );
+  return index >= 0 ? offset + index + 1 : null;
+}
+
+export function summarizePositions(positions: (number | null)[]) {
+  const found = positions.filter((p): p is number => p !== null);
+  return {
+    found: found.length,
+    total: positions.length,
+    best: found.length ? Math.min(...found) : null,
+    average: found.length ? Math.round((found.reduce((s, p) => s + p, 0) / found.length) * 10) / 10 : null,
+    top3_share: positions.length ? Math.round((found.filter((p) => p <= 3).length / positions.length) * 100) : 0,
+  };
+}

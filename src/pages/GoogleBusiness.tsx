@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { format, parseISO } from 'date-fns';
-import { ClipboardList, Eye, FileDown, Link2, Loader2, MapPin, RefreshCw, Search, Star, Trash2, X } from 'lucide-react';
+import { ClipboardList, Trophy, Eye, FileDown, Link2, Loader2, MapPin, RefreshCw, Search, Star, Trash2, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -193,6 +193,16 @@ export default function GoogleBusiness() {
               >
                 <ClipboardList className="w-4 h-4" />
                 Checklist
+              </Button>
+            )}
+            {selected.profile.place_id && (
+              <Button
+                variant="outline"
+                className="gap-2"
+                onClick={() => navigate(`/ranking-google?place=${encodeURIComponent(selected.profile.place_id!)}`)}
+              >
+                <Trophy className="w-4 h-4" />
+                Ranking
               </Button>
             )}
             {selected.profile.place_id && (

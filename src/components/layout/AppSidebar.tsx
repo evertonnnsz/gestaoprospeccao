@@ -14,6 +14,7 @@ import {
   ClipboardCheck,
   BarChart3,
   ListChecks,
+  MapPin,
 } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -36,6 +37,7 @@ const navGroups = [
       { title: 'Leads', url: '/leads', icon: Users },
       { title: 'Prospec\u00e7\u00e3o', url: '/prospecting', icon: Sparkles },
       { title: 'Clientes', url: '/clients', icon: Briefcase },
+      { title: 'Google Meu Negócio', url: '/google-meu-negocio', icon: MapPin },
     ],
   },
   {
@@ -75,7 +77,7 @@ export function AppSidebar() {
   return (
     <aside
       className={cn(
-        'h-screen bg-sidebar text-sidebar-foreground flex flex-col transition-all duration-300 relative border-r border-sidebar-border',
+        'h-screen bg-sidebar text-sidebar-foreground flex flex-col transition-all duration-300 relative border-r border-sidebar-border print:hidden',
         collapsed ? 'w-16' : 'w-64'
       )}
     >

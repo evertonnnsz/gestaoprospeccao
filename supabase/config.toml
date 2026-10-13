@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.whatsapp-daily-summary]
 verify_jwt = false
+
+[functions.gbp-analyze]
+verify_jwt = true

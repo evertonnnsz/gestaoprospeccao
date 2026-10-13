@@ -7,8 +7,10 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useNavigate } from 'react-router-dom';
 import { 
   Building2, 
+  MapPin,
   Calendar, 
   MessageCircle, 
   Instagram, 
@@ -39,6 +41,7 @@ interface LeadCardProps {
 
 export function LeadCard({ lead, onEdit, onDelete, onUpdate, hasCheckbox }: LeadCardProps) {
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const hasOverdueFollowUp = () => isOverdueFollowUp(lead);
 
@@ -229,6 +232,17 @@ export function LeadCard({ lead, onEdit, onDelete, onUpdate, hasCheckbox }: Lead
               Renovar Follow-ups
             </Button>
           )}
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-2"
+            onClick={() =>
+              navigate(`/google-meu-negocio?lead=${lead.id}&q=${encodeURIComponent([lead.company_name, lead.endereco_completo].filter(Boolean).join(' '))}`)
+            }
+          >
+            <MapPin className="w-4 h-4" />
+            Diagnóstico Google
+          </Button>
         </div>
 
         {/* Actions */}

@@ -12,6 +12,7 @@ import {
   ExternalLink,
   FileText,
   LineChart,
+  MapPin,
   Loader2,
   MousePointerClick,
   Phone,
@@ -143,9 +144,19 @@ export default function ClientDetail() {
             Página individual com financeiro, contrato, campanhas e atividade.
           </p>
         </div>
-        <Badge className={client.status === 'active' ? 'bg-success text-success-foreground' : 'bg-muted text-muted-foreground'}>
-          {client.status === 'active' ? 'Ativo' : client.status === 'paused' ? 'Pausado' : 'Churn'}
-        </Badge>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="outline"
+            className="gap-2"
+            onClick={() => navigate(`/google-meu-negocio?client=${client.id}&q=${encodeURIComponent(clientName)}`)}
+          >
+            <MapPin className="w-4 h-4" />
+            Diagnóstico Google
+          </Button>
+          <Badge className={client.status === 'active' ? 'bg-success text-success-foreground' : 'bg-muted text-muted-foreground'}>
+            {client.status === 'active' ? 'Ativo' : client.status === 'paused' ? 'Pausado' : 'Churn'}
+          </Badge>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">

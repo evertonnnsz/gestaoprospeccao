@@ -230,3 +230,14 @@
 ::-webkit-scrollbar-thumb:hover {
   @apply bg-muted-foreground/50;
 }
+
+/* Exportar PDF (impressão): mantém cores dos gráficos e badges */
+@media print {
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .break-inside-avoid {
+    break-inside: avoid;
+  }
+}

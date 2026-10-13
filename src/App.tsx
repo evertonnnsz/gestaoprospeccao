@@ -20,6 +20,7 @@ import NotFound from "./pages/NotFound";
 import Onboarding from "./pages/Onboarding";
 import AdsDashboard from "./pages/AdsDashboard";
 import DailyActivities from "./pages/DailyActivities";
+import GoogleBusiness from "./pages/GoogleBusiness";
 
 const queryClient = new QueryClient();
 
@@ -36,6 +37,7 @@ const App = () => (
             <Route element={<DashboardLayout />}>
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/atividades" element={<DailyActivities />} />
+              <Route path="/google-meu-negocio" element={<GoogleBusiness />} />
               <Route path="/leads" element={<Leads />} />
               <Route path="/prospecting" element={<Prospecting />} />
               <Route path="/clients" element={<Clients />} />

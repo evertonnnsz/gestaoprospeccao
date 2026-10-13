@@ -60,8 +60,10 @@ export function DashboardLayout() {
 
   return (
     <div className="min-h-screen flex flex-col w-full bg-background">
-      <TodayFollowUpAlert />
-      <VencimentoAlertBanner />
+      <div className="print:hidden">
+        <TodayFollowUpAlert />
+        <VencimentoAlertBanner />
+      </div>
       <OnboardingPendingAlert />
       <DailySummaryDialog />
       <div className="flex flex-1">

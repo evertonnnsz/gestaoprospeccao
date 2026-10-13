@@ -432,6 +432,78 @@ export type Database = {
           },
         ]
       }
+      gbp_analyses: {
+        Row: {
+          address: string | null
+          business_name: string
+          categories: Json
+          checklist: Json
+          client_id: string | null
+          competitors: Json
+          created_at: string
+          data_id: string | null
+          id: string
+          lead_id: string | null
+          place_id: string | null
+          profile: Json
+          reviews: Json
+          reviews_analyzed: number
+          score: number
+          user_id: string
+        }
+        Insert: {
+          address?: string | null
+          business_name: string
+          categories?: Json
+          checklist?: Json
+          client_id?: string | null
+          competitors?: Json
+          created_at?: string
+          data_id?: string | null
+          id?: string
+          lead_id?: string | null
+          place_id?: string | null
+          profile?: Json
+          reviews?: Json
+          reviews_analyzed?: number
+          score: number
+          user_id: string
+        }
+        Update: {
+          address?: string | null
+          business_name?: string
+          categories?: Json
+          checklist?: Json
+          client_id?: string | null
+          competitors?: Json
+          created_at?: string
+          data_id?: string | null
+          id?: string
+          lead_id?: string | null
+          place_id?: string | null
+          profile?: Json
+          reviews?: Json
+          reviews_analyzed?: number
+          score?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gbp_analyses_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gbp_analyses_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       google_calendar_connections: {
         Row: {
           access_token: string

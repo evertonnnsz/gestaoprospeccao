@@ -15,3 +15,5 @@ verify_jwt = true
 [functions.whatsapp-vencimento-alert]
 verify_jwt = false
 
+[functions.whatsapp-daily-summary]
+verify_jwt = false

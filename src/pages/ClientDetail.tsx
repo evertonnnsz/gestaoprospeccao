@@ -11,7 +11,6 @@ import {
   DollarSign,
   ExternalLink,
   FileText,
-  History,
   Inbox,
   LineChart,
   Loader2,
@@ -30,6 +29,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ClientActivity } from '@/components/clients/ClientActivity';
 
 const paymentLabels: Record<MonthlyPaymentStatus, string> = {
   paid: 'Quitado',
@@ -122,36 +122,6 @@ export default function ClientDetail() {
     .filter((transaction) => transaction.type === 'income')
     .reduce((total, transaction) => total + Number(transaction.amount), 0);
 
-  const timeline = useMemo(() => {
-    if (!client) return [];
-    return [
-      {
-        title: 'Cliente cadastrado',
-        date: client.created_at,
-        detail: 'Registro criado na base de clientes.',
-      },
-      {
-        title: 'Última atualização',
-        date: client.updated_at,
-        detail: 'Última alteração registrada no cadastro do cliente.',
-      },
-      ...(client.project_start_date
-        ? [
-            {
-              title: 'Início do projeto',
-              date: client.project_start_date,
-              detail: 'Data de início operacional/contratual do cliente.',
-            },
-          ]
-        : []),
-      ...clientDemands.slice(0, 5).map((demand) => ({
-        title: `Demanda: ${demand.title}`,
-        date: demand.updatedAt || demand.createdAt,
-        detail: demand.status,
-      })),
-    ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [client, clientDemands]);
-
   if (loading) {
     return <div className="p-6 text-muted-foreground">Carregando cliente...</div>;
   }
@@ -204,7 +174,7 @@ export default function ClientDetail() {
           <TabsTrigger value="contrato">Contrato</TabsTrigger>
           <TabsTrigger value="demandas">Demandas</TabsTrigger>
           <TabsTrigger value="campanhas">Campanhas</TabsTrigger>
-          <TabsTrigger value="historico">Histórico</TabsTrigger>
+          <TabsTrigger value="historico">Atividade</TabsTrigger>
         </TabsList>
 
         <TabsContent value="resumo">
@@ -389,28 +359,7 @@ export default function ClientDetail() {
         </TabsContent>
 
         <TabsContent value="historico">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <History className="w-5 h-5 text-primary" />
-                Histórico do cliente
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {timeline.map((item) => (
-                <div key={`${item.title}-${item.date}`} className="rounded-lg border p-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="font-medium">{item.title}</p>
-                    <span className="text-xs text-muted-foreground">{formatDate(item.date)}</span>
-                  </div>
-                  <p className="text-sm text-muted-foreground mt-1">{item.detail}</p>
-                </div>
-              ))}
-              <div className="rounded-lg bg-muted/60 p-3 text-sm text-muted-foreground">
-                Próxima evolução: registrar cada alteração em uma tabela de log no Supabase com usuário, campo alterado e valor anterior.
-              </div>
-            </CardContent>
-          </Card>
+          <ClientActivity clientId={client.id} createdAt={client.created_at} projectStartDate={client.project_start_date} />
         </TabsContent>
       </Tabs>
     </div>

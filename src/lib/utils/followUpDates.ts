@@ -52,3 +52,48 @@ export function generateNextFollowUpFromContact(
 ): string {
   return toDateString(addBusinessDays(contactDate, followUpNumber));
 }
+
+type FollowUpFields = {
+  follow_up_1: string | null;
+  follow_up_2: string | null;
+  follow_up_3: string | null;
+};
+
+/**
+ * Alterações no lead ao concluir o follow-up de hoje: registra o contato,
+ * limpa a etapa concluída e agenda a próxima a partir de hoje.
+ * Com includeOverdue, etapas atrasadas também contam como concluídas.
+ */
+export function buildFollowUpCompletion(
+  lead: FollowUpFields,
+  today: Date = new Date(),
+  includeOverdue = false,
+): FollowUpFields & { last_contact: string } {
+  const todayStr = toDateString(today);
+  const matches = (date: string | null) =>
+    Boolean(date) && (date!.slice(0, 10) === todayStr || (includeOverdue && date!.slice(0, 10) < todayStr));
+
+  const updates = {
+    last_contact: todayStr,
+    follow_up_1: lead.follow_up_1,
+    follow_up_2: lead.follow_up_2,
+    follow_up_3: lead.follow_up_3,
+  };
+
+  // Follow-up 1 concluído: limpa e recalcula o 2 a partir de hoje
+  if (matches(lead.follow_up_1)) {
+    updates.follow_up_1 = null;
+    updates.follow_up_2 = generateNextFollowUpFromContact(today, 2);
+  }
+  // Follow-up 2 concluído: limpa e recalcula o 3 a partir de hoje
+  if (matches(lead.follow_up_2)) {
+    updates.follow_up_2 = null;
+    updates.follow_up_3 = generateNextFollowUpFromContact(today, 3);
+  }
+  // Follow-up 3 concluído: apenas limpa
+  if (matches(lead.follow_up_3)) {
+    updates.follow_up_3 = null;
+  }
+
+  return updates;
+}

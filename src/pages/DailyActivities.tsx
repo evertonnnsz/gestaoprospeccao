@@ -18,6 +18,7 @@ import {
   MoreHorizontal,
   Plus,
   Search,
+  Repeat,
   Trash2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -45,6 +46,8 @@ import {
   ActivityStatus,
   KIND_LABELS,
   PRIORITY_LABELS,
+  RECURRENCE_LABELS,
+  ActivityRecurrence,
   STATUS_LABELS,
   useDailyActivities,
 } from '@/hooks/useDailyActivities';
@@ -71,7 +74,15 @@ export default function DailyActivities() {
   const [quickAdd, setQuickAdd] = useState('');
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [newTaskOpen, setNewTaskOpen] = useState(false);
-  const [newTask, setNewTask] = useState({ title: '', notes: '', priority: 'normal' as ActivityPriority, date: '' });
+  const [newTask, setNewTask] = useState({
+    title: '',
+    notes: '',
+    priority: 'normal' as ActivityPriority,
+    date: '',
+    recurrence: 'nenhuma' as ActivityRecurrence,
+  });
+  const [dragKey, setDragKey] = useState<string | null>(null);
+  const [dragOver, setDragOver] = useState<ActivityStatus | null>(null);
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -138,14 +149,15 @@ export default function DailyActivities() {
         notes: newTask.notes.trim(),
         priority: newTask.priority,
         date: newTask.date || undefined,
+        recurrence: newTask.recurrence,
       });
       setNewTaskOpen(false);
-      setNewTask({ title: '', notes: '', priority: 'normal', date: '' });
+      setNewTask({ title: '', notes: '', priority: 'normal', date: '', recurrence: 'nenhuma' });
     }, 'Tarefa criada');
   };
 
   const openNewTask = () => {
-    setNewTask({ title: '', notes: '', priority: 'normal', date: format(date, 'yyyy-MM-dd') });
+    setNewTask({ title: '', notes: '', priority: 'normal', date: format(date, 'yyyy-MM-dd'), recurrence: 'nenhuma' });
     setNewTaskOpen(true);
   };
 
@@ -180,7 +192,7 @@ export default function DailyActivities() {
               onClick={() => guard(() => deleteTask(item), 'Tarefa excluída')}
             >
               <Trash2 className="w-4 h-4 mr-2" />
-              Excluir tarefa
+              {item.recurrence ? 'Excluir tarefa e repetições' : 'Excluir tarefa'}
             </DropdownMenuItem>
           </>
         )}
@@ -389,6 +401,9 @@ export default function DailyActivities() {
                             <div className="min-w-0">
                               <p className={cn('text-sm font-medium truncate', done && 'line-through text-muted-foreground')}>
                                 {item.time && <span className="text-primary mr-1.5">{item.time}</span>}
+                                {item.recurrence && (
+                                  <Repeat className="inline w-3.5 h-3.5 mr-1 text-muted-foreground" aria-label={RECURRENCE_LABELS[item.recurrence]} />
+                                )}
                                 {item.title}
                               </p>
                               {item.subtitle && <p className="text-xs text-muted-foreground truncate">{item.subtitle}</p>}
@@ -452,7 +467,28 @@ export default function DailyActivities() {
           {STATUS_ORDER.map((status) => {
             const StatusIcon = STATUS_STYLES[status].icon;
             return (
-              <div key={status} className="rounded-lg bg-muted/40 p-3 space-y-3 min-h-[200px]">
+              <div
+                key={status}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setDragOver(status);
+                }}
+                onDragLeave={() => setDragOver((current) => (current === status ? null : current))}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setDragOver(null);
+                  const item = items.find((i) => i.key === dragKey);
+                  setDragKey(null);
+                  if (!item || item.status === status) return;
+                  // A agenda só tem "a fazer" e "concluído".
+                  if (item.kind === 'agenda' && status === 'em_andamento') return;
+                  guard(() => setStatus(item, status));
+                }}
+                className={cn(
+                  'rounded-lg bg-muted/40 p-3 space-y-3 min-h-[200px] transition-colors',
+                  dragOver === status && 'bg-primary/10 ring-2 ring-primary/30',
+                )}
+              >
                 <div className="flex items-center justify-between">
                   <span
                     className={cn(
@@ -468,7 +504,22 @@ export default function DailyActivities() {
                 {grouped[status].map((item) => {
                   const KindIcon = KIND_STYLES[item.kind].icon;
                   return (
-                    <div key={item.key} className="rounded-lg border bg-card p-3 space-y-2 shadow-sm">
+                    <div
+                      key={item.key}
+                      draggable
+                      onDragStart={(e) => {
+                        setDragKey(item.key);
+                        e.dataTransfer.effectAllowed = 'move';
+                      }}
+                      onDragEnd={() => {
+                        setDragKey(null);
+                        setDragOver(null);
+                      }}
+                      className={cn(
+                        'rounded-lg border bg-card p-3 space-y-2 shadow-sm cursor-grab active:cursor-grabbing',
+                        dragKey === item.key && 'opacity-50',
+                      )}
+                    >
                       <div className="flex items-start justify-between gap-2">
                         <span
                           className={cn(
@@ -483,6 +534,9 @@ export default function DailyActivities() {
                       </div>
                       <p className={cn('text-sm font-medium', item.status === 'concluida' && 'line-through text-muted-foreground')}>
                         {item.time && <span className="text-primary mr-1.5">{item.time}</span>}
+                                {item.recurrence && (
+                                  <Repeat className="inline w-3.5 h-3.5 mr-1 text-muted-foreground" aria-label={RECURRENCE_LABELS[item.recurrence]} />
+                                )}
                         {item.title}
                       </p>
                       {item.subtitle && <p className="text-xs text-muted-foreground">{item.subtitle}</p>}
@@ -552,7 +606,7 @@ export default function DailyActivities() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="task-date">Data</Label>
+                <Label htmlFor="task-date">{newTask.recurrence === 'nenhuma' ? 'Data' : 'Começa em'}</Label>
                 <Input
                   id="task-date"
                   type="date"
@@ -560,6 +614,24 @@ export default function DailyActivities() {
                   onChange={(e) => setNewTask((t) => ({ ...t, date: e.target.value }))}
                 />
               </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Repetir</Label>
+              <Select
+                value={newTask.recurrence}
+                onValueChange={(value) => setNewTask((t) => ({ ...t, recurrence: value as ActivityRecurrence }))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {(Object.keys(RECURRENCE_LABELS) as ActivityRecurrence[]).map((r) => (
+                    <SelectItem key={r} value={r}>
+                      {RECURRENCE_LABELS[r]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="task-notes">Observações</Label>

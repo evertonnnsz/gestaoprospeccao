@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { differenceInCalendarDays, format, isToday, parseISO } from 'date-fns';
+import { differenceInCalendarDays, format, getDaysInMonth, isToday, parseISO } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { fetchAllRows } from '@/lib/supabaseFetch';
 import { normalizeWhatsAppPhone } from '@/lib/utils/whatsapp';
+import { buildFollowUpCompletion } from '@/lib/utils/followUpDates';
 import {
   getContractEndDate,
   hasFollowUpOn,
@@ -26,6 +27,10 @@ export type ActivityKind =
 
 export type ActivityStatus = 'a_fazer' | 'em_andamento' | 'concluida';
 export type ActivityPriority = 'urgente' | 'alta' | 'normal' | 'baixa';
+export type ActivityRecurrence = 'nenhuma' | 'diaria' | 'dias_uteis' | 'semanal' | 'mensal';
+
+// Tipo gravado em daily_tasks.source_type (ocorrências de tarefas repetidas usam 'recorrente').
+type SourceType = Exclude<ActivityKind, 'agenda'> | 'recorrente';
 
 export type ActivityItem = {
   key: string;
@@ -38,8 +43,11 @@ export type ActivityItem = {
   path?: string;
   whatsappUrl?: string;
   notes?: string | null;
+  recurrence?: ActivityRecurrence;
   // Persistência
+  sourceType: SourceType | 'agenda';
   taskId?: string;
+  templateId?: string;
   agendaId?: string;
   sourceRef: string;
   taskDate: string;
@@ -68,6 +76,14 @@ export const PRIORITY_LABELS: Record<ActivityPriority, string> = {
   alta: 'Alta',
   normal: 'Normal',
   baixa: 'Baixa',
+};
+
+export const RECURRENCE_LABELS: Record<ActivityRecurrence, string> = {
+  nenhuma: 'Não repetir',
+  diaria: 'Todo dia',
+  dias_uteis: 'Dias úteis (seg-sex)',
+  semanal: 'Toda semana',
+  mensal: 'Todo mês',
 };
 
 const PRIORITY_RANK: Record<ActivityPriority, number> = { urgente: 0, alta: 1, normal: 2, baixa: 3 };
@@ -100,8 +116,9 @@ type TaskRow = {
   notes: string | null;
   priority: ActivityPriority;
   status: ActivityStatus;
-  source_type: ActivityKind;
+  source_type: SourceType;
   source_ref: string;
+  recurrence: ActivityRecurrence;
   lead_id: string | null;
   client_id: string | null;
 };
@@ -139,27 +156,43 @@ const money = (value: number | null) =>
 const isMissingTableError = (error: any) =>
   error?.code === '42P01' || error?.code === 'PGRST205' || /daily_tasks/.test(error?.message || '');
 
+// Uma tarefa repetida acontece neste dia?
+export function occursOn(template: { task_date: string; recurrence: ActivityRecurrence }, date: Date): boolean {
+  const dateStr = format(date, 'yyyy-MM-dd');
+  if (dateStr < template.task_date) return false;
+  const start = parseISO(template.task_date);
+  switch (template.recurrence) {
+    case 'diaria':
+      return true;
+    case 'dias_uteis':
+      return date.getDay() !== 0 && date.getDay() !== 6;
+    case 'semanal':
+      return date.getDay() === start.getDay();
+    case 'mensal':
+      // Dia 31 vira o último dia em meses mais curtos.
+      return date.getDate() === Math.min(start.getDate(), getDaysInMonth(date));
+    default:
+      return dateStr === template.task_date;
+  }
+}
+
 function buildItems(data: RawData, date: Date, dateStr: string): ActivityItem[] {
   const viewingToday = isToday(date);
   const taskByKey = new Map(data.tasks.map((t) => [`${t.source_type}:${t.source_ref}:${t.task_date}`, t]));
   const clientName = new Map(data.clients.map((c) => [c.id, c.lead?.company_name || 'Cliente']));
   const items: ActivityItem[] = [];
 
-  const auto = (base: Omit<ActivityItem, 'status' | 'key' | 'taskId'>): ActivityItem => {
-    const saved = taskByKey.get(`${base.kind}:${base.sourceRef}:${base.taskDate}`);
-    return {
-      ...base,
-      key: `${base.kind}:${base.sourceRef}:${base.taskDate}`,
-      status: saved?.status || 'a_fazer',
-      taskId: saved?.id,
-    };
+  const auto = (base: Omit<ActivityItem, 'status' | 'key' | 'taskId' | 'sourceType'>): ActivityItem => {
+    const key = `${base.kind}:${base.sourceRef}:${base.taskDate}`;
+    const saved = taskByKey.get(key);
+    return { ...base, key, sourceType: base.kind as SourceType, status: saved?.status || 'a_fazer', taskId: saved?.id };
   };
 
   data.leads.forEach((lead) => {
     const contact = lead.contact_name ? ` · ${lead.contact_name}` : '';
     if (hasFollowUpOn(lead, date)) {
       const step = [lead.follow_up_1, lead.follow_up_2, lead.follow_up_3].findIndex(
-        (d) => d && format(parseISO(d), 'yyyy-MM-dd') === dateStr,
+        (d) => d && d.slice(0, 10) === dateStr,
       );
       items.push(
         auto({
@@ -199,6 +232,7 @@ function buildItems(data: RawData, date: Date, dateStr: string): ActivityItem[] 
     items.push({
       key: `agenda:${event.id}`,
       kind: 'agenda',
+      sourceType: 'agenda',
       title: event.title,
       subtitle: event.client_id ? clientName.get(event.client_id) : 'Compromisso da agenda',
       time: event.scheduled_time?.slice(0, 5),
@@ -272,20 +306,72 @@ function buildItems(data: RawData, date: Date, dateStr: string): ActivityItem[] 
     });
   }
 
+  // Follow-ups concluídos no dia: o lead já foi reagendado, mas o item continua em "Concluído".
+  const shownKeys = new Set(items.map((i) => i.key));
   data.tasks
-    .filter((t) => t.source_type === 'manual' && t.task_date === dateStr)
+    .filter(
+      (t) =>
+        (t.source_type === 'follow_up' || t.source_type === 'follow_up_atrasado') &&
+        t.task_date === dateStr &&
+        !shownKeys.has(`${t.source_type}:${t.source_ref}:${t.task_date}`),
+    )
     .forEach((task) => {
       items.push({
-        key: `manual:${task.id}`,
-        kind: 'manual',
+        key: `${task.source_type}:${task.source_ref}:${task.task_date}`,
+        kind: task.source_type as ActivityKind,
+        sourceType: task.source_type,
         title: task.title,
-        subtitle: task.notes || undefined,
-        notes: task.notes,
+        subtitle: 'Contato registrado no lead',
         priority: task.priority,
         status: task.status,
+        path: '/leads',
         taskId: task.id,
         sourceRef: task.source_ref,
         taskDate: task.task_date,
+        leadId: task.lead_id,
+      });
+    });
+
+  data.tasks
+    .filter((t) => t.source_type === 'manual')
+    .forEach((task) => {
+      const repeats = task.recurrence && task.recurrence !== 'nenhuma';
+      if (!repeats) {
+        if (task.task_date !== dateStr) return;
+        items.push({
+          key: `manual:${task.id}`,
+          kind: 'manual',
+          sourceType: 'manual',
+          title: task.title,
+          subtitle: task.notes || undefined,
+          notes: task.notes,
+          priority: task.priority,
+          status: task.status,
+          taskId: task.id,
+          sourceRef: task.source_ref,
+          taskDate: task.task_date,
+          leadId: task.lead_id,
+          clientId: task.client_id,
+        });
+        return;
+      }
+
+      if (!occursOn(task, date)) return;
+      const occurrence = taskByKey.get(`recorrente:${task.id}:${dateStr}`);
+      items.push({
+        key: `recorrente:${task.id}:${dateStr}`,
+        kind: 'manual',
+        sourceType: 'recorrente',
+        title: task.title,
+        subtitle: task.notes || undefined,
+        notes: task.notes,
+        recurrence: task.recurrence,
+        priority: task.priority,
+        status: occurrence?.status || 'a_fazer',
+        taskId: occurrence?.id,
+        templateId: task.id,
+        sourceRef: task.id,
+        taskDate: dateStr,
         leadId: task.lead_id,
         clientId: task.client_id,
       });
@@ -333,7 +419,7 @@ export function useDailyActivities(date: Date) {
         db
           .from('daily_tasks')
           .select('*')
-          .or(`task_date.eq.${dateStr},source_type.in.(contrato,pagamento)`),
+          .or(`task_date.eq.${dateStr},source_type.in.(contrato,pagamento),recurrence.neq.nenhuma`),
       ]);
 
       setTableMissing(Boolean(tasksRes.error && isMissingTableError(tasksRes.error)));
@@ -363,6 +449,20 @@ export function useDailyActivities(date: Date) {
       tasks: [...current.tasks.filter((t) => t.id !== row.id), row],
     }));
 
+  // Concluir o follow-up no painel faz o mesmo que o botão do card do lead:
+  // registra o contato de hoje e agenda o próximo follow-up.
+  const syncFollowUpWithLead = async (item: ActivityItem) => {
+    const lead = data.leads.find((l) => l.id === item.leadId);
+    if (!lead || item.taskDate !== format(new Date(), 'yyyy-MM-dd')) return;
+    const updates = buildFollowUpCompletion(lead, new Date(), item.kind === 'follow_up_atrasado');
+    const { error } = await supabase.from('leads').update(updates).eq('id', lead.id);
+    if (error) throw error;
+    setData((current) => ({
+      ...current,
+      leads: current.leads.map((l) => (l.id === lead.id ? { ...l, ...updates } : l)),
+    }));
+  };
+
   const setStatus = async (item: ActivityItem, status: ActivityStatus) => {
     if (!user) return;
     const completed_at = status === 'concluida' ? new Date().toISOString() : null;
@@ -389,33 +489,42 @@ export function useDailyActivities(date: Date) {
         .single();
       if (error) throw error;
       patchTask(row);
-      return;
+    } else {
+      const { data: row, error } = await db
+        .from('daily_tasks')
+        .upsert(
+          {
+            user_id: user.id,
+            task_date: item.taskDate,
+            title: item.title,
+            priority: item.priority,
+            status,
+            completed_at,
+            source_type: item.sourceType,
+            source_ref: item.sourceRef,
+            lead_id: item.leadId || null,
+            client_id: item.clientId || null,
+          },
+          { onConflict: 'user_id,source_type,source_ref,task_date' },
+        )
+        .select()
+        .single();
+      if (error) throw error;
+      patchTask(row);
     }
 
-    const { data: row, error } = await db
-      .from('daily_tasks')
-      .upsert(
-        {
-          user_id: user.id,
-          task_date: item.taskDate,
-          title: item.title,
-          priority: item.priority,
-          status,
-          completed_at,
-          source_type: item.kind,
-          source_ref: item.sourceRef,
-          lead_id: item.leadId || null,
-          client_id: item.clientId || null,
-        },
-        { onConflict: 'user_id,source_type,source_ref,task_date' },
-      )
-      .select()
-      .single();
-    if (error) throw error;
-    patchTask(row);
+    if (status === 'concluida' && (item.kind === 'follow_up' || item.kind === 'follow_up_atrasado')) {
+      await syncFollowUpWithLead(item);
+    }
   };
 
-  const createTask = async (input: { title: string; priority?: ActivityPriority; notes?: string; date?: string }) => {
+  const createTask = async (input: {
+    title: string;
+    priority?: ActivityPriority;
+    notes?: string;
+    date?: string;
+    recurrence?: ActivityRecurrence;
+  }) => {
     if (!user) return;
     const { data: row, error } = await db
       .from('daily_tasks')
@@ -425,6 +534,7 @@ export function useDailyActivities(date: Date) {
         notes: input.notes || null,
         priority: input.priority || 'normal',
         task_date: input.date || dateStr,
+        recurrence: input.recurrence || 'nenhuma',
         source_type: 'manual',
       })
       .select()
@@ -433,23 +543,23 @@ export function useDailyActivities(date: Date) {
     patchTask(row);
   };
 
+  // Em tarefas repetidas, prioridade e exclusão valem para a série (o modelo).
+  const manualTaskId = (item: ActivityItem) => (item.kind === 'manual' ? item.templateId || item.taskId : undefined);
+
   const updatePriority = async (item: ActivityItem, priority: ActivityPriority) => {
-    if (!item.taskId || item.kind !== 'manual') return;
-    const { data: row, error } = await db
-      .from('daily_tasks')
-      .update({ priority })
-      .eq('id', item.taskId)
-      .select()
-      .single();
+    const id = manualTaskId(item);
+    if (!id) return;
+    const { data: row, error } = await db.from('daily_tasks').update({ priority }).eq('id', id).select().single();
     if (error) throw error;
     patchTask(row);
   };
 
   const deleteTask = async (item: ActivityItem) => {
-    if (!item.taskId || item.kind !== 'manual') return;
-    const { error } = await db.from('daily_tasks').delete().eq('id', item.taskId);
+    const id = manualTaskId(item);
+    if (!id) return;
+    const { error } = await db.from('daily_tasks').delete().eq('id', id);
     if (error) throw error;
-    setData((current) => ({ ...current, tasks: current.tasks.filter((t) => t.id !== item.taskId) }));
+    setData((current) => ({ ...current, tasks: current.tasks.filter((t) => t.id !== id) }));
   };
 
   return { items, loading, tableMissing, reload: load, setStatus, createTask, updatePriority, deleteTask };

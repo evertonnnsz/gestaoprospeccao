@@ -10,8 +10,11 @@ create table if not exists public.daily_tasks (
   status text not null default 'a_fazer' check (status in ('a_fazer', 'em_andamento', 'concluida')),
   -- 'manual' para tarefas criadas no painel; demais tipos guardam o check de itens automáticos
   source_type text not null default 'manual' check (
-    source_type in ('manual', 'follow_up', 'follow_up_atrasado', 'contrato', 'pagamento', 'onboarding')
+    source_type in ('manual', 'recorrente', 'follow_up', 'follow_up_atrasado', 'contrato', 'pagamento', 'onboarding')
   ),
+  -- Tarefa manual que se repete: a linha original é o modelo (task_date = início) e cada
+  -- ocorrência concluída vira uma linha 'recorrente' com source_ref = id do modelo.
+  recurrence text not null default 'nenhuma' check (recurrence in ('nenhuma', 'diaria', 'dias_uteis', 'semanal', 'mensal')),
   -- Identifica o item automático (ex.: id do lead ou do cliente). Tarefas manuais recebem um valor único.
   source_ref text not null default gen_random_uuid()::text,
   lead_id uuid references public.leads(id) on delete set null,

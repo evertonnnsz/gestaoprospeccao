@@ -545,6 +545,57 @@ export type Database = {
           },
         ]
       }
+      gbp_rankings: {
+        Row: {
+          address: string | null
+          business_name: string
+          created_at: string
+          credits_used: number
+          data_id: string | null
+          depth: number
+          grid_size: number
+          id: string
+          lat: number
+          lng: number
+          place_id: string | null
+          results: Json
+          spacing_km: number
+          user_id: string
+        }
+        Insert: {
+          address?: string | null
+          business_name: string
+          created_at?: string
+          credits_used?: number
+          data_id?: string | null
+          depth?: number
+          grid_size?: number
+          id?: string
+          lat: number
+          lng: number
+          place_id?: string | null
+          results?: Json
+          spacing_km?: number
+          user_id: string
+        }
+        Update: {
+          address?: string | null
+          business_name?: string
+          created_at?: string
+          credits_used?: number
+          data_id?: string | null
+          depth?: number
+          grid_size?: number
+          id?: string
+          lat?: number
+          lng?: number
+          place_id?: string | null
+          results?: Json
+          spacing_km?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       google_calendar_connections: {
         Row: {
           access_token: string

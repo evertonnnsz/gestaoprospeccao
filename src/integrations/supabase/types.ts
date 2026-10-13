@@ -160,6 +160,38 @@ export type Database = {
           },
         ]
       }
+      client_comments: {
+        Row: {
+          body: string
+          client_id: string
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          body: string
+          client_id: string
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          body?: string
+          client_id?: string
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_comments_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_onboarding_tasks: {
         Row: {
           client_id: string

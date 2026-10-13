@@ -22,6 +22,13 @@
       "when": 1791853269258,
       "tag": "0002_grants_daily_tasks_client_comments",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1791855630890,
+      "tag": "0003_gbp_analyses",
+      "breakpoints": true
     }
   ]
 }

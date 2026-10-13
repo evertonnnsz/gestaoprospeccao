@@ -238,7 +238,6 @@ function buildItems(data: RawData, date: Date, dateStr: string): ActivityItem[] 
       time: event.scheduled_time?.slice(0, 5),
       priority: 'alta',
       status: event.status === 'completed' ? 'concluida' : 'a_fazer',
-      path: '/agenda',
       agendaId: event.id,
       sourceRef: event.id,
       taskDate: dateStr,

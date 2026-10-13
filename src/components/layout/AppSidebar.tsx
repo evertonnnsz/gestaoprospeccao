@@ -11,10 +11,7 @@ import {
   Briefcase,
   DollarSign,
   Sparkles,
-  HeartHandshake,
   ClipboardCheck,
-  MessageCircle,
-  CalendarDays,
   BarChart3,
   ListChecks,
 } from 'lucide-react';
@@ -44,8 +41,6 @@ const navGroups = [
   {
     label: 'Opera\u00e7\u00e3o',
     items: [
-      { title: 'Agenda', url: '/agenda', icon: CalendarDays },
-      { title: 'Sucesso do Cliente', url: '/customer-success', icon: HeartHandshake },
       { title: 'Dashboard de An\u00fancios', url: '/ads-dashboard', icon: BarChart3 },
       { title: 'Onboarding', url: '/onboarding', icon: ClipboardCheck },
       { title: 'Financeiro', url: '/financial', icon: DollarSign },
@@ -56,7 +51,6 @@ const navGroups = [
 const adminItems = [
   { title: 'Aprova\u00e7\u00f5es', url: '/approvals', icon: UserCheck },
   { title: 'Usu\u00e1rios', url: '/users', icon: UsersRound },
-  { title: 'Follow-ups WhatsApp', url: '/whatsapp-follow-ups', icon: MessageCircle },
 ];
 
 const bottomItems = [

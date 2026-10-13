@@ -17,10 +17,7 @@ import Approvals from "./pages/Approvals";
 import Users from "./pages/Users";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
-import CustomerSuccess from "./pages/CustomerSuccess";
 import Onboarding from "./pages/Onboarding";
-import WhatsAppFollowUps from "./pages/WhatsAppFollowUps";
-import Agenda from "./pages/Agenda";
 import AdsDashboard from "./pages/AdsDashboard";
 import DailyActivities from "./pages/DailyActivities";
 
@@ -45,9 +42,6 @@ const App = () => (
               <Route path="/clients/:id" element={<ClientDetail />} />
               <Route path="/financial" element={<Financial />} />
               <Route path="/funnel" element={<Funnel />} />
-              <Route path="/whatsapp-follow-ups" element={<WhatsAppFollowUps />} />
-              <Route path="/agenda" element={<Agenda />} />
-              <Route path="/customer-success" element={<CustomerSuccess />} />
               <Route path="/ads-dashboard" element={<AdsDashboard />} />
               <Route path="/onboarding" element={<Onboarding />} />
               <Route path="/approvals" element={<Approvals />} />

@@ -28,14 +28,26 @@ function todayISO(): string {
   return new Date().toISOString().split('T')[0];
 }
 
+interface LeadRef {
+  company_name?: string;
+}
+
 interface ClientRow {
   id: string;
   user_id?: string;
-  project_start_date: string | null;
-  contract_duration_months: number | null;
-  payment_due_date: string | null;
-  lead?: { company_name?: string } | null;
+  status?: string;
+  project_start_date?: string | null;
+  contract_duration_months?: number | null;
+  payment_due_date?: string | null;
+  // O vínculo com leads chega como objeto (many-to-one), mas a inferência de
+  // tipos do cliente pode descrevê-lo como array — os dois formatos são aceitos.
+  lead?: LeadRef | LeadRef[] | null;
 }
+
+const companyName = (client: ClientRow) => {
+  const lead = Array.isArray(client.lead) ? client.lead[0] : client.lead;
+  return lead?.company_name || 'Cliente';
+};
 
 Deno.serve(async (req) => {
   try {
@@ -102,11 +114,11 @@ Deno.serve(async (req) => {
     const lines: string[] = [];
     if (newContractAlerts.length > 0) {
       lines.push(`Contratos vencendo (${CONTRACT_ALERT_WINDOW_DAYS}d): ` +
-        newContractAlerts.map((c: ClientRow) => c.lead?.company_name || 'Cliente').join(', '));
+        newContractAlerts.map((c: ClientRow) => companyName(c)).join(', '));
     }
     if (newPaymentAlerts.length > 0) {
       lines.push(`Pagamentos vencendo (${PAYMENT_ALERT_WINDOW_DAYS}d): ` +
-        newPaymentAlerts.map((c: ClientRow) => c.lead?.company_name || 'Cliente').join(', '));
+        newPaymentAlerts.map((c: ClientRow) => companyName(c)).join(', '));
     }
     const summaryText = lines.join('\n');
 
@@ -168,7 +180,7 @@ Deno.serve(async (req) => {
     // user_id não veio na query acima (não foi selecionado) — busca de novo com user_id incluso
     const clientIds = [...new Set(notificationRows.map((r) => r.client_id))];
     const { data: withOwners } = await supabase.from('clients').select('id, user_id').in('id', clientIds);
-    const ownerByClient = new Map((withOwners || []).map((c: ClientRow) => [c.id, c.user_id]));
+    const ownerByClient = new Map((withOwners || []).map((c: { id: string; user_id?: string }) => [c.id, c.user_id]));
     const rowsWithOwner = notificationRows.map((r) => ({ ...r, user_id: ownerByClient.get(r.client_id) }));
 
     const { error: insertError } = await supabase.from('vencimento_notifications').insert(rowsWithOwner);

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { format, parseISO } from 'date-fns';
-import { Eye, FileDown, Link2, Loader2, MapPin, RefreshCw, Search, Star, Trash2, X } from 'lucide-react';
+import { ClipboardList, Eye, FileDown, Link2, Loader2, MapPin, RefreshCw, Search, Star, Trash2, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -38,6 +38,7 @@ const isMissingTable = (error: any) => error?.code === '42P01' || error?.code ==
 
 export default function GoogleBusiness() {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const leadId = searchParams.get('lead');
   const clientId = searchParams.get('client');
@@ -180,6 +181,20 @@ export default function GoogleBusiness() {
               <FileDown className="w-4 h-4" />
               Exportar PDF
             </Button>
+            {selected.profile.place_id && (
+              <Button
+                variant="outline"
+                className="gap-2"
+                onClick={() =>
+                  navigate(
+                    `/checklist-gmn?place=${encodeURIComponent(selected.profile.place_id!)}&nome=${encodeURIComponent(selected.business_name)}`,
+                  )
+                }
+              >
+                <ClipboardList className="w-4 h-4" />
+                Checklist
+              </Button>
+            )}
             {selected.profile.place_id && (
               <Button
                 variant="outline"

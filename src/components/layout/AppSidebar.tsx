@@ -18,6 +18,7 @@ import {
   FileText,
   QrCode,
   Tags,
+  ClipboardList,
 } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -44,6 +45,7 @@ const navGroups = [
       { title: 'Orçamentos', url: '/orcamentos', icon: FileText },
       { title: 'Cartões de avaliação', url: '/cartoes-avaliacao', icon: QrCode },
       { title: 'Pesquisa de categorias', url: '/categorias', icon: Tags },
+      { title: 'Checklist do Google', url: '/checklist-gmn', icon: ClipboardList },
     ],
   },
   {

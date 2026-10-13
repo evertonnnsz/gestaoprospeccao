@@ -26,25 +26,32 @@ const greeting = () => {
   return { text: 'Boa noite', emoji: '🌙' };
 };
 
+// Abre uma vez por sessão do navegador (cada vez que o CRM é aberto), e de novo se o dia virar.
+// sessionStorage: navegar entre as páginas não reabre o resumo.
 const seenKey = (userId: string) => `daily-summary-seen:${userId}:${format(new Date(), 'yyyy-MM-dd')}`;
 
-const wasSeenToday = (userId: string) => {
+const wasSeen = (userId: string) => {
   try {
-    return localStorage.getItem(seenKey(userId)) === '1';
+    return sessionStorage.getItem(seenKey(userId)) === '1';
   } catch {
     return false;
   }
 };
 
-const markSeenToday = (userId: string) => {
+const markSeen = (userId: string) => {
   try {
-    localStorage.setItem(seenKey(userId), '1');
+    sessionStorage.setItem(seenKey(userId), '1');
   } catch {
     // Sem storage: o resumo só volta a aparecer no próximo carregamento.
   }
 };
 
-// Resumo que abre na tela ao entrar no CRM (uma vez por dia) com o que precisa ser feito hoje.
+const OPEN_EVENT = 'open-daily-summary';
+
+// Abre o resumo manualmente (botão "Resumo do dia").
+export const openDailySummary = () => window.dispatchEvent(new Event(OPEN_EVENT));
+
+// Resumo que abre na tela ao entrar no CRM com o que precisa ser feito hoje.
 export function DailySummaryDialog() {
   const { user, profile } = useAuth();
   const navigate = useNavigate();
@@ -57,12 +64,18 @@ export function DailySummaryDialog() {
 
   useEffect(() => {
     if (!user || loading || pending.length === 0) return;
-    if (location.pathname === '/atividades' || wasSeenToday(user.id)) return;
+    if (location.pathname === '/atividades' || wasSeen(user.id)) return;
     setOpen(true);
-    markSeenToday(user.id);
+    markSeen(user.id);
     // Só decide uma vez, quando os dados chegam.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, loading]);
+
+  useEffect(() => {
+    const show = () => setOpen(true);
+    window.addEventListener(OPEN_EVENT, show);
+    return () => window.removeEventListener(OPEN_EVENT, show);
+  }, []);
 
   const count = (kinds: string[]) => pending.filter((i) => kinds.includes(i.kind)).length;
   // Só totais: a lista detalhada fica no painel do dia.

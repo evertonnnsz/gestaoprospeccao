@@ -21,11 +21,13 @@ import {
   X,
   FileText,
   UserMinus,
+  ListChecks,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { hasTodayFollowUp } from '@/lib/utils/dailyRules';
+import { openDailySummary } from '@/components/activities/DailySummaryDialog';
 
 const SOURCE_COLORS: Record<string, string> = {
   'Tráfego': 'hsl(217, 91%, 60%)',
@@ -225,13 +227,19 @@ export default function Dashboard() {
                 </p>
               </div>
             </div>
-            <Button
-              variant={todayFollowUps > 0 ? 'default' : 'outline'}
-              onClick={() => navigate(todayFollowUps > 0 ? '/leads?filter=today' : '/leads')}
-              className="w-full sm:w-auto"
-            >
-              {todayFollowUps > 0 ? 'Ver follow-ups do dia' : 'Ver leads'}
-            </Button>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Button variant="outline" onClick={openDailySummary} className="w-full sm:w-auto gap-2">
+                <ListChecks className="h-4 w-4" />
+                Resumo do dia
+              </Button>
+              <Button
+                variant={todayFollowUps > 0 ? 'default' : 'outline'}
+                onClick={() => navigate(todayFollowUps > 0 ? '/leads?filter=today' : '/leads')}
+                className="w-full sm:w-auto"
+              >
+                {todayFollowUps > 0 ? 'Ver follow-ups do dia' : 'Ver leads'}
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>

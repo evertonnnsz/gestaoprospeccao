@@ -504,6 +504,47 @@ export type Database = {
           },
         ]
       }
+      gbp_checklists: {
+        Row: {
+          business_name: string
+          client_id: string | null
+          created_at: string
+          id: string
+          items: Json
+          place_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          business_name: string
+          client_id?: string | null
+          created_at?: string
+          id?: string
+          items?: Json
+          place_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          business_name?: string
+          client_id?: string | null
+          created_at?: string
+          id?: string
+          items?: Json
+          place_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gbp_checklists_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       google_calendar_connections: {
         Row: {
           access_token: string

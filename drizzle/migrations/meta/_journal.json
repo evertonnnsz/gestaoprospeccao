@@ -29,6 +29,13 @@
       "when": 1791855630890,
       "tag": "0003_gbp_analyses",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1791858420250,
+      "tag": "0004_services_e_quotes_github",
+      "breakpoints": true
     }
   ]
 }

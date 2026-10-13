@@ -24,6 +24,7 @@ import DailyActivities from "./pages/DailyActivities";
 import GoogleBusiness from "./pages/GoogleBusiness";
 import Quotes from "./pages/Quotes";
 import ReviewCards from "./pages/ReviewCards";
+import CategorySearch from "./pages/CategorySearch";
 import QuotePrint from "./pages/QuotePrint";
 
 const queryClient = new QueryClient();
@@ -47,6 +48,7 @@ const App = () => (
               <Route path="/google-meu-negocio" element={<GoogleBusiness />} />
               <Route path="/orcamentos" element={<Quotes />} />
               <Route path="/cartoes-avaliacao" element={<ReviewCards />} />
+              <Route path="/categorias" element={<CategorySearch />} />
               <Route path="/leads" element={<Leads />} />
               <Route path="/prospecting" element={<Prospecting />} />
               <Route path="/clients" element={<Clients />} />

@@ -485,3 +485,83 @@ export function computeScore(checklist: ChecklistItem[]): number {
   const ok = known.filter((i) => i.status === 'ok').reduce((s, i) => s + i.weight, 0);
   return Math.round((ok / total) * 100);
 }
+
+// ---------- Pesquisa de categorias ----------
+
+export type CategoryUsage = {
+  category: string;
+  as_primary: number;
+  as_additional: number;
+  total: number;
+  share: number; // % dos perfis analisados que usam a categoria
+  avg_reviews_primary: number | null; // média de avaliações de quem a usa como principal
+  avg_rating_primary: number | null;
+};
+
+export function aggregateCategorySearch(results: any[]) {
+  const businesses = results.map((r) => ({
+    title: String(r.title || 'Empresa'),
+    categories: [...new Set(r.types?.length ? asArray(r.types) : asArray(r.type))],
+    rating: typeof r.rating === 'number' ? r.rating : null,
+    reviews: Number(r.reviews) || 0,
+    address: r.address || null,
+  }));
+
+  const map = new Map<string, { primary: typeof businesses; additional: number }>();
+  businesses.forEach((b) => {
+    b.categories.forEach((category, index) => {
+      const entry = map.get(category) || { primary: [], additional: 0 };
+      if (index === 0) entry.primary.push(b);
+      else entry.additional += 1;
+      map.set(category, entry);
+    });
+  });
+
+  const total = businesses.length;
+  const avg = (values: number[]) =>
+    values.length ? Math.round((values.reduce((s, v) => s + v, 0) / values.length) * 10) / 10 : null;
+
+  const categories: CategoryUsage[] = [...map.entries()]
+    .map(([category, entry]) => ({
+      category,
+      as_primary: entry.primary.length,
+      as_additional: entry.additional,
+      total: entry.primary.length + entry.additional,
+      share: total ? Math.round(((entry.primary.length + entry.additional) / total) * 100) : 0,
+      avg_reviews_primary: avg(entry.primary.map((b) => b.reviews)),
+      avg_rating_primary: avg(entry.primary.filter((b) => b.rating !== null).map((b) => b.rating!)),
+    }))
+    .sort((a, b) => b.total - a.total || b.as_primary - a.as_primary);
+
+  // Principal recomendada: a mais usada como principal; empate desempata por avaliações.
+  const recommended =
+    [...categories]
+      .filter((c) => c.as_primary > 0)
+      .sort((a, b) => b.as_primary - a.as_primary || (b.avg_reviews_primary || 0) - (a.avg_reviews_primary || 0))[0] ||
+    null;
+
+  return {
+    total,
+    categories,
+    recommended,
+    businesses: [...businesses].sort((a, b) => b.categories.length - a.categories.length || b.reviews - a.reviews),
+  };
+}
+
+export function normalizeTrends(data: any, terms: string[]) {
+  const timeline: any[] = data?.interest_over_time?.timeline_data || [];
+  const points = timeline.map((row) => {
+    const point: Record<string, number | string> = {
+      date: row.timestamp ? new Date(Number(row.timestamp) * 1000).toISOString().slice(0, 10) : String(row.date),
+    };
+    (row.values || []).forEach((v: any, i: number) => {
+      point[terms[i] ?? v.query] = Number(v.extracted_value ?? v.value) || 0;
+    });
+    return point;
+  });
+  const averages = terms.map((term) => {
+    const values = points.map((p) => Number(p[term]) || 0);
+    return { term, average: values.length ? Math.round(values.reduce((s, v) => s + v, 0) / values.length) : 0 };
+  });
+  return { terms, points, averages };
+}

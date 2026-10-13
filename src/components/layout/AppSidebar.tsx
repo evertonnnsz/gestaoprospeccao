@@ -17,6 +17,7 @@ import {
   MapPin,
   FileText,
   QrCode,
+  Tags,
 } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -42,6 +43,7 @@ const navGroups = [
       { title: 'Google Meu Negócio', url: '/google-meu-negocio', icon: MapPin },
       { title: 'Orçamentos', url: '/orcamentos', icon: FileText },
       { title: 'Cartões de avaliação', url: '/cartoes-avaliacao', icon: QrCode },
+      { title: 'Pesquisa de categorias', url: '/categorias', icon: Tags },
     ],
   },
   {

@@ -3,12 +3,15 @@
 // Duas ações:
 // - { action: 'search', query }  -> lista de perfis encontrados para o usuário escolher (1 crédito)
 // - { action: 'analyze', place_id, lead_id?, client_id?, max_reviews? }
+// - { action: 'categories', query, pages? }  -> categorias usadas pelos perfis que aparecem na busca (1 crédito por página)
+// - { action: 'trends', terms[], geo? }      -> interesse no Google Trends nos últimos 12 meses (1 crédito)
 //     -> perfil + avaliações + concorrentes da região, calcula nota/checklist e salva em gbp_analyses.
 //     Custo aproximado: 2 créditos + 1 a cada 20 avaliações.
 //
 // Secret necessário: SERPAPI_KEY (o mesmo usado na Prospecção).
 
 import {
+  aggregateCategorySearch,
   buildChecklist,
   computeCategories,
   computeCompetition,
@@ -17,6 +20,7 @@ import {
   normalizeCompetitor,
   normalizePlace,
   normalizeReview,
+  normalizeTrends,
 } from './analysis.ts';
 
 const corsHeaders = {
@@ -86,6 +90,44 @@ Deno.serve(async (req) => {
           data_id: r.data_id || null,
         })),
       });
+    }
+
+    if (body.action === 'categories') {
+      const query = String(body.query || '').trim();
+      if (!query) return json({ success: false, error: 'Informe o segmento e a cidade.' }, 400);
+      const pages = Math.min(Math.max(Number(body.pages) || 1, 1), 3);
+      const results: any[] = [];
+      for (let page = 0; page < pages; page++) {
+        const data = await serpapi({
+          engine: 'google_maps',
+          q: query,
+          hl: 'pt-br',
+          gl: 'br',
+          type: 'search',
+          start: String(page * 20),
+        });
+        const found = data.local_results || [];
+        results.push(...found);
+        if (found.length < 20) break;
+      }
+      return json({ success: true, ...aggregateCategorySearch(results) });
+    }
+
+    if (body.action === 'trends') {
+      const terms: string[] = (Array.isArray(body.terms) ? body.terms : [])
+        .map((t: unknown) => String(t).trim())
+        .filter(Boolean)
+        .slice(0, 5);
+      if (terms.length === 0) return json({ success: false, error: 'Escolha de 1 a 5 categorias.' }, 400);
+      const data = await serpapi({
+        engine: 'google_trends',
+        q: terms.join(','),
+        geo: String(body.geo || 'BR'),
+        date: 'today 12-m',
+        data_type: 'TIMESERIES',
+        hl: 'pt-BR',
+      });
+      return json({ success: true, ...normalizeTrends(data, terms) });
     }
 
     if (body.action !== 'analyze') return json({ success: false, error: 'Ação inválida.' }, 400);

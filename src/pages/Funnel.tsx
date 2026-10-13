@@ -31,17 +31,18 @@ const FUNNEL_STAGES: StageKey[] = [
   'fechado',
 ];
 
+// Funil em degradê da marca: neutro no topo, dourado nas etapas quentes e preto no fechamento.
 const STAGE_COLORS: Record<StageKey, string> = {
-  lead_coletado: 'hsl(var(--muted-foreground))',
-  contato_iniciado: 'hsl(var(--primary))',
-  responderam: 'hsl(var(--primary))',
-  visualizou_nao_respondeu: 'hsl(var(--warning))',
-  interesse_demonstrado: 'hsl(var(--success))',
-  agendou_reuniao: 'hsl(var(--chart-4))',
-  reuniao_realizada: 'hsl(var(--chart-4))',
-  proposta_enviada: 'hsl(var(--primary))',
-  em_negociacao: 'hsl(var(--warning))',
-  fechado: 'hsl(var(--success))',
+  lead_coletado: 'hsl(var(--chart-5))',
+  contato_iniciado: 'hsl(var(--chart-4))',
+  responderam: 'hsl(var(--chart-4))',
+  visualizou_nao_respondeu: 'hsl(var(--muted-foreground))',
+  interesse_demonstrado: 'hsl(var(--chart-3))',
+  agendou_reuniao: 'hsl(var(--primary))',
+  reuniao_realizada: 'hsl(var(--primary))',
+  proposta_enviada: 'hsl(var(--chart-1))',
+  em_negociacao: 'hsl(var(--chart-3))',
+  fechado: 'hsl(var(--foreground))',
   sem_interesse: 'hsl(var(--muted-foreground))',
   lead_perdido: 'hsl(var(--destructive))',
 };

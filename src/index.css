@@ -1,110 +1,145 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Sora:wght@500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Design system Fature: preto, dourado e branco.
+ * Dourado só para destaque (botão principal, item ativo, foco); verde/vermelho/laranja
+ * apenas com significado (pago, atrasado, alerta) e em tons sóbrios.
+ */
 @layer base {
   :root {
-    --background: 150 22% 97%;
-    --foreground: 158 34% 12%;
+    --background: 40 20% 98%;
+    --foreground: 0 0% 8%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
+    --card-foreground: 0 0% 8%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
+    --popover-foreground: 0 0% 8%;
 
-    --primary: 158 64% 20%;
-    --primary-foreground: 0 0% 100%;
+    /* Dourado (fundo de botões e destaques, sempre com texto preto por cima) */
+    --primary: 42 66% 47%;
+    --primary-foreground: 0 0% 6%;
+    /* Dourado escuro para quando o dourado é cor de texto (contraste legível sobre branco) */
+    --primary-text: 38 62% 30%;
 
-    --secondary: 150 20% 94%;
-    --secondary-foreground: 158 34% 12%;
+    --secondary: 40 10% 94%;
+    --secondary-foreground: 0 0% 12%;
 
-    --muted: 150 16% 92%;
-    --muted-foreground: 158 12% 40%;
+    --muted: 40 9% 94%;
+    --muted-foreground: 30 4% 40%;
 
-    --accent: 150 42% 90%;
-    --accent-foreground: 158 64% 20%;
+    /* Dourado bem claro para hovers e realces */
+    --accent: 44 60% 94%;
+    --accent-foreground: 38 55% 24%;
 
-    --destructive: 0 84% 60%;
+    --destructive: 0 62% 46%;
     --destructive-foreground: 0 0% 100%;
 
-    --success: 150 56% 30%;
+    --success: 152 34% 32%;
     --success-foreground: 0 0% 100%;
 
-    --warning: 36 78% 48%;
-    --warning-foreground: 30 20% 98%;
+    --warning: 33 78% 42%;
+    --warning-foreground: 0 0% 100%;
 
-    --border: 152 17% 86%;
-    --input: 152 17% 86%;
-    --ring: 158 64% 20%;
+    --border: 40 9% 88%;
+    --input: 40 9% 86%;
+    --ring: 42 66% 47%;
 
-    --radius: 0.625rem;
+    --radius: 0.75rem;
 
-    --sidebar-background: 155 38% 11%;
-    --sidebar-foreground: 150 22% 94%;
-    --sidebar-primary: 150 42% 90%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 154 28% 17%;
-    --sidebar-accent-foreground: 150 22% 94%;
-    --sidebar-border: 154 24% 20%;
-    --sidebar-ring: 150 42% 84%;
+    /* Menu lateral preto */
+    --sidebar-background: 0 0% 6%;
+    --sidebar-foreground: 40 12% 86%;
+    --sidebar-primary: 43 72% 50%;
+    --sidebar-primary-foreground: 0 0% 6%;
+    --sidebar-accent: 0 0% 11%;
+    --sidebar-accent-foreground: 0 0% 98%;
+    --sidebar-border: 0 0% 14%;
+    --sidebar-ring: 43 72% 50%;
 
-    --chart-1: 158 64% 24%;
-    --chart-2: 150 45% 38%;
-    --chart-3: 36 78% 48%;
-    --chart-4: 205 52% 45%;
-    --chart-5: 0 70% 54%;
+    /* Gráficos: dourado, grafite, bronze, areia e cinza azulado */
+    --chart-1: 42 66% 47%;
+    --chart-2: 0 0% 22%;
+    --chart-3: 26 42% 44%;
+    --chart-4: 40 30% 68%;
+    --chart-5: 214 10% 56%;
 
-    --surface-subtle: 150 25% 95%;
+    --gold-soft: 44 70% 72%;
+    --surface-subtle: 40 14% 96%;
     --surface-raised: 0 0% 100%;
-    --focus-soft: 150 52% 88%;
+    --focus-soft: 44 70% 86%;
 
-    --shadow-sm: 0 1px 2px 0 hsl(158 34% 12% / 0.04);
-    --shadow-md: 0 8px 24px -18px hsl(158 34% 12% / 0.28);
-    --shadow-lg: 0 16px 36px -24px hsl(158 34% 12% / 0.32);
-    --shadow-xl: 0 24px 54px -30px hsl(158 34% 12% / 0.36);
-    --shadow-glow: 0 0 0 4px hsl(var(--focus-soft) / 0.6);
+    --shadow-sm: 0 1px 2px 0 hsl(0 0% 0% / 0.05);
+    --shadow-md: 0 10px 28px -18px hsl(0 0% 0% / 0.28);
+    --shadow-lg: 0 18px 40px -24px hsl(0 0% 0% / 0.34);
+    --shadow-xl: 0 28px 60px -30px hsl(0 0% 0% / 0.4);
+    --shadow-glow: 0 0 0 4px hsl(var(--focus-soft) / 0.7);
   }
 
   .dark {
-    --background: 158 34% 10%;
-    --foreground: 210 40% 98%;
+    --background: 0 0% 5%;
+    --foreground: 40 14% 92%;
 
-    --card: 158 28% 13%;
-    --card-foreground: 210 40% 98%;
+    --card: 0 0% 8%;
+    --card-foreground: 40 14% 92%;
 
-    --popover: 158 28% 13%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 0 0% 9%;
+    --popover-foreground: 40 14% 92%;
 
-    --primary: 150 42% 78%;
-    --primary-foreground: 0 0% 100%;
+    --primary: 43 74% 52%;
+    --primary-foreground: 0 0% 5%;
+    --primary-text: 43 74% 60%;
 
-    --secondary: 154 24% 18%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 0 0% 13%;
+    --secondary-foreground: 40 14% 92%;
 
-    --muted: 154 24% 18%;
-    --muted-foreground: 215 20% 65%;
+    --muted: 0 0% 12%;
+    --muted-foreground: 40 5% 62%;
 
-    --accent: 154 24% 18%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 43 35% 14%;
+    --accent-foreground: 44 74% 72%;
 
-    --destructive: 0 62% 30%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 60% 52%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 154 24% 20%;
-    --input: 154 24% 20%;
-    --ring: 150 42% 78%;
+    --success: 152 38% 46%;
+    --success-foreground: 0 0% 5%;
 
-    --sidebar-background: 158 34% 8%;
-    --sidebar-foreground: 210 40% 98%;
-    --sidebar-primary: 150 42% 78%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 154 24% 16%;
-    --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 154 24% 18%;
-    --sidebar-ring: 150 42% 78%;
+    --warning: 35 80% 52%;
+    --warning-foreground: 0 0% 5%;
+
+    --border: 0 0% 16%;
+    --input: 0 0% 18%;
+    --ring: 43 74% 52%;
+
+    --sidebar-background: 0 0% 3%;
+    --sidebar-foreground: 40 12% 84%;
+    --sidebar-primary: 43 74% 52%;
+    --sidebar-primary-foreground: 0 0% 5%;
+    --sidebar-accent: 0 0% 10%;
+    --sidebar-accent-foreground: 0 0% 98%;
+    --sidebar-border: 0 0% 12%;
+    --sidebar-ring: 43 74% 52%;
+
+    --chart-1: 43 74% 52%;
+    --chart-2: 40 10% 78%;
+    --chart-3: 26 45% 52%;
+    --chart-4: 40 28% 50%;
+    --chart-5: 214 12% 58%;
+
+    --gold-soft: 44 60% 40%;
+    --surface-subtle: 0 0% 7%;
+    --surface-raised: 0 0% 9%;
+    --focus-soft: 43 60% 24%;
+
+    --shadow-sm: 0 1px 2px 0 hsl(0 0% 0% / 0.4);
+    --shadow-md: 0 10px 28px -16px hsl(0 0% 0% / 0.7);
+    --shadow-lg: 0 18px 40px -22px hsl(0 0% 0% / 0.75);
+    --shadow-xl: 0 28px 60px -28px hsl(0 0% 0% / 0.8);
   }
 }
 
@@ -113,36 +148,106 @@
     @apply border-border;
   }
 
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+
   body {
     @apply bg-background text-foreground font-sans antialiased;
-    font-family: 'Inter', sans-serif;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
 
   h1, h2, h3 {
-    @apply tracking-normal;
+    @apply font-display tracking-tight;
+  }
+
+  ::selection {
+    background: hsl(var(--primary) / 0.25);
+  }
+}
+
+@layer components {
+  /* Linha dourada fina usada em destaques (topo de cards de métrica, títulos) */
+  .gold-rule {
+    @apply relative;
+  }
+  .gold-rule::before {
+    content: '';
+    @apply absolute inset-x-0 top-0 h-[2px] rounded-t-[inherit];
+    background: linear-gradient(90deg, transparent, hsl(var(--primary)), transparent);
+    opacity: 0.85;
+  }
+
+  /* Brilho que atravessa o botão principal no hover */
+  .btn-shine {
+    @apply relative overflow-hidden;
+  }
+  .btn-shine::after {
+    content: '';
+    @apply pointer-events-none absolute inset-y-0 -left-1/2 w-1/3;
+    background: linear-gradient(100deg, transparent, hsl(0 0% 100% / 0.45), transparent);
+    transform: skewX(-20deg) translateX(-120%);
+    transition: transform 0.7s ease;
+  }
+  .btn-shine:hover::after {
+    transform: skewX(-20deg) translateX(520%);
+  }
+
+  /* Cards clicáveis sobem levemente */
+  .lift {
+    @apply transition-[transform,box-shadow] duration-300 ease-out;
+  }
+  .lift:hover {
+    @apply -translate-y-0.5 shadow-md;
   }
 }
 
 @layer utilities {
   .text-gradient {
-    @apply bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent;
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(120deg, hsl(var(--foreground)) 0%, hsl(var(--primary)) 120%);
+  }
+
+  .text-gold-gradient {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(120deg, hsl(43 80% 62%), hsl(var(--primary)) 45%, hsl(36 60% 34%));
+  }
+
+  .bg-gold-gradient {
+    background-image: linear-gradient(135deg, hsl(45 85% 62%), hsl(var(--primary)) 50%, hsl(36 62% 36%));
   }
 
   .animate-fade-in {
-    animation: fadeIn 0.3s ease-out forwards;
+    animation: fadeIn 0.35s ease-out both;
   }
 
   .animate-slide-in {
-    animation: slideIn 0.3s ease-out forwards;
+    animation: slideIn 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
   }
 
   .animate-scale-in {
-    animation: scaleIn 0.2s ease-out forwards;
+    animation: scaleIn 0.25s ease-out both;
   }
 
+  /* Entrada da página: sobe e aparece */
+  .page-enter {
+    animation: slideIn 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  /* Filhos aparecem em sequência */
+  .stagger > * {
+    animation: slideIn 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  .stagger > *:nth-child(2) { animation-delay: 40ms; }
+  .stagger > *:nth-child(3) { animation-delay: 80ms; }
+  .stagger > *:nth-child(4) { animation-delay: 120ms; }
+  .stagger > *:nth-child(5) { animation-delay: 160ms; }
+  .stagger > *:nth-child(6) { animation-delay: 200ms; }
+  .stagger > *:nth-child(7) { animation-delay: 240ms; }
+  .stagger > *:nth-child(n + 8) { animation-delay: 280ms; }
+
   .glass {
-    @apply bg-card/80 backdrop-blur-sm;
+    @apply bg-card/80 backdrop-blur-md;
   }
 
   .app-page {
@@ -162,33 +267,30 @@
   }
 
   .metric-label {
-    @apply text-xs font-semibold uppercase tracking-wide text-muted-foreground;
+    @apply text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground;
   }
 
   .metric-value {
-    @apply text-2xl font-semibold text-foreground;
+    @apply font-display text-2xl font-semibold text-foreground;
   }
 
+  /* Status dos leads: neutros, com dourado para as etapas quentes */
   .status-lead_coletado { @apply bg-muted text-muted-foreground border-border; }
-  .status-contato_iniciado { @apply bg-primary/10 text-primary border-primary/20; }
-  .status-visualizou_nao_respondeu { @apply bg-warning/10 text-warning border-warning/20; }
-  .status-interesse_demonstrado { @apply bg-success/10 text-success border-success/20; }
-  .status-agendou_reuniao { @apply bg-chart-4/10 text-chart-4 border-chart-4/20; }
-  .status-reuniao_realizada { @apply bg-chart-4/10 text-chart-4 border-chart-4/20; }
-  .status-proposta_enviada { @apply bg-primary/10 text-primary border-primary/20; }
-  .status-em_negociacao { @apply bg-warning/10 text-warning border-warning/20; }
-  .status-fechado { @apply bg-success text-success-foreground border-success; }
+  .status-contato_iniciado { @apply bg-secondary text-secondary-foreground border-border; }
+  .status-visualizou_nao_respondeu { @apply bg-muted text-muted-foreground border-border; }
+  .status-interesse_demonstrado { @apply bg-accent text-accent-foreground border-primary/25; }
+  .status-agendou_reuniao { @apply bg-accent text-accent-foreground border-primary/35; }
+  .status-reuniao_realizada { @apply bg-primary/15 text-accent-foreground border-primary/40; }
+  .status-proposta_enviada { @apply bg-primary/20 text-accent-foreground border-primary/45; }
+  .status-em_negociacao { @apply bg-warning/10 text-warning border-warning/25; }
+  .status-fechado { @apply bg-foreground text-background border-foreground; }
   .status-sem_interesse { @apply bg-muted text-muted-foreground border-border; }
   .status-lead_perdido { @apply bg-destructive/10 text-destructive border-destructive/20; }
 }
 
 @keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 @keyframes slideIn {
@@ -205,7 +307,7 @@
 @keyframes scaleIn {
   from {
     opacity: 0;
-    transform: scale(0.95);
+    transform: scale(0.96);
   }
   to {
     opacity: 1;
@@ -213,22 +315,37 @@
   }
 }
 
-/* Custom scrollbar */
+/* Quem pede menos movimento no sistema não vê animações. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Scrollbar discreta */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  @apply bg-muted/50;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  @apply bg-muted-foreground/30 rounded-full;
+  @apply rounded-full;
+  background: hsl(var(--muted-foreground) / 0.25);
+  border: 2px solid transparent;
+  background-clip: padding-box;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  @apply bg-muted-foreground/50;
+  background: hsl(var(--primary) / 0.6);
+  background-clip: padding-box;
 }
 
 /* Exportar PDF (impressão): mantém cores dos gráficos e badges */
@@ -240,4 +357,9 @@
   .break-inside-avoid {
     break-inside: avoid;
   }
+}
+
+/* Dourado como cor de texto usa o tom escuro, legível sobre fundo claro. */
+.text-primary {
+  color: hsl(var(--primary-text));
 }

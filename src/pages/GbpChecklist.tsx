@@ -400,7 +400,7 @@ export default function GbpChecklist() {
                             <div className="flex items-start gap-3">
                               <button
                                 onClick={() => toggle(item.id)}
-                                className={cn('mt-0.5 shrink-0', done ? 'text-emerald-600' : 'text-muted-foreground')}
+                                className={cn('mt-0.5 shrink-0', done ? 'text-success' : 'text-muted-foreground')}
                                 aria-label={done ? 'Desmarcar item' : 'Marcar item como feito'}
                               >
                                 {done ? <CheckCircle2 className="w-5 h-5" /> : <Circle className="w-5 h-5" />}
@@ -411,7 +411,7 @@ export default function GbpChecklist() {
                               >
                                 <p className={cn('text-sm font-medium', done && 'text-muted-foreground')}>{item.title}</p>
                                 {done && (
-                                  <p className="text-xs text-emerald-600">
+                                  <p className="text-xs text-success">
                                     Concluído em {format(parseISO(entry!.done_at), 'dd/MM/yyyy')}
                                   </p>
                                 )}

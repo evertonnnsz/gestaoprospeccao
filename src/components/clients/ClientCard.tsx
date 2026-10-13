@@ -244,7 +244,7 @@ export function ClientCard({ client, onEdit, onDelete, onChange }: ClientCardPro
         <div className="grid grid-cols-2 gap-3">
           {client.lead?.whatsapp && (
             <div className="flex items-center gap-2 text-sm col-span-2">
-              <Phone className="w-4 h-4 text-green-600" />
+              <Phone className="w-4 h-4 text-success" />
               <span>{client.lead.whatsapp}</span>
             </div>
           )}

@@ -24,10 +24,10 @@ export function FinancialSummaryCards({ totalIncome, totalExpenses, clientsReven
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Receita Total</CardTitle>
-          <TrendingUp className="h-4 w-4 text-emerald-500" />
+          <TrendingUp className="h-4 w-4 text-success" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold text-emerald-600">{formatCurrency(combinedIncome)}</div>
+          <div className="text-2xl font-bold text-success">{formatCurrency(combinedIncome)}</div>
           <p className="text-xs text-muted-foreground mt-1">
             Lançamentos + Clientes pagos
           </p>
@@ -53,7 +53,7 @@ export function FinancialSummaryCards({ totalIncome, totalExpenses, clientsReven
           <Wallet className="h-4 w-4 text-primary" />
         </CardHeader>
         <CardContent>
-          <div className={`text-2xl font-bold ${balance >= 0 ? 'text-emerald-600' : 'text-destructive'}`}>
+          <div className={`text-2xl font-bold ${balance >= 0 ? 'text-success' : 'text-destructive'}`}>
             {formatCurrency(balance)}
           </div>
           <p className="text-xs text-muted-foreground mt-1">
@@ -65,10 +65,10 @@ export function FinancialSummaryCards({ totalIncome, totalExpenses, clientsReven
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Recebido (Clientes)</CardTitle>
-          <DollarSign className="h-4 w-4 text-emerald-500" />
+          <DollarSign className="h-4 w-4 text-success" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold text-emerald-600">{formatCurrency(clientsRevenue)}</div>
+          <div className="text-2xl font-bold text-success">{formatCurrency(clientsRevenue)}</div>
           <p className="text-xs text-muted-foreground mt-1">
             {clientsReceivable > 0
               ? `${formatCurrency(clientsReceivable)} a receber`

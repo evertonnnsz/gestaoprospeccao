@@ -35,9 +35,10 @@ export const PLATFORM_LABELS: Record<string, string> = {
   site: 'Site',
 };
 
+// Plataformas em tons da marca (dourado e neutros), sem cores de arco-íris.
 export const PLATFORM_COLORS: Record<string, string> = {
-  geral: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
-  google_ads: 'bg-red-500/20 text-red-400 border-red-500/30',
-  meta_ads: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-  site: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
+  geral: 'bg-secondary text-secondary-foreground border-border',
+  google_ads: 'bg-accent text-accent-foreground border-primary/30',
+  meta_ads: 'bg-foreground/90 text-background border-foreground/20',
+  site: 'bg-muted text-muted-foreground border-border',
 };

@@ -58,13 +58,13 @@ export default function QuotePrint() {
   const date = (value: string) => format(parseISO(value), "dd 'de' MMMM 'de' yyyy", { locale: ptBR });
 
   const header = (
-    <div className="flex items-start justify-between gap-6 border-b-2 border-emerald-800 pb-5">
+    <div className="flex items-start justify-between gap-6 border-b-2 border-[#B8912F] pb-5">
       <div className="flex items-center gap-3">
         {profile?.company_logo_url ? (
           <img src={profile.company_logo_url} alt="" className="h-14 w-14 object-contain" />
         ) : (
-          <div className="h-12 w-12 rounded-lg bg-emerald-800 flex items-center justify-center">
-            <Target className="h-6 w-6 text-white" />
+          <div className="h-12 w-12 rounded-lg bg-neutral-950 flex items-center justify-center">
+            <Target className="h-6 w-6 text-[#D4AF37]" />
           </div>
         )}
         <div>
@@ -73,7 +73,7 @@ export default function QuotePrint() {
         </div>
       </div>
       <div className="text-right">
-        <p className="text-xs font-semibold uppercase tracking-widest text-emerald-800">Proposta comercial</p>
+        <p className="text-xs font-semibold uppercase tracking-widest text-[#8A6A1F]">Proposta comercial</p>
         <p className="text-lg font-bold">{quoteCode(quote)}</p>
         <p className="text-xs text-slate-500">{date(quote.created_at)}</p>
       </div>
@@ -123,7 +123,7 @@ export default function QuotePrint() {
 
           <table className="mt-8 w-full text-sm">
             <thead>
-              <tr className="bg-emerald-800 text-left text-white">
+              <tr className="bg-neutral-950 text-left text-white">
                 <th className="px-3 py-2 font-medium">Serviço</th>
                 <th className="px-3 py-2 font-medium">Cobrança</th>
                 <th className="px-3 py-2 text-center font-medium">Qtd.</th>
@@ -161,7 +161,7 @@ export default function QuotePrint() {
               </div>
             )}
             {totals.discountAmount > 0 && (
-              <div className="flex justify-between text-emerald-700">
+              <div className="flex justify-between text-[#8A6A1F]">
                 <span>
                   Desconto
                   {quote.discount_type === 'percent' ? ` (${Number(quote.discount_value)}%)` : ''}
@@ -169,18 +169,18 @@ export default function QuotePrint() {
                 <span>-{money(totals.discountAmount)}</span>
               </div>
             )}
-            <div className="mt-2 space-y-2 rounded-lg bg-emerald-50 p-3">
+            <div className="mt-2 space-y-2 rounded-lg border border-[#E8D9A8] bg-[#FBF6E9] p-3">
               {totals.totalMonthly > 0 && (
                 <div className="flex items-baseline justify-between">
                   <span className="font-medium">Investimento mensal</span>
-                  <span className="text-lg font-bold text-emerald-800">{money(totals.totalMonthly)}</span>
+                  <span className="text-lg font-bold text-neutral-950">{money(totals.totalMonthly)}</span>
                 </div>
               )}
               {totals.totalOneTime > 0 && (
                 <div>
                   <div className="flex items-baseline justify-between">
                     <span className="font-medium">Investimento único</span>
-                    <span className="text-lg font-bold text-emerald-800">{money(totals.totalOneTime)}</span>
+                    <span className="text-lg font-bold text-neutral-950">{money(totals.totalOneTime)}</span>
                   </div>
                   {totals.installments && (
                     <p className="text-right text-xs text-slate-600">
@@ -212,7 +212,7 @@ export default function QuotePrint() {
             <div className="mt-4 space-y-5">
               {withDescription.map((item, i) => (
                 <div key={i} className="break-inside-avoid">
-                  <p className="font-semibold text-emerald-800">{item.title}</p>
+                  <p className="font-semibold text-[#8A6A1F]">{item.title}</p>
                   <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-slate-700">{item.description}</p>
                 </div>
               ))}

@@ -15,7 +15,8 @@ const db = supabase as any;
 
 type Profile = { place_id: string; name: string; address: string | null };
 
-const PRESET_COLORS = ['#0f3d2e', '#111827', '#1e3a8a', '#7c2d12', '#831843', '#ffffff', '#f5f5f4', '#fef3c7'];
+// Primeiro as cores da marca (preto, grafite, dourado, creme e branco); depois opções para a marca do cliente.
+const PRESET_COLORS = ['#0B0B0B', '#1C1C1C', '#C9A227', '#F6F1E3', '#ffffff', '#0f3d2e', '#1e3a8a', '#7c2d12'];
 
 const readFile = (file: File) =>
   new Promise<string>((resolve, reject) => {
@@ -62,10 +63,10 @@ export default function ReviewCards() {
     headline: 'Sua opinião é muito importante para nós!',
     subtitle: 'Aponte a câmera do celular para o QR Code e deixe sua avaliação',
     reviewUrl: '',
-    backgroundColor: '#0f3d2e',
+    backgroundColor: '#0B0B0B',
     backgroundImage: null,
     overlayOpacity: 0.75,
-    accentColor: '#FBBC04',
+    accentColor: '#C9A227',
     logo: null,
   });
 

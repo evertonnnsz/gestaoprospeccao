@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Outlet, useNavigate } from 'react-router-dom';
+import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { AppSidebar } from './AppSidebar';
 import { TodayFollowUpAlert } from '@/components/alerts/TodayFollowUpAlert';
@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 export function DashboardLayout() {
   const { user, loading, isApproved, isAdmin, signOut } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     if (!loading && !user) {
@@ -69,7 +70,10 @@ export function DashboardLayout() {
       <div className="flex flex-1">
         <AppSidebar />
         <main className="flex-1 overflow-auto bg-background">
-          <Outlet />
+          {/* key reinicia a animação de entrada a cada troca de página */}
+          <div key={location.pathname} className="page-enter">
+            <Outlet />
+          </div>
         </main>
       </div>
     </div>

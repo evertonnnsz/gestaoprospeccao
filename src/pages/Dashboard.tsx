@@ -29,12 +29,13 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { hasTodayFollowUp } from '@/lib/utils/dailyRules';
 import { openDailySummary } from '@/components/activities/DailySummaryDialog';
 
+// Paleta da marca (gráfico de origem dos leads).
 const SOURCE_COLORS: Record<string, string> = {
-  'Tráfego': 'hsl(217, 91%, 60%)',
-  'WhatsApp': 'hsl(142, 76%, 36%)',
-  'Instagram': 'hsl(322, 75%, 55%)',
-  'PaP': 'hsl(38, 92%, 50%)',
-  'Cold Call': 'hsl(280, 65%, 60%)',
+  'Tráfego': 'hsl(var(--chart-1))',
+  'WhatsApp': 'hsl(var(--chart-2))',
+  'Instagram': 'hsl(var(--chart-3))',
+  'PaP': 'hsl(var(--chart-4))',
+  'Cold Call': 'hsl(var(--chart-5))',
 };
 
 const MEETING_STATUSES: LeadStatus[] = [
@@ -194,7 +195,7 @@ export default function Dashboard() {
       <div className="page-header">
         <div>
           <h1 className="text-2xl font-semibold">
-            Olá, {profile?.full_name?.split(' ')[0] || 'Usuário'}!
+            Olá, <span className="text-gold-gradient">{profile?.full_name?.split(' ')[0] || 'Usuário'}</span>!
           </h1>
           <p className="text-muted-foreground">
             {format(new Date(), "EEEE, dd 'de' MMMM", { locale: ptBR })}
@@ -310,7 +311,7 @@ export default function Dashboard() {
       </Card>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="stagger grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatsCard title="Total de Leads" value={totalLeads} icon={Users} variant="primary" />
         <StatsCard title="Reuniões Realizadas" value={meetingsHeld} icon={Calendar} variant="success" onClick={meetingsHeld > 0 ? () => navigate('/leads?status=reuniao_realizada') : undefined} />
         <StatsCard title="Propostas Enviadas" value={proposalsSent} icon={FileText} variant="default" onClick={proposalsSent > 0 ? () => navigate('/leads?status=proposta_enviada') : undefined} />
@@ -377,8 +378,8 @@ export default function Dashboard() {
               rate={responseRate}
               count={respondedLeads}
               total={totalLeads}
-              color="text-success"
-              barColor="bg-success"
+              color="text-foreground"
+              barColor="bg-foreground/80"
             />
             <RateRow
               icon={CalendarCheck}
@@ -386,8 +387,8 @@ export default function Dashboard() {
               rate={meetingRate}
               count={meetingsHeld}
               total={totalLeads}
-              color="text-warning"
-              barColor="bg-warning"
+              color="text-primary"
+              barColor="bg-primary"
             />
             <RateRow
               icon={Trophy}

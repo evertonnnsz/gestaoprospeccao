@@ -55,11 +55,11 @@ export type GbpAnalysis = {
 };
 
 export const scoreTone = (score: number) =>
-  score >= 80 ? 'text-emerald-600' : score >= 60 ? 'text-amber-500' : 'text-red-500';
+  score >= 80 ? 'text-success' : score >= 60 ? 'text-warning' : 'text-destructive';
 
 const STATUS_STYLE = {
-  ok: { icon: CheckCircle2, tone: 'text-emerald-600', label: 'Ok' },
-  atencao: { icon: AlertTriangle, tone: 'text-amber-500', label: 'Precisa de atenção' },
+  ok: { icon: CheckCircle2, tone: 'text-success', label: 'Ok' },
+  atencao: { icon: AlertTriangle, tone: 'text-warning', label: 'Precisa de atenção' },
   desconhecido: { icon: HelpCircle, tone: 'text-muted-foreground', label: 'Não verificável' },
 } as const;
 
@@ -176,7 +176,7 @@ export function GbpAnalysisView({
             <h2 className="text-xl font-semibold">{profile.title}</h2>
             {profile.rating !== null && (
               <span className="flex items-center gap-1 text-sm">
-                <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
+                <Star className="w-4 h-4 fill-primary text-primary" />
                 {profile.rating.toFixed(1)} · {profile.reviews ?? 0} avaliações
               </span>
             )}
@@ -218,11 +218,11 @@ export function GbpAnalysisView({
         </div>
         <div className="grid grid-cols-3 md:grid-cols-1 gap-2 text-center md:text-right text-sm">
           <span>
-            <strong className="text-emerald-600">{okCount}</strong> ok
+            <strong className="text-success">{okCount}</strong> ok
           </span>
           {!presentation && (
             <span>
-              <strong className="text-amber-500">{attentionCount}</strong> a melhorar
+              <strong className="text-warning">{attentionCount}</strong> a melhorar
             </span>
           )}
           <span className="text-muted-foreground">
@@ -265,7 +265,7 @@ export function GbpAnalysisView({
     <Card>
       <CardHeader>
         <CardTitle className="text-base flex items-center gap-2">
-          <Trophy className="w-4 h-4 text-amber-500" />
+          <Trophy className="w-4 h-4 text-warning" />
           Ranking da região por avaliações
         </CardTitle>
       </CardHeader>
@@ -318,7 +318,7 @@ export function GbpAnalysisView({
                   <span className="w-6 text-muted-foreground">{c.is_self ? competitors.position : i + 1}º</span>
                   <span className="flex-1 truncate">{c.title}</span>
                   <span className="flex items-center gap-1 w-14">
-                    <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                    <Star className="w-3.5 h-3.5 fill-primary text-primary" />
                     {c.rating?.toFixed(1) ?? '—'}
                   </span>
                   <span className="w-24 text-right">{c.reviews} aval.</span>
@@ -414,12 +414,12 @@ export function GbpAnalysisView({
           <Words
             title="Avaliações positivas (4 e 5★)"
             words={reviews.words_positive}
-            tone="bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+            tone="bg-success/10 text-success"
           />
           <Words
             title="Avaliações negativas (1 a 3★)"
             words={reviews.words_negative}
-            tone="bg-red-500/10 text-red-600 dark:text-red-400"
+            tone="bg-destructive/10 text-destructive"
           />
         </CardContent>
       </Card>

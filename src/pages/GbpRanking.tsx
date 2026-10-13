@@ -272,7 +272,7 @@ export default function GbpRanking() {
               {profile.title}
               {profile.rating !== null && (
                 <span className="flex items-center gap-1 text-sm font-normal text-muted-foreground">
-                  <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                  <Star className="w-3.5 h-3.5 fill-primary text-primary" />
                   {profile.rating.toFixed(1)} · {profile.reviews ?? 0} avaliações
                 </span>
               )}
@@ -400,7 +400,7 @@ export default function GbpRanking() {
                 </button>
               ))}
               <p className="pt-3 text-xs text-muted-foreground">
-                Verde: top 3 · amarelo: 4º a 10º · laranja: 11º a {selected.depth}º · vermelho: fora do top {selected.depth}.
+                Verde: top 3 · dourado: 4º a 10º · bronze: 11º a {selected.depth}º · vermelho: fora do top {selected.depth}.
                 Posição no Google Maps a partir do local indicado; pode variar um pouco por aparelho e histórico de quem busca.
               </p>
             </CardContent>

@@ -7,7 +7,13 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { Target, LogIn, UserPlus, Mail, Lock, User } from 'lucide-react';
+import { Target, LogIn, UserPlus, Mail, Lock, User, MapPin, ListChecks, TrendingUp } from 'lucide-react';
+
+const HIGHLIGHTS = [
+  { icon: TrendingUp, text: 'Prospecção, funil e clientes num só lugar' },
+  { icon: MapPin, text: 'Diagnóstico e ranking do Google Meu Negócio' },
+  { icon: ListChecks, text: 'Atividades do dia e follow-ups sob controle' },
+];
 import { z } from 'zod';
 
 const loginSchema = z.object({
@@ -119,19 +125,58 @@ export default function Auth() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-primary/10" />
-      
-      <Card className="w-full max-w-md relative z-10 shadow-xl border-0 animate-scale-in">
-        <CardHeader className="text-center space-y-4 pb-8">
-          <div className="mx-auto w-16 h-16 bg-primary rounded-2xl flex items-center justify-center shadow-glow">
-            <Target className="w-8 h-8 text-primary-foreground" />
+    <div className="grid min-h-screen bg-background lg:grid-cols-[1.1fr_1fr]">
+      {/* Painel da marca: preto com brilho dourado animado */}
+      <aside className="relative hidden overflow-hidden bg-[#070707] p-12 text-white lg:flex lg:flex-col lg:justify-between">
+        <div className="pointer-events-none absolute -left-32 -top-32 h-[28rem] w-[28rem] rounded-full bg-[hsl(43_74%_52%/0.22)] blur-3xl motion-safe:animate-[pulse_7s_ease-in-out_infinite]" />
+        <div className="pointer-events-none absolute -bottom-40 right-[-6rem] h-[30rem] w-[30rem] rounded-full bg-[hsl(36_60%_40%/0.18)] blur-3xl motion-safe:animate-[pulse_9s_ease-in-out_infinite]" />
+        <div
+          className="pointer-events-none absolute inset-0 opacity-[0.07]"
+          style={{
+            backgroundImage:
+              'linear-gradient(hsl(0 0% 100%) 1px, transparent 1px), linear-gradient(90deg, hsl(0 0% 100%) 1px, transparent 1px)',
+            backgroundSize: '56px 56px',
+          }}
+        />
+
+        <div className="relative flex items-center gap-3 animate-fade-in">
+          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gold-gradient shadow-[0_0_40px_-8px_hsl(43_74%_52%/0.8)]">
+            <Target className="h-6 w-6 text-black" />
           </div>
           <div>
-            <CardTitle className="text-2xl font-bold">CRM Prospect</CardTitle>
-            <CardDescription className="mt-2">
-              Sistema de Gestão de Prospecção Comercial
-            </CardDescription>
+            <p className="font-display text-lg font-semibold">CRM Prospect</p>
+            <p className="text-[11px] uppercase tracking-[0.2em] text-[hsl(43_74%_60%)]">Fature Marketing</p>
+          </div>
+        </div>
+
+        <div className="relative max-w-md space-y-8">
+          <h2 className="font-display text-4xl font-semibold leading-tight animate-slide-in">
+            Gestão comercial com <span className="text-gold-gradient">precisão</span>.
+          </h2>
+          <ul className="stagger space-y-4">
+            {HIGHLIGHTS.map((h) => (
+              <li key={h.text} className="flex items-center gap-3 text-white/80">
+                <span className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 bg-white/5">
+                  <h.icon className="h-4 w-4 text-[hsl(43_74%_60%)]" />
+                </span>
+                {h.text}
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <p className="relative text-xs text-white/40">© {new Date().getFullYear()} Fature Marketing · Recife</p>
+      </aside>
+
+      <main className="flex items-center justify-center p-6">
+      <Card className="relative w-full max-w-md border-0 shadow-xl animate-scale-in lg:shadow-none lg:bg-transparent">
+        <CardHeader className="space-y-4 pb-8 text-center lg:text-left">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-gold-gradient shadow-glow lg:hidden">
+            <Target className="h-7 w-7 text-black" />
+          </div>
+          <div>
+            <CardTitle className="text-2xl font-semibold">Bem-vindo de volta</CardTitle>
+            <CardDescription className="mt-2">Entre para acessar o seu CRM.</CardDescription>
           </div>
         </CardHeader>
         
@@ -250,6 +295,7 @@ export default function Auth() {
           </Tabs>
         </CardContent>
       </Card>
+      </main>
     </div>
   );
 }

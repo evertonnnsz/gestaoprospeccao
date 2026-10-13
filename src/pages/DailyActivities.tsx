@@ -203,7 +203,7 @@ export default function DailyActivities() {
   const quickLinks = (item: ActivityItem) => (
     <>
       {item.whatsappUrl && (
-        <Button variant="ghost" size="icon" className="h-8 w-8 text-emerald-600" asChild aria-label="Abrir WhatsApp">
+        <Button variant="ghost" size="icon" className="h-8 w-8 text-success" asChild aria-label="Abrir WhatsApp">
           <a href={item.whatsappUrl} target="_blank" rel="noreferrer">
             <MessageCircle className="w-4 h-4" />
           </a>
@@ -274,7 +274,7 @@ export default function DailyActivities() {
               </p>
             </div>
             {items.length > 0 && doneCount === items.length && (
-              <span className="text-sm font-medium text-emerald-600">Tudo concluído por hoje! 🎉</span>
+              <span className="text-sm font-medium text-success">Tudo concluído por hoje! 🎉</span>
             )}
           </div>
           <Progress value={progress} className="h-2" />
@@ -392,7 +392,7 @@ export default function DailyActivities() {
                               onClick={() => toggleDone(item)}
                               className={cn(
                                 'shrink-0 transition-colors',
-                                done ? 'text-emerald-600' : item.status === 'em_andamento' ? 'text-blue-600' : 'text-muted-foreground hover:text-emerald-600',
+                                done ? 'text-success' : item.status === 'em_andamento' ? 'text-primary' : 'text-muted-foreground hover:text-success',
                               )}
                               aria-label={done ? 'Desmarcar como concluída' : 'Marcar como concluída'}
                             >
@@ -550,7 +550,7 @@ export default function DailyActivities() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className={cn('h-8 w-8', item.status === 'concluida' ? 'text-emerald-600' : 'text-muted-foreground')}
+                            className={cn('h-8 w-8', item.status === 'concluida' ? 'text-success' : 'text-muted-foreground')}
                             onClick={() => toggleDone(item)}
                             aria-label="Alternar concluída"
                           >

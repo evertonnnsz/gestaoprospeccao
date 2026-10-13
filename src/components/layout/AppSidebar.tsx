@@ -20,8 +20,11 @@ import {
   Tags,
   ClipboardList,
   Trophy,
+  Moon,
+  Sun,
 } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
+import { useTheme } from 'next-themes';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -29,7 +32,7 @@ import { useState } from 'react';
 
 const navGroups = [
   {
-    label: 'Vis\u00e3o geral',
+    label: 'Visão geral',
     items: [
       { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
       { title: 'Atividades do Dia', url: '/atividades', icon: ListChecks },
@@ -40,20 +43,25 @@ const navGroups = [
     label: 'Comercial',
     items: [
       { title: 'Leads', url: '/leads', icon: Users },
-      { title: 'Prospec\u00e7\u00e3o', url: '/prospecting', icon: Sparkles },
+      { title: 'Prospecção', url: '/prospecting', icon: Sparkles },
       { title: 'Clientes', url: '/clients', icon: Briefcase },
-      { title: 'Google Meu Negócio', url: '/google-meu-negocio', icon: MapPin },
       { title: 'Orçamentos', url: '/orcamentos', icon: FileText },
-      { title: 'Cartões de avaliação', url: '/cartoes-avaliacao', icon: QrCode },
-      { title: 'Pesquisa de categorias', url: '/categorias', icon: Tags },
-      { title: 'Checklist do Google', url: '/checklist-gmn', icon: ClipboardList },
-      { title: 'Ranking no Google', url: '/ranking-google', icon: Trophy },
     ],
   },
   {
-    label: 'Opera\u00e7\u00e3o',
+    label: 'Google Meu Negócio',
     items: [
-      { title: 'Dashboard de An\u00fancios', url: '/ads-dashboard', icon: BarChart3 },
+      { title: 'Diagnóstico', url: '/google-meu-negocio', icon: MapPin },
+      { title: 'Ranking', url: '/ranking-google', icon: Trophy },
+      { title: 'Checklist', url: '/checklist-gmn', icon: ClipboardList },
+      { title: 'Categorias', url: '/categorias', icon: Tags },
+      { title: 'Cartões de avaliação', url: '/cartoes-avaliacao', icon: QrCode },
+    ],
+  },
+  {
+    label: 'Operação',
+    items: [
+      { title: 'Dashboard de Anúncios', url: '/ads-dashboard', icon: BarChart3 },
       { title: 'Onboarding', url: '/onboarding', icon: ClipboardCheck },
       { title: 'Financeiro', url: '/financial', icon: DollarSign },
     ],
@@ -61,133 +69,140 @@ const navGroups = [
 ];
 
 const adminItems = [
-  { title: 'Aprova\u00e7\u00f5es', url: '/approvals', icon: UserCheck },
-  { title: 'Usu\u00e1rios', url: '/users', icon: UsersRound },
+  { title: 'Aprovações', url: '/approvals', icon: UserCheck },
+  { title: 'Usuários', url: '/users', icon: UsersRound },
 ];
 
-const bottomItems = [
-  { title: 'Configura\u00e7\u00f5es', url: '/settings', icon: Settings },
-];
+const bottomItems = [{ title: 'Configurações', url: '/settings', icon: Settings }];
 
 export function AppSidebar() {
   const { isAdmin, signOut, profile } = useAuth();
+  const { resolvedTheme, setTheme } = useTheme();
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
 
   const isActive = (path: string) => location.pathname === path;
+  const isDark = resolvedTheme === 'dark';
 
+  // Item ativo: fundo grafite, texto branco, ícone e barra lateral em dourado.
   const linkClassName = (path: string) =>
     cn(
-      'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all',
+      'group relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors duration-200',
+      collapsed && 'justify-center px-0',
       isActive(path)
-        ? 'bg-sidebar-primary text-primary shadow-sm'
-        : 'text-sidebar-foreground/72 hover:bg-sidebar-accent hover:text-sidebar-foreground'
+        ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+        : 'text-sidebar-foreground/65 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground',
+    );
+
+  const renderLink = (item: { title: string; url: string; icon: typeof Users }) => (
+    <NavLink key={item.url} to={item.url} className={linkClassName(item.url)} title={collapsed ? item.title : undefined}>
+      <span
+        className={cn(
+          'absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-sidebar-primary transition-all duration-300',
+          isActive(item.url) ? 'opacity-100' : 'h-0 opacity-0',
+        )}
+      />
+      <item.icon
+        className={cn(
+          'h-[18px] w-[18px] shrink-0 transition-colors',
+          isActive(item.url) ? 'text-sidebar-primary' : 'text-sidebar-foreground/50 group-hover:text-sidebar-foreground',
+        )}
+      />
+      {!collapsed && <span className="truncate">{item.title}</span>}
+    </NavLink>
+  );
+
+  const groupLabel = (label: string) =>
+    !collapsed && (
+      <p className="px-3 pb-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-sidebar-foreground/35">
+        {label}
+      </p>
     );
 
   return (
     <aside
       className={cn(
-        'h-screen bg-sidebar text-sidebar-foreground flex flex-col transition-all duration-300 relative border-r border-sidebar-border print:hidden',
-        collapsed ? 'w-16' : 'w-64'
+        'sticky top-0 flex h-screen shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-[width] duration-300 print:hidden',
+        collapsed ? 'w-[68px]' : 'w-64',
       )}
     >
-      <div className="h-16 flex items-center justify-between px-4 border-b border-sidebar-border/80">
-        {!collapsed && (
-          <div className="flex items-center gap-3 min-w-0">
-            {profile?.company_logo_url ? (
-              <img
-                src={profile.company_logo_url}
-                alt="Logo"
-                className="w-9 h-9 rounded-lg object-contain bg-white/95 p-1"
-              />
-            ) : (
-              <div className="w-9 h-9 bg-sidebar-primary rounded-lg flex items-center justify-center">
-                <Target className="w-5 h-5 text-primary" />
-              </div>
+      {/* Marca */}
+      <div className="flex h-16 items-center gap-3 border-b border-sidebar-border px-4">
+        {profile?.company_logo_url ? (
+          <img
+            src={profile.company_logo_url}
+            alt="Logo"
+            className={cn('h-9 w-9 shrink-0 rounded-lg bg-white object-contain p-1', collapsed && 'mx-auto')}
+          />
+        ) : (
+          <div
+            className={cn(
+              'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gold-gradient shadow-[0_0_24px_-6px_hsl(var(--sidebar-primary)/0.7)]',
+              collapsed && 'mx-auto',
             )}
-            <span className="font-semibold text-base tracking-normal truncate">
-              {profile?.company_name || 'CRM Prospect'}
-            </span>
+          >
+            <Target className="h-5 w-5 text-black" />
           </div>
         )}
-
-        {collapsed && (
-          <>
-            {profile?.company_logo_url ? (
-              <img
-                src={profile.company_logo_url}
-                alt="Logo"
-                className="w-9 h-9 rounded-lg object-contain mx-auto bg-white/95 p-1"
-              />
-            ) : (
-              <div className="w-9 h-9 bg-sidebar-primary rounded-lg flex items-center justify-center mx-auto">
-                <Target className="w-5 h-5 text-primary" />
-              </div>
-            )}
-          </>
+        {!collapsed && (
+          <div className="min-w-0">
+            <p className="truncate font-display text-[15px] font-semibold text-white">
+              {profile?.company_name || 'CRM Prospect'}
+            </p>
+            <p className="text-[10px] uppercase tracking-[0.18em] text-sidebar-primary/80">CRM</p>
+          </div>
         )}
       </div>
 
       <Button
         variant="ghost"
         size="icon"
-        className="absolute -right-3 top-20 w-6 h-6 rounded-full bg-card border border-border text-primary hover:bg-accent hover:text-primary z-10 shadow-sm"
+        className="absolute -right-3 top-20 z-10 h-6 w-6 rounded-full border border-sidebar-border bg-sidebar text-sidebar-primary shadow-md hover:bg-sidebar-accent hover:text-sidebar-primary"
         onClick={() => setCollapsed(!collapsed)}
         aria-label={collapsed ? 'Expandir menu' : 'Recolher menu'}
       >
-        {collapsed ? <ChevronRight className="w-3 h-3" /> : <ChevronLeft className="w-3 h-3" />}
+        {collapsed ? <ChevronRight className="h-3 w-3" /> : <ChevronLeft className="h-3 w-3" />}
       </Button>
 
-      <nav className="flex-1 py-4 px-3 space-y-5 overflow-y-auto">
+      <nav className="flex-1 space-y-5 overflow-y-auto px-3 py-4">
         {navGroups.map((group) => (
-          <div key={group.label} className="space-y-1">
-            {!collapsed && (
-              <p className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wide text-sidebar-foreground/45">
-                {group.label}
-              </p>
-            )}
-            {group.items.map((item) => (
-              <NavLink key={item.url} to={item.url} className={linkClassName(item.url)}>
-                <item.icon className="w-5 h-5 shrink-0" />
-                {!collapsed && <span>{item.title}</span>}
-              </NavLink>
-            ))}
+          <div key={group.label} className="space-y-0.5">
+            {groupLabel(group.label)}
+            {group.items.map(renderLink)}
           </div>
         ))}
 
         {isAdmin && (
-          <div className="space-y-1">
-            {!collapsed && (
-              <p className="px-3 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-wide text-sidebar-foreground/45">
-                Administração
-              </p>
-            )}
-            {adminItems.map((item) => (
-              <NavLink key={item.url} to={item.url} className={linkClassName(item.url)}>
-                <item.icon className="w-5 h-5 shrink-0" />
-                {!collapsed && <span>{item.title}</span>}
-              </NavLink>
-            ))}
+          <div className="space-y-0.5">
+            {groupLabel('Administração')}
+            {adminItems.map(renderLink)}
           </div>
         )}
       </nav>
 
-      <div className="p-3 space-y-1 border-t border-sidebar-border/80">
-        {bottomItems.map((item) => (
-          <NavLink key={item.url} to={item.url} className={linkClassName(item.url)}>
-            <item.icon className="w-5 h-5 shrink-0" />
-            {!collapsed && <span>{item.title}</span>}
-          </NavLink>
-        ))}
+      <div className="space-y-0.5 border-t border-sidebar-border p-3">
+        {bottomItems.map(renderLink)}
+
+        <button
+          onClick={() => setTheme(isDark ? 'light' : 'dark')}
+          className={cn(
+            'flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-sidebar-foreground/65 transition-colors hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground',
+            collapsed && 'justify-center px-0',
+          )}
+          title={isDark ? 'Modo claro' : 'Modo escuro'}
+        >
+          {isDark ? <Sun className="h-[18px] w-[18px] shrink-0" /> : <Moon className="h-[18px] w-[18px] shrink-0" />}
+          {!collapsed && <span>{isDark ? 'Modo claro' : 'Modo escuro'}</span>}
+        </button>
 
         {!collapsed && profile && (
-          <div className="flex items-center gap-3 px-3 py-2 mt-2">
-            <div className="w-8 h-8 rounded-full bg-sidebar-primary text-primary flex items-center justify-center text-sm font-semibold">
+          <div className="mt-2 flex items-center gap-3 rounded-lg bg-sidebar-accent/50 px-3 py-2.5">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gold-gradient text-sm font-semibold text-black">
               {profile.full_name?.charAt(0) || 'U'}
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">{profile.full_name || 'Usu\u00e1rio'}</p>
-              <p className="text-xs text-sidebar-foreground/50 truncate">{profile.email}</p>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-medium text-white">{profile.full_name || 'Usuário'}</p>
+              <p className="truncate text-xs text-sidebar-foreground/45">{profile.email}</p>
             </div>
           </div>
         )}
@@ -195,11 +210,12 @@ export function AppSidebar() {
         <button
           onClick={signOut}
           className={cn(
-            'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all w-full',
-            'text-destructive hover:bg-destructive/10'
+            'flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-sidebar-foreground/55 transition-colors hover:bg-red-500/10 hover:text-red-400',
+            collapsed && 'justify-center px-0',
           )}
+          title="Sair"
         >
-          <LogOut className="w-5 h-5 shrink-0" />
+          <LogOut className="h-[18px] w-[18px] shrink-0" />
           {!collapsed && <span>Sair</span>}
         </button>
       </div>

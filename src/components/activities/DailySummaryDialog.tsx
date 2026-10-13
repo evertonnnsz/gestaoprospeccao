@@ -80,13 +80,13 @@ export function DailySummaryDialog() {
   const count = (kinds: string[]) => pending.filter((i) => kinds.includes(i.kind)).length;
   // Só totais: a lista detalhada fica no painel do dia.
   const stats = [
-    { label: 'Follow-ups hoje', value: count(['follow_up']), icon: MessageCircle, tone: 'text-emerald-600' },
-    { label: 'Follow-ups atrasados', value: count(['follow_up_atrasado']), icon: AlertTriangle, tone: 'text-red-500' },
-    { label: 'Contratos vencendo', value: count(['contrato']), icon: CalendarClock, tone: 'text-amber-600' },
-    { label: 'Pagamentos vencendo', value: count(['pagamento']), icon: DollarSign, tone: 'text-orange-600' },
-    { label: 'Compromissos', value: count(['agenda']), icon: CalendarDays, tone: 'text-violet-600' },
-    { label: 'Onboarding', value: count(['onboarding']), icon: ClipboardCheck, tone: 'text-sky-600' },
-    { label: 'Tarefas', value: count(['manual']), icon: UserRound, tone: 'text-slate-600' },
+    { label: 'Follow-ups hoje', value: count(['follow_up']), icon: MessageCircle, tone: 'text-success' },
+    { label: 'Follow-ups atrasados', value: count(['follow_up_atrasado']), icon: AlertTriangle, tone: 'text-destructive' },
+    { label: 'Contratos vencendo', value: count(['contrato']), icon: CalendarClock, tone: 'text-warning' },
+    { label: 'Pagamentos vencendo', value: count(['pagamento']), icon: DollarSign, tone: 'text-warning' },
+    { label: 'Compromissos', value: count(['agenda']), icon: CalendarDays, tone: 'text-foreground/70' },
+    { label: 'Onboarding', value: count(['onboarding']), icon: ClipboardCheck, tone: 'text-foreground/70' },
+    { label: 'Tarefas', value: count(['manual']), icon: UserRound, tone: 'text-foreground/70' },
   ].filter((stat) => stat.value > 0);
 
   const { text, emoji } = greeting();
@@ -122,7 +122,7 @@ export function DailySummaryDialog() {
             ))}
           </div>
         ) : (
-          <p className="flex items-center gap-2 text-sm text-emerald-600">
+          <p className="flex items-center gap-2 text-sm text-success">
             <CheckCircle2 className="w-4 h-4" /> Tudo em dia!
           </p>
         )}

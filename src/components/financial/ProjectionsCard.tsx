@@ -59,7 +59,7 @@ export function ProjectionsCard({ clients, monthlyExpensesAvg }: ProjectionsCard
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-1">
             <p className="text-sm text-muted-foreground">Receita Projetada</p>
-            <p className="text-xl font-bold text-emerald-600">
+            <p className="text-xl font-bold text-success">
               {formatCurrency(projectedRevenue3Months)}
             </p>
           </div>
@@ -74,7 +74,7 @@ export function ProjectionsCard({ clients, monthlyExpensesAvg }: ProjectionsCard
         <div className="pt-4 border-t">
           <div className="flex items-center justify-between">
             <span className="text-sm text-muted-foreground">Saldo Projetado</span>
-            <span className={`text-lg font-bold ${projectedBalance >= 0 ? 'text-emerald-600' : 'text-destructive'}`}>
+            <span className={`text-lg font-bold ${projectedBalance >= 0 ? 'text-success' : 'text-destructive'}`}>
               {formatCurrency(projectedBalance)}
             </span>
           </div>

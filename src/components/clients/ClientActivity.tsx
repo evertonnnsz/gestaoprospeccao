@@ -33,11 +33,11 @@ type ActivityEntry = {
 };
 
 const KIND_STYLE: Record<ActivityEntry['kind'], { icon: typeof MessageSquare; tone: string }> = {
-  comentario: { icon: MessageSquare, tone: 'bg-primary/10 text-primary' },
-  tarefa: { icon: CheckCircle2, tone: 'bg-emerald-500/10 text-emerald-600' },
-  agenda: { icon: CalendarDays, tone: 'bg-violet-500/10 text-violet-600' },
-  onboarding: { icon: ClipboardCheck, tone: 'bg-sky-500/10 text-sky-600' },
-  marco: { icon: Flag, tone: 'bg-amber-500/10 text-amber-600' },
+  comentario: { icon: MessageSquare, tone: 'bg-gold-gradient text-black' },
+  tarefa: { icon: CheckCircle2, tone: 'bg-success/10 text-success' },
+  agenda: { icon: CalendarDays, tone: 'bg-secondary text-foreground/70' },
+  onboarding: { icon: ClipboardCheck, tone: 'bg-secondary text-foreground/70' },
+  marco: { icon: Flag, tone: 'bg-accent text-accent-foreground' },
 };
 
 const formatWhen = (value: string) => {

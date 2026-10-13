@@ -362,7 +362,7 @@ export default function CategorySearch() {
                     <div className="flex items-center justify-between gap-2">
                       <p className="text-sm font-medium">{b.title}</p>
                       <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                        <Star className="w-3 h-3 fill-primary text-primary" />
                         {b.rating ?? '—'} · {b.reviews} aval.
                       </span>
                     </div>

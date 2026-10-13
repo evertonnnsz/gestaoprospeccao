@@ -296,7 +296,7 @@ export default function GoogleBusiness() {
                     </p>
                     {c.rating !== null && (
                       <p className="text-xs flex items-center gap-1">
-                        <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                        <Star className="w-3 h-3 fill-primary text-primary" />
                         {c.rating} · {c.reviews ?? 0} avaliações
                       </p>
                     )}

@@ -6,17 +6,15 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Upload, Check, Palette, Building2, User } from 'lucide-react';
+import { Upload, Check, Palette, Building2, User, Sun, Moon, Monitor } from 'lucide-react';
+import { useTheme } from 'next-themes';
+import { cn } from '@/lib/utils';
 
-const THEME_COLORS = [
-  { name: 'Azul', value: '#2563EB', hsl: '217 91% 60%' },
-  { name: 'Verde', value: '#16A34A', hsl: '142 76% 36%' },
-  { name: 'Roxo', value: '#9333EA', hsl: '270 91% 56%' },
-  { name: 'Laranja', value: '#EA580C', hsl: '21 90% 48%' },
-  { name: 'Rosa', value: '#DB2777', hsl: '330 81% 50%' },
-  { name: 'Ciano', value: '#0891B2', hsl: '189 94% 37%' },
-  { name: 'Vermelho', value: '#DC2626', hsl: '0 84% 50%' },
-  { name: 'Índigo', value: '#4F46E5', hsl: '243 75% 59%' },
+// Modos de aparência do design system (preto, dourado e branco).
+const THEME_MODES = [
+  { value: 'light', label: 'Claro', icon: Sun, preview: ['#FAF9F6', '#0F0F0F', '#C9A227'] },
+  { value: 'dark', label: 'Escuro', icon: Moon, preview: ['#0D0D0D', '#1A1A1A', '#D4AF37'] },
+  { value: 'system', label: 'Automático', icon: Monitor, preview: ['#FAF9F6', '#0D0D0D', '#C9A227'] },
 ];
 
 export default function Settings() {
@@ -26,7 +24,7 @@ export default function Settings() {
   
   const [companyName, setCompanyName] = useState(profile?.company_name || '');
   const [fullName, setFullName] = useState(profile?.full_name || '');
-  const [selectedColor, setSelectedColor] = useState(profile?.theme_color || '#2563EB');
+  const { theme, setTheme } = useTheme();
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [logoUrl, setLogoUrl] = useState(profile?.company_logo_url || '');
@@ -105,14 +103,10 @@ export default function Settings() {
         .update({
           full_name: fullName,
           company_name: companyName,
-          theme_color: selectedColor,
         })
         .eq('id', user.id);
 
       if (error) throw error;
-
-      // Apply theme color to CSS
-      applyThemeColor(selectedColor);
 
       toast({
         title: 'Perfil atualizado',
@@ -131,25 +125,6 @@ export default function Settings() {
       setSaving(false);
     }
   };
-
-  const applyThemeColor = (hexColor: string) => {
-    const color = THEME_COLORS.find(c => c.value === hexColor);
-    if (color) {
-      document.documentElement.style.setProperty('--primary', color.hsl);
-      document.documentElement.style.setProperty('--accent', color.hsl);
-      document.documentElement.style.setProperty('--ring', color.hsl);
-      document.documentElement.style.setProperty('--sidebar-primary', color.hsl);
-      document.documentElement.style.setProperty('--sidebar-ring', color.hsl);
-      document.documentElement.style.setProperty('--chart-1', color.hsl);
-    }
-  };
-
-  // Apply saved theme color on mount
-  useState(() => {
-    if (profile?.theme_color) {
-      applyThemeColor(profile.theme_color);
-    }
-  });
 
   return (
     <div className="app-page max-w-5xl">
@@ -249,40 +224,46 @@ export default function Settings() {
           </CardContent>
         </Card>
 
-        {/* Theme Color Card */}
+        {/* Aparência */}
         <Card className="md:col-span-2">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Palette className="h-5 w-5" />
-              Cor do Tema
+              Aparência
             </CardTitle>
-            <CardDescription>Escolha a cor principal do sistema</CardDescription>
+            <CardDescription>Identidade visual preto, dourado e branco. Escolha o modo da tela.</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-4 sm:grid-cols-8 gap-3">
-              {THEME_COLORS.map((color) => (
-                <button
-                  key={color.value}
-                  onClick={() => setSelectedColor(color.value)}
-                  className="group relative aspect-square rounded-lg border-2 transition-all hover:scale-105"
-                  style={{
-                    backgroundColor: color.value,
-                    borderColor: selectedColor === color.value ? color.value : 'transparent',
-                    boxShadow: selectedColor === color.value ? `0 0 0 2px white, 0 0 0 4px ${color.value}` : 'none',
-                  }}
-                  title={color.name}
-                >
-                  {selectedColor === color.value && (
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <Check className="h-5 w-5 text-white drop-shadow-md" />
+            <div className="grid gap-3 sm:grid-cols-3">
+              {THEME_MODES.map((mode) => {
+                const active = (theme || 'light') === mode.value;
+                return (
+                  <button
+                    key={mode.value}
+                    onClick={() => setTheme(mode.value)}
+                    className={cn(
+                      'lift rounded-xl border p-3 text-left',
+                      active ? 'border-primary ring-2 ring-primary/30' : 'hover:border-primary/40',
+                    )}
+                  >
+                    <div className="flex h-16 overflow-hidden rounded-lg border">
+                      <div className="w-1/4" style={{ background: mode.preview[1] }} />
+                      <div className="flex flex-1 items-end gap-1.5 p-2" style={{ background: mode.preview[0] }}>
+                        <span className="h-2 w-10 rounded-full" style={{ background: mode.preview[2] }} />
+                        <span className="h-2 w-6 rounded-full opacity-30" style={{ background: mode.preview[1] === '#0F0F0F' ? '#0F0F0F' : '#ffffff' }} />
+                      </div>
                     </div>
-                  )}
-                </button>
-              ))}
+                    <div className="mt-2 flex items-center justify-between text-sm font-medium">
+                      <span className="flex items-center gap-2">
+                        <mode.icon className="h-4 w-4" />
+                        {mode.label}
+                      </span>
+                      {active && <Check className="h-4 w-4 text-primary" />}
+                    </div>
+                  </button>
+                );
+              })}
             </div>
-            <p className="text-sm text-muted-foreground mt-3">
-              Cor selecionada: <span className="font-medium">{THEME_COLORS.find(c => c.value === selectedColor)?.name || 'Azul'}</span>
-            </p>
           </CardContent>
         </Card>
       </div>

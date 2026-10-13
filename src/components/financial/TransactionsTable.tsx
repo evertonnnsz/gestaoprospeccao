@@ -80,7 +80,7 @@ export function TransactionsTable({ transactions, onEdit, onRefresh }: Transacti
                   <TableRow key={transaction.id}>
                     <TableCell>
                       {transaction.type === 'income' ? (
-                        <Badge variant="outline" className="text-emerald-600 border-emerald-600">
+                        <Badge variant="outline" className="text-success border-success/40">
                           <TrendingUp className="w-3 h-3 mr-1" />
                           Receita
                         </Badge>
@@ -96,7 +96,7 @@ export function TransactionsTable({ transactions, onEdit, onRefresh }: Transacti
                     <TableCell>
                       {format(new Date(transaction.transaction_date), 'dd/MM/yyyy', { locale: ptBR })}
                     </TableCell>
-                    <TableCell className={`text-right font-medium ${transaction.type === 'income' ? 'text-emerald-600' : 'text-destructive'}`}>
+                    <TableCell className={`text-right font-medium ${transaction.type === 'income' ? 'text-success' : 'text-destructive'}`}>
                       {transaction.type === 'income' ? '+' : '-'} {formatCurrency(transaction.amount)}
                     </TableCell>
                     <TableCell>

@@ -53,8 +53,8 @@ export function IncomeVsExpensesChart({ data }: IncomeVsExpensesChartProps) {
               }}
             />
             <Legend />
-            <Bar dataKey="income" name="Receita" fill="hsl(142, 76%, 36%)" radius={[4, 4, 0, 0]} />
-            <Bar dataKey="expenses" name="Despesas" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="income" name="Receita" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="expenses" name="Despesas" fill="hsl(var(--chart-2))" radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </CardContent>

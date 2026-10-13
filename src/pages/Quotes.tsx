@@ -43,10 +43,10 @@ import {
 const db = supabase as any;
 
 const STATUS_STYLE: Record<QuoteStatus, string> = {
-  rascunho: 'bg-slate-500/10 text-slate-700 dark:text-slate-300',
-  enviado: 'bg-blue-500/10 text-blue-700 dark:text-blue-400',
-  aprovado: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400',
-  recusado: 'bg-red-500/10 text-red-600 dark:text-red-400',
+  rascunho: 'bg-muted text-muted-foreground',
+  enviado: 'bg-accent text-accent-foreground',
+  aprovado: 'bg-success/10 text-success',
+  recusado: 'bg-destructive/10 text-destructive',
 };
 
 const isMissingTable = (error: any) => error?.code === '42P01' || error?.code === 'PGRST205';
@@ -341,7 +341,7 @@ export default function Quotes() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8 text-emerald-600"
+                            className="h-8 w-8 text-success"
                             onClick={() => copyWhatsApp(q)}
                             aria-label="Copiar texto para WhatsApp"
                           >

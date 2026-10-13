@@ -5,8 +5,12 @@ type Point = { row: number; col: number; lat: number; lng: number; position: num
 const TILE = 256;
 const SIZE = 360;
 
+// Verde (top 3), dourado (4º a 10º), bronze (11º a 20º) e vermelho (fora).
 export const positionColor = (position: number | null) =>
-  position === null ? '#dc2626' : position <= 3 ? '#16a34a' : position <= 10 ? '#d97706' : '#ea580c';
+  position === null ? '#B42318' : position <= 3 ? '#1F7A4D' : position <= 10 ? '#C9A227' : '#A0602A';
+
+// Texto preto sobre o dourado (legível); branco nos demais.
+const positionTextColor = (position: number | null) => (position !== null && position > 3 && position <= 10 ? '#111111' : '#ffffff');
 
 const project = (lat: number, lng: number, zoom: number) => {
   const scale = TILE * 2 ** zoom;
@@ -72,7 +76,7 @@ export function RankingMap({ points, center }: { points: Point[]; center: { lat:
                   stroke={isCenter ? '#111827' : '#ffffff'}
                   strokeWidth={isCenter ? 3 : 2}
                 />
-                <text x={x} y={y + 4} textAnchor="middle" fontSize={12} fontWeight={700} fill="#ffffff">
+                <text x={x} y={y + 4} textAnchor="middle" fontSize={12} fontWeight={700} fill={positionTextColor(p.position)}>
                   {p.position ?? '20+'}
                 </text>
               </g>
